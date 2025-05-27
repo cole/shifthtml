@@ -1,25 +1,140 @@
-from .node import ElementNode, VoidElementNode, NodeType
+from .node import ElementNode, VoidElementNode, NodeType, TagDefinition
 
+# Root
+html = TagDefinition[ElementNode]("html", ElementNode)
+head = TagDefinition[ElementNode]("head", ElementNode)
+body = TagDefinition[ElementNode]("body", ElementNode)
 
-class TagDefinition[T]:
-    tag: str
-    node_class: T
+# Metadata
+base = TagDefinition[VoidElementNode]("base", VoidElementNode)
+link = TagDefinition[VoidElementNode]("link", VoidElementNode)
+meta = TagDefinition[VoidElementNode]("meta", VoidElementNode)
+style = TagDefinition[ElementNode]("style", ElementNode)
+title = TagDefinition[ElementNode]("title", ElementNode)
 
-    def __init__(self, tag: str, node_class: T):
-        self.tag = tag
-        self.node_class = node_class
-
-    def __call__(self, *args, **kwds) -> T:
-        return self.node_class(self.tag, kwds, args or None)
-
-    def __rshift__(self, other: NodeType) -> T:
-        instance = self()
-        return instance >> other
-
-
-
+# Sectioning
+address = TagDefinition[ElementNode]("address", ElementNode)
+article = TagDefinition[ElementNode]("article", ElementNode)
+aside = TagDefinition[ElementNode]("aside", ElementNode)
+footer = TagDefinition[ElementNode]("footer", ElementNode)
+header = TagDefinition[ElementNode]("header", ElementNode)
 h1 = TagDefinition[ElementNode]("h1", ElementNode)
-button = TagDefinition[ElementNode]("button", ElementNode)
-ul = TagDefinition[ElementNode]("ul", ElementNode)
+h2 = TagDefinition[ElementNode]("h2", ElementNode)
+h3 = TagDefinition[ElementNode]("h3", ElementNode)
+h4 = TagDefinition[ElementNode]("h4", ElementNode)
+h5 = TagDefinition[ElementNode]("h5", ElementNode)
+h6 = TagDefinition[ElementNode]("h6", ElementNode)
+main = TagDefinition[ElementNode]("main", ElementNode)
+nav = TagDefinition[ElementNode]("nav", ElementNode)
+section = TagDefinition[ElementNode]("section", ElementNode)
+
+# Grouping content
+blockquote = TagDefinition[ElementNode]("blockquote", ElementNode)
+dd = TagDefinition[ElementNode]("dd", ElementNode)
+div = TagDefinition[ElementNode]("div", ElementNode)
+dl = TagDefinition[ElementNode]("dl", ElementNode)
+dt = TagDefinition[ElementNode]("dt", ElementNode)
+figcaption = TagDefinition[ElementNode]("figcaption", ElementNode)
+figure = TagDefinition[ElementNode]("figure", ElementNode)
+hr = TagDefinition[VoidElementNode]("hr", VoidElementNode)
 li = TagDefinition[ElementNode]("li", ElementNode)
+ol = TagDefinition[ElementNode]("ol", ElementNode)
+p = TagDefinition[ElementNode]("p", ElementNode)
+pre = TagDefinition[ElementNode]("pre", ElementNode)
+ul = TagDefinition[ElementNode]("ul", ElementNode)
+
+# Text-level semantics
+a = TagDefinition[ElementNode]("a", ElementNode)
+abbr = TagDefinition[ElementNode]("abbr", ElementNode)
+b = TagDefinition[ElementNode]("b", ElementNode)
+bdi = TagDefinition[ElementNode]("bdi", ElementNode)
+bdo = TagDefinition[ElementNode]("bdo", ElementNode)
+br = TagDefinition[VoidElementNode]("br", VoidElementNode)
+cite = TagDefinition[ElementNode]("cite", ElementNode)
+code = TagDefinition[ElementNode]("code", ElementNode)
+data = TagDefinition[ElementNode]("data", ElementNode)
+dfn = TagDefinition[ElementNode]("dfn", ElementNode)
+em = TagDefinition[ElementNode]("em", ElementNode)
+i = TagDefinition[ElementNode]("i", ElementNode)
+kbd = TagDefinition[ElementNode]("kbd", ElementNode)
+mark = TagDefinition[ElementNode]("mark", ElementNode)
+q = TagDefinition[ElementNode]("q", ElementNode)
+rp = TagDefinition[ElementNode]("rp", ElementNode)
+rt = TagDefinition[ElementNode]("rt", ElementNode)
+ruby = TagDefinition[ElementNode]("ruby", ElementNode)
+s = TagDefinition[ElementNode]("s", ElementNode)
+samp = TagDefinition[ElementNode]("samp", ElementNode)
+small = TagDefinition[ElementNode]("small", ElementNode)
+span = TagDefinition[ElementNode]("span", ElementNode)
+strong = TagDefinition[ElementNode]("strong", ElementNode)
+sub = TagDefinition[ElementNode]("sub", ElementNode)
+sup = TagDefinition[ElementNode]("sup", ElementNode)
+time = TagDefinition[ElementNode]("time", ElementNode)
+u = TagDefinition[ElementNode]("u", ElementNode)
+var = TagDefinition[ElementNode]("var", ElementNode)
+wbr = TagDefinition[VoidElementNode]("wbr", VoidElementNode)
+
+# Edits
+del_ = TagDefinition[ElementNode]("del", ElementNode)
+ins = TagDefinition[ElementNode]("ins", ElementNode)
+
+# Embedded content
+area = TagDefinition[VoidElementNode]("area", VoidElementNode)
+audio = TagDefinition[ElementNode]("audio", ElementNode)
 img = TagDefinition[VoidElementNode]("img", VoidElementNode)
+map_ = TagDefinition[ElementNode]("map", ElementNode)
+track = TagDefinition[VoidElementNode]("track", VoidElementNode)
+video = TagDefinition[ElementNode]("video", ElementNode)
+embed = TagDefinition[VoidElementNode]("embed", VoidElementNode)
+iframe = TagDefinition[ElementNode]("iframe", ElementNode)
+object_ = TagDefinition[ElementNode]("object", ElementNode)
+picture = TagDefinition[ElementNode]("picture", ElementNode)
+portal = TagDefinition[ElementNode]("portal", ElementNode)
+source = TagDefinition[VoidElementNode]("source", VoidElementNode)
+
+# Scripting
+canvas = TagDefinition[ElementNode]("canvas", ElementNode)
+noscript = TagDefinition[ElementNode]("noscript", ElementNode)
+script = TagDefinition[ElementNode]("script", ElementNode)
+
+# Demarcating edits
+del_ = TagDefinition[ElementNode]("del", ElementNode)
+ins = TagDefinition[ElementNode]("ins", ElementNode)
+
+# Table content
+caption = TagDefinition[ElementNode]("caption", ElementNode)
+col = TagDefinition[VoidElementNode]("col", VoidElementNode)
+colgroup = TagDefinition[ElementNode]("colgroup", ElementNode)
+table = TagDefinition[ElementNode]("table", ElementNode)
+tbody = TagDefinition[ElementNode]("tbody", ElementNode)
+td = TagDefinition[ElementNode]("td", ElementNode)
+tfoot = TagDefinition[ElementNode]("tfoot", ElementNode)
+th = TagDefinition[ElementNode]("th", ElementNode)
+thead = TagDefinition[ElementNode]("thead", ElementNode)
+tr = TagDefinition[ElementNode]("tr", ElementNode)
+
+# Forms
+button = TagDefinition[ElementNode]("button", ElementNode)
+datalist = TagDefinition[ElementNode]("datalist", ElementNode)
+fieldset = TagDefinition[ElementNode]("fieldset", ElementNode)
+form = TagDefinition[ElementNode]("form", ElementNode)
+input_ = TagDefinition[VoidElementNode]("input", VoidElementNode)
+label = TagDefinition[ElementNode]("label", ElementNode)
+legend = TagDefinition[ElementNode]("legend", ElementNode)
+meter = TagDefinition[ElementNode]("meter", ElementNode)
+optgroup = TagDefinition[ElementNode]("optgroup", ElementNode)
+option = TagDefinition[ElementNode]("option", ElementNode)
+output = TagDefinition[ElementNode]("output", ElementNode)
+progress = TagDefinition[ElementNode]("progress", ElementNode)
+select = TagDefinition[ElementNode]("select", ElementNode)
+textarea = TagDefinition[ElementNode]("textarea", ElementNode)
+
+# Interactive elements
+details = TagDefinition[ElementNode]("details", ElementNode)
+dialog = TagDefinition[ElementNode]("dialog", ElementNode)
+menu = TagDefinition[ElementNode]("menu", ElementNode)
+summary = TagDefinition[ElementNode]("summary", ElementNode)
+
+# Web Components
+slot = TagDefinition[ElementNode]("slot", ElementNode)
+template = TagDefinition[ElementNode]("template", ElementNode)
