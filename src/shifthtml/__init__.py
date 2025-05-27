@@ -1,18 +1,23 @@
-from collections.abc import Sequence
-
-from .tags import h1
-from .node import Node
+from .tags import h1, ul, li, img
+from .node import Node, NodeListType
 
 __all__ = (
     'h1',
-    'shift'
+    'ul',
+    'button',
+    'li',
+    'img',
+    'shift',
 )
 
 
-def shift(html: Node | Sequence[Node]) -> str:
+def shift(html: Node | NodeListType) -> str:
+    parts = []
     if isinstance(html, Node):
-        return html.render()
+        parts.extend(html.render())
+    else:
+        for node in html:
+            parts.extend(node.render())
+        
 
-    return "".join([
-        node.render() for node in html
-    ])
+    return "".join(parts)

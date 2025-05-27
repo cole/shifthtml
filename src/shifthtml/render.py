@@ -1,5 +1,6 @@
+from html import escape
 from string.templatelib import Interpolation, Template
-from typing import Literal
+from typing import Literal, Generator
 
 
 def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
@@ -12,15 +13,16 @@ def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
 
     return value
 
-def render_template(template: Template) -> str:
-    parts = []
+def render_template(template: Template, quote: bool = False) -> Generator[str]:
     for item in template:
         match item:
             case str() as s:
-                parts.append(s)
+                yield s
             case Interpolation(value, _, conversion, format_spec):
+                if callable(value):
+                    value = value()
                 value = _convert(value, conversion)
                 value = format(value, format_spec)
-                parts.append(value)
+                value = escape(value, quote=quote)
 
-    return "".join(parts)
+                yield value

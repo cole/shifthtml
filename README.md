@@ -3,7 +3,7 @@
 ```python
 html = shift(
     h1 >> t"{username}'s Todos",
-    img(src=user_img, alt=username, class="photo"),
+    img(src=user_img, alt=username, classname="photo"),
     ul >> (
         li >> "Invent new traffic lights",
         li >> "Rehearse a movie scene",
