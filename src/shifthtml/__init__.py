@@ -235,4 +235,4 @@ __all__ = (
 
 
 def shift(html: Node) -> str:
-    return "".join(html._get_root().render())
+    return "".join(html.root.render())

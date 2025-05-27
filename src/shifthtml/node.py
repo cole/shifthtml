@@ -12,12 +12,12 @@ class Node:
         self.parent = None
         self.children = None
 
-    def __rshift__(self, other: Node | None | TextType | NodeListType | TagDefinition) -> Self:
+    def __rshift__(self, other: Node | None | TextType | NodeListType | Tag) -> Self:
         if self.children is None:
             raise ValueError(f"{self.tag} cannot have content")
     
         match other:
-            case TagDefinition():
+            case Tag():
                 resolved = other()
             case Node():
                 resolved = other
@@ -36,7 +36,8 @@ class Node:
 
         return resolved
 
-    def _get_root(self) -> Node:
+    @property
+    def root(self) -> Node:
         root = self
         while root.parent is not None:
             root = root.parent
@@ -45,6 +46,7 @@ class Node:
 
 
 class NodeList(Node):
+    """A fragment/list of nodes with a position in the tree."""
 
     def __init__(
         self,
@@ -56,7 +58,7 @@ class NodeList(Node):
         for child in children:
             if not isinstance(child, Node):
                 raise ValueError(f"NodeList can only contain Node instances, got {type(child)}")
-            child_root = child._get_root()
+            child_root = child.root
 
             child_root.parent = self
             self.children.append(child_root)
@@ -69,7 +71,12 @@ class NodeList(Node):
             yield from child.render()
 
 
-class TagDefinition[T]:
+class Tag[T]:
+    """
+    A definition for a tag that can be used to create elements.
+    """
+
+
     tag: str
     node_class: T
 
@@ -78,13 +85,13 @@ class TagDefinition[T]:
         self.node_class = node_class
 
     def __repr__(self):
-        return f"TagDefinition({self.tag!r})"
+        return f"Tag({self.tag!r})"
 
     def __call__(self, *args, **kwds) -> T:
         return self.node_class(self.tag, kwds, args or None)
 
-    def __rshift__(self, other: NodeType | TagDefinition) -> T:
-        if isinstance(other, TagDefinition):
+    def __rshift__(self, other: NodeType | Tag) -> T:
+        if isinstance(other, Tag):
             other = other()
         instance = self()
         return instance >> other
@@ -113,7 +120,7 @@ class TextNode(Node):
             yield self.text
 
 
-class ElementNode(Node):
+class Element(Node):
     tag: str
     attributes: dict[str, str | Template]
 
@@ -142,7 +149,7 @@ class ElementNode(Node):
         self.children = children
 
     def __repr__(self):
-        return f"ElementNode({self.tag!r}, {self.attributes!r}, {len(self.children)} children)"
+        return f"Element({self.tag!r}, {self.attributes!r}, {len(self.children)} children)"
 
     def _render_attribute(self, key: TextType, value: TextType) -> Generator[str]:
         # Special case for the reserved word "class"
@@ -180,7 +187,7 @@ class ElementNode(Node):
         yield f"</{self.tag}>"
 
 
-class VoidElementNode(ElementNode):
+class VoidElement(Element):
     tag: str
     attributes: dict[str, str | Template]
 
@@ -199,7 +206,7 @@ class VoidElementNode(ElementNode):
         self.children = None
 
     def __repr__(self):
-        return f"VoidElementNode({self.tag!r}, {self.attributes!r})"
+        return f"VoidElement({self.tag!r}, {self.attributes!r})"
 
     def render(self) -> Generator[str]:
         if self.attributes:
