@@ -4,7 +4,6 @@ from typing import Generator, Self
 
 from .render import render_template
 
-
 class Node:
     parent: None | Node
     children: None | list[Node]
@@ -14,7 +13,6 @@ class Node:
         self.children = None
 
     def __rshift__(self, other: Node | None | TextType | NodeListType | TagDefinition) -> Self:
-        print(f"Adding content to {self.tag if hasattr(self, 'tag') else 'Node'}: {other!r}")
         if self.children is None:
             raise ValueError(f"{self.tag} cannot have content")
     
@@ -26,7 +24,7 @@ class Node:
             case str() | Template():
                 resolved = TextNode(other)
             case list() | tuple():
-                resolved = list(other)
+                resolved = NodeList(other)
             case None:
                 resolved = None
             case _:
@@ -35,15 +33,6 @@ class Node:
         if isinstance(resolved, Node):
             resolved.parent = self
             self.children.append(resolved)
-        elif isinstance(resolved, list):
-            for item in resolved:
-                if isinstance(item, Node):
-                    item_root = item._get_root()
-                    if item_root.parent is not None:
-                        raise ValueError(f"Node {item_root.tag} already has a parent")
-                    print(f"Adding child {item_root.tag} to {self.tag}")
-                    item_root.parent = self
-                    self.children.append(item_root)
 
         return resolved
 
@@ -53,6 +42,31 @@ class Node:
             root = root.parent
 
         return root
+
+
+class NodeList(Node):
+
+    def __init__(
+        self,
+        children: list[Node] | tuple[Node, ...]
+    ):
+        super().__init__()
+        self.children = []
+
+        for child in children:
+            if not isinstance(child, Node):
+                raise ValueError(f"NodeList can only contain Node instances, got {type(child)}")
+            child_root = child._get_root()
+
+            child_root.parent = self
+            self.children.append(child_root)
+
+    def __repr__(self):
+        return f"NodeList({len(self.children)} items)"
+    
+    def render(self) -> Generator[str]:
+        for child in self.children:
+            yield from child.render()
 
 
 class TagDefinition[T]:
@@ -93,7 +107,6 @@ class TextNode(Node):
         return f"TextNode({self.text!r})"
 
     def render(self) -> Generator[str]:
-        print(f"Rendering TextNode with text: {self.text!r}")
         if isinstance(self.text, Template):
             yield from render_template(self.text)
         else:
@@ -150,7 +163,6 @@ class ElementNode(Node):
         yield '"'
 
     def render(self) -> Generator[str]:
-        print(f"Rendering {self.tag} with attributes {self.attributes} and {len(self.children)} children")
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -176,13 +188,15 @@ class VoidElementNode(ElementNode):
         self,
         tag: str,
         attributes: dict[str, str | Template] | None,
+        children: None,
     ):
-        super().__init__()
+        super().__init__(tag, attributes, children)
 
         self.tag = tag
         if attributes is None:
             attributes = {}
         self.attributes = attributes
+        self.children = None
 
     def __repr__(self):
         return f"VoidElementNode({self.tag!r}, {self.attributes!r})"

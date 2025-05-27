@@ -183,13 +183,8 @@ def test_render_nesting():
         h1 >> "Welcome to the Test Page",
         p >> "This is a paragraph on the test page."
     )
-    children = tag.children
-    while children:
-        print(children[0].tag)
-        print(children[0].children)
-        children = children[0].children
 
-    assert shift(tag) == '<html><body class="test"><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></body></html>'
+    assert shift(tag) == '<html><body class="test"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
 
 
 def test_render_head_tag():
