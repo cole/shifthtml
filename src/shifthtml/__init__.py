@@ -114,7 +114,7 @@ from .tags import (
     template,
 )
 
-from .node import Node, NodeListType
+from .node import Node
 
 __all__ = (
     "html",
@@ -235,4 +235,5 @@ __all__ = (
 
 
 def shift(html: Node) -> str:
+    print(html.root.tag)
     return "".join(html.root.render())
