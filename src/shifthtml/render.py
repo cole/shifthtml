@@ -13,6 +13,7 @@ def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
 
     return value
 
+
 def render_template(template: Template, quote: bool = False) -> Generator[str]:
     for item in template:
         match item:

@@ -1,3 +1,4 @@
+from .node import Fragment, HTMLElement, HTMLVoidElement, Tag, Node, NodeList, Text
 from .tags import (
     html,
     head,
@@ -114,9 +115,14 @@ from .tags import (
     template,
 )
 
-from .node import Node
-
 __all__ = (
+    "Fragment",
+    "HTMLElement", 
+    "HTMLVoidElement", 
+    "Tag",
+    "Node", 
+    "NodeList",
+    "Text",
     "html",
     "head",
     "body",
@@ -234,6 +240,5 @@ __all__ = (
 )
 
 
-def shift(html: Node) -> str:
-    print(html.root.tag)
-    return "".join(html.root.render())
+def shift(html: Node) -> Fragment:
+    return Fragment(html.root)

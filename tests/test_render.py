@@ -119,40 +119,49 @@ from shifthtml import (
 
 
 def test_render_h1_string():
-    tag = h1 >> "Hello, World!"
-
-    assert shift(tag) == "<h1>Hello, World!</h1>"
+    tag = shift(
+        h1 >> "Hello, World!"
+    )
+    assert tag.render() == "<h1>Hello, World!</h1>"
 
 
 def test_render_h1_template():
     place = "World"
-    tag = h1 >> t"Hello, {place}!"
+    tag = shift(
+        h1 >> t"Hello, {place}!"
+    )
 
-    assert shift(tag) == "<h1>Hello, World!</h1>"
+    assert tag.render() == "<h1>Hello, World!</h1>"
 
 
 def test_render_h1_attributes():
-    tag = h1(id="bighead") >> "Hello, World!"
+    tag = shift(
+        h1(id="bighead") >> "Hello, World!"
+    )
 
-    assert shift(tag) == '<h1 id="bighead">Hello, World!</h1>'
+    assert tag.render() == '<h1 id="bighead">Hello, World!</h1>'
 
 
 def test_render_h1_dynamic_attribute_value():
     element_id = "testing"
-    tag = h1(id=t"{element_id}") >> t"Hello, World!"
+    tag = shift(
+        h1(id=t"{element_id}") >> t"Hello, World!"
+    )
 
-    assert shift(tag) == '<h1 id="testing">Hello, World!</h1>'
+    assert tag.render() == '<h1 id="testing">Hello, World!</h1>'
 
 
 def test_render_h1_dynamic_attribute_name():
     attr_name = "my-test-attr"
-    tag = h1(**{ attr_name: "foo" }) >> "Hello, World!"
+    tag = shift(
+        h1(**{ attr_name: "foo" }) >> "Hello, World!"
+    )
 
-    assert shift(tag) == '<h1 my-test-attr="foo">Hello, World!</h1>'
+    assert tag.render() == '<h1 my-test-attr="foo">Hello, World!</h1>'
 
 
 def test_render_ul():
-    tag = (
+    tag = shift(
         ul >> (
             li >> "Test",
             li >> "one",
@@ -160,39 +169,68 @@ def test_render_ul():
         )
     )
 
-    assert shift(tag) == '<ul><li>Test</li><li>one</li><li>two</li></ul>'
+    assert tag.render() == '<ul><li>Test</li><li>one</li><li>two</li></ul>'
 
 
 
 def test_render_img_attributes():
-    tag = (
+    tag = shift(
         img(id="photo", src="https://example.com/photo.jpg")
     )
 
-    assert shift(tag) == '<img id="photo" src="https://example.com/photo.jpg" />'
+    assert tag.render() == '<img id="photo" src="https://example.com/photo.jpg" />'
 
 
 
 def test_render_img_child_errors():
     with pytest.raises(ValueError):
-        img(id="photo", src="https://example.com/photo.jpg") >> "test"
+        shift(
+            img(id="photo", src="https://example.com/photo.jpg") >> "test"
+        )
 
 
 def test_render_nesting():
-    tag = html >> body(classname="test") >> div >> (
-        h1 >> "Welcome to the Test Page",
-        p >> "This is a paragraph on the test page."
+    tag = shift(
+        html >> body(classname="test") >> div >> (
+            h1 >> "Welcome to the Test Page",
+            p >> "This is a paragraph on the test page."
+        )
     )
 
-    assert shift(tag) == '<html><body class="test"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
+    assert tag.render() == '<html><body class="test"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
 
 
 def test_render_head_tag():
-    tag = head >> (
-        title >> "Test Page",
-        meta(charset="UTF-8"),
-        link(rel="stylesheet", href="style.css"),
-        style >> "body { background-color: #fff; }"
+    tag = shift(
+        head >> (
+            title >> "Test Page",
+            meta(charset="UTF-8"),
+            link(rel="stylesheet", href="style.css"),
+            style >> "body { background-color: #fff; }"
+        )
     )
 
-    assert shift(tag) == '<head><title>Test Page</title><meta charset="UTF-8" /><link rel="stylesheet" href="style.css" /><style>body { background-color: #fff; }</style></head>'
+    assert tag.render() == '<head><title>Test Page</title><meta charset="UTF-8" /><link rel="stylesheet" href="style.css" /><style>body { background-color: #fff; }</style></head>'
+
+
+def test_render_multiple_vars():
+    tag1 = shift(
+        div >> (
+            p >> "paragraph 1",
+            p >> "paragraph 1.5"
+        )
+    )
+    tag2 = shift(
+        div >> p >> "paragraph 2"
+    )
+
+    main_tag = shift(
+        main >> (
+            tag1,
+            aside >> tag2,
+            div(classname="test") >> tag2,
+        )
+    )
+
+    assert main_tag.render() == '<main><div><p>paragraph 1</p><p>paragraph 1.5</p></div><aside><div><p>paragraph 2</p></div></aside><div class="test"><div><p>paragraph 2</p></div></div></main>'
+
