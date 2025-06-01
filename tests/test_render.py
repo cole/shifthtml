@@ -122,6 +122,10 @@ def test_render_h1_string():
     tag = shift(
         h1 >> "Hello, World!"
     )
+
+    element = h1 >> "Hello!"
+    print(element.root.children)
+
     assert tag.render() == "<h1>Hello, World!</h1>"
 
 

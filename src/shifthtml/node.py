@@ -28,43 +28,52 @@ from .render import render_template
 
 
 class Node:
+    """
+    A node in the document tree. Usually and HTML element or text content.
+
+    Nodes have one parent and zero or more children. They are initialized without these,
+    and then put into a tree by the shift operator (>>) which calls `add_child`.
+    """
     parent: None | Node
     children: None | list[Node]
 
-    def __init__(
-        self, parent: None | Node, children: None | list[Node], *args, **kwargs
-    ):
-        self.parent = parent
-        self.children = children or []
+    def __init__(self, *args, **kwargs):
+        self.parent = None
+        self.children = []
 
     def __rshift__(
         self,
-        other: Tag
-        | Node
-        | None
-        | str
-        | Template
-        | list[Node]
-        | tuple[Node, ...],
+        other: Tag | Node | None | str | Template | list[Node] | tuple[Node, ...],
     ) -> Self:
-        if isinstance(other, Tag):
-            resolved = other(self, [])
-        elif isinstance(other, (Node, Fragment)):
+        if isinstance(other, (Node, Fragment)):
             resolved = other
+        elif isinstance(other, Tag):
+            resolved = other()
         elif isinstance(other, (str, Template)):
-            resolved = Text(self, None, content=other)
+            resolved = Text(content=other)
         elif isinstance(other, (list, tuple)):
-            resolved = NodeList(self, other)
+            resolved = NodeList()
+            for item in other:
+                if isinstance(item, Node):
+                    item_root = item.root
+                    resolved.add_child(item_root)
+                elif isinstance(item, Fragment):
+                    resolved.add_child(item)
+                else:
+                    raise ValueError(
+                        f"NodeList can only contain Node or Fragment instances, got {type(item)}"
+                    )
         elif other is None:
             resolved = None
         else:
             raise ValueError(f"Unsupported shift type for >>: {type(other)}")
 
+        if resolved is not None:
+            self.add_child(resolved)
+
         # Don't chain fragments
         if isinstance(resolved, Fragment):
             return self
-        elif resolved:
-            self.add_child(resolved)
 
         return resolved
 
@@ -79,17 +88,18 @@ class Node:
     def add_child(self, child: Node | Fragment) -> None:
         """Add a child node or fragment to this node."""
         if isinstance(child, Node):
-            if child.parent and child.parent is self:
-                return
-
             if child.parent is not None:
                 raise ValueError(
-                    f"Cannot node {child!r} that already has a parent: {child.parent!r}"
+                    f"Child {child!r} is already in the tree. Parent: {child.parent!r}"
                 )
             child.parent = self
             self.children.append(child)
         elif isinstance(child, Fragment):
             self.children.append(child)
+        else:
+            raise ValueError(
+                f"Node can only contain Node or Fragment instances, got {type(child)}"
+            )
 
     def render(self) -> Generator[str]:
         """Render the node to a string."""
@@ -118,24 +128,6 @@ class Fragment:
 
 class NodeList(Node, Sequence):
     """A list of nodes with a position in the tree."""
-
-    def __init__(
-        self,
-        parent: None | Node,
-        children: Iterable[Node | Fragment],
-    ):
-        super().__init__(parent, [])
-
-        for child in children:
-            if isinstance(child, Node):
-                child_root = child.root
-                self.add_child(child_root)
-            elif isinstance(child, Fragment):
-                self.add_child(child)
-            else:
-                raise ValueError(
-                    f"NodeList can only contain Node or Fragment instances, got {type(child)}"
-                )
 
     def __repr__(self):
         return f"NodeList({repr(self.children)})"
@@ -174,12 +166,11 @@ class Text(Node):
 
     def __init__(
         self,
-        parent: None | Node,
-        children: None | list[Node],
-        *,
+        *args,
         content: str | Template,
+        **kwargs,
     ):
-        super().__init__(parent, None)
+        super().__init__(*args, **kwargs)
 
         self.content = content
 
@@ -196,28 +187,18 @@ class Text(Node):
             yield self.content
 
 
-
-class ElementMeta(type):
-    def __new__(mcls, name, bases, attrs, tag: str | None = None):
-        cls = super().__new__(mcls, name, bases, attrs)
-        cls.tag = tag
-
-        return cls
-    
-
 class Element(Node):
     tag: str
     attributes: dict[str, str | Template]
 
     def __init__(
         self,
-        parent: None | Node,
-        children: None | list[Node],
-        *,
+        *args,
         tag: str,
         attributes: dict[str, str | Template] | None = None,
+        **kwargs,
     ):
-        super().__init__(parent, children or [])
+        super().__init__(*args, **kwargs)
 
         self.tag = tag
         self.attributes = attributes or {}
@@ -227,7 +208,6 @@ class Element(Node):
 
 
 class HTMLElement(Element):
-
     def _render_attribute(self, key: str, value: str | Template) -> Generator[str]:
         # Special case for the reserved word "class"
         if key == "classname":
@@ -263,19 +243,6 @@ class HTMLElement(Element):
 
 
 class HTMLVoidElement(HTMLElement):
-    def __init__(
-        self,
-        parent: None | Node,
-        children: None | list[Node],
-        *,
-        tag: str,
-        attributes: dict[str, str | Template] | None = None,
-    ):
-        if children:
-            raise ValueError(f"HTMLVoidElement ({tag}) cannot have children")
-
-        super().__init__(parent, children, tag=tag, attributes=attributes)
-
     def __repr__(self):
         return f"HTMLVoidElement({self.tag!r}, {self.attributes!r})"
 
@@ -312,15 +279,11 @@ class Tag[T: HTMLElement]:
     def __repr__(self):
         return f"Tag({self.tag!r})"
 
-    def __call__(
-            self,
-            parent: None | Node = None,
-            children: None | list[Node] = None,
-    ):
-        return self.element_type(parent, children, tag=self.tag)
+    def __call__(self, **kwargs):
+        return self.element_type(tag=self.tag, attributes=kwargs)
 
     def __rshift__(
         self, other: Node | list[Node] | tuple[Node, ...] | None | str | Template | Tag
     ) -> T:
-        instance = self(None, [])
+        instance = self()
         return instance >> other
