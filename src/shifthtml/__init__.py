@@ -1,4 +1,4 @@
-from .node import Fragment, HTMLElement, HTMLVoidElement, Tag, Node, NodeList, Text
+from .node import Fragment, HTMLElement, HTMLVoidElement, Node, NodeList, Text
 from .tags import (
     html,
     head,
@@ -119,7 +119,6 @@ __all__ = (
     "Fragment",
     "HTMLElement", 
     "HTMLVoidElement", 
-    "Tag",
     "Node", 
     "NodeList",
     "Text",

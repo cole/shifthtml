@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import types
+import inspect
 from collections.abc import Iterable, Sequence
 from string.templatelib import Template
-from typing import Generator, ClassVar, Never, Protocol, Self, runtime_checkable
+from typing import Generator, ClassVar, Never, Self
 
 from .render import render_template
 
@@ -34,6 +34,7 @@ class Node:
     Nodes have one parent and zero or more children. They are initialized without these,
     and then put into a tree by the shift operator (>>) which calls `add_child`.
     """
+
     parent: None | Node
     children: None | list[Node]
 
@@ -43,14 +44,14 @@ class Node:
 
     def __rshift__(
         self,
-        other: Tag | Node | None | str | Template | list[Node] | tuple[Node, ...],
+        other: type[Node] | Node | None | str | Template | list[Node] | tuple[Node, ...],
     ) -> Self:
         if isinstance(other, (Node, Fragment)):
             resolved = other
-        elif isinstance(other, Tag):
-            resolved = other()
         elif isinstance(other, (str, Template)):
             resolved = Text(content=other)
+        elif inspect.isclass(other) and issubclass(other, Node):
+            resolved = other()
         elif isinstance(other, (list, tuple)):
             resolved = NodeList()
             for item in other:
@@ -188,19 +189,12 @@ class Text(Node):
 
 
 class Element(Node):
-    tag: str
+    tag: ClassVar[str]
     attributes: dict[str, str | Template]
 
-    def __init__(
-        self,
-        *args,
-        tag: str,
-        attributes: dict[str, str | Template] | None = None,
-        **kwargs,
-    ):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **attributes: dict[str, str | Template]):
+        super().__init__(*args)
 
-        self.tag = tag
         self.attributes = attributes or {}
 
     def __repr__(self):
@@ -263,33 +257,3 @@ class HTMLVoidElement(HTMLElement):
             yield " />"
         else:
             yield f"<{self.tag} />"
-
-
-class Tag[T: HTMLElement]:
-    """
-    An HTML tag. Instances are used with the shift operator (>>) to create Node instances.
-    """
-
-    tag: str
-    element_type: T
-
-    def __init__(self, tag: str, void: bool = False):
-        self.tag = tag
-        if void:
-            self.element_type = HTMLVoidElement
-        else:
-            self.element_type = HTMLElement
-
-    def __repr__(self):
-        return f"Tag({self.tag!r})"
-
-    def __call__(self, **kwargs):
-        return self.element_type(tag=self.tag, attributes=kwargs)
-
-    def __rshift__(
-        self, other: Node | list[Node] | tuple[Node, ...] | None | str | Template | Tag
-    ) -> T:
-        return self() >> other
-
-    def __matmul__(self, other: dict[str, str | Template]) -> T:
-        return self(**other)

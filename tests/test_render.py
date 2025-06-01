@@ -123,9 +123,6 @@ def test_render_h1_string():
         h1 >> "Hello, World!"
     )
 
-    element = h1 >> "Hello!"
-    print(element.root.children)
-
     assert tag.render() == "<h1>Hello, World!</h1>"
 
 
@@ -201,14 +198,15 @@ def test_render_img_child_errors():
 
 
 def test_render_nesting():
+    count = 1
     tag = shift(
-        html >> body @ { "class": "test" } >> div >> (
+        html >> body @ { "class": "test", "data-testid": t"body-{count}" } >> div >> (
             h1 >> "Welcome to the Test Page",
             p >> "This is a paragraph on the test page."
         )
     )
 
-    assert tag.render() == '<html><body class="test"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
+    assert tag.render() == '<html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
 
 
 def test_render_head_tag():
