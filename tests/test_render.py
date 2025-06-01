@@ -177,13 +177,20 @@ def test_render_ul():
 
 
 
-def test_render_img_attributes():
+def test_render_img_attributes_as_keywords():
     tag = shift(
         img(id="photo", src="https://example.com/photo.jpg")
     )
 
     assert tag.render() == '<img id="photo" src="https://example.com/photo.jpg" />'
 
+
+def test_render_img_attributes_with_dict():
+    tag = shift(
+        img @ {"id": "photo", "src": "https://example.com/photo.jpg"}
+    )
+
+    assert tag.render() == '<img id="photo" src="https://example.com/photo.jpg" />'
 
 
 def test_render_img_child_errors():
@@ -195,7 +202,7 @@ def test_render_img_child_errors():
 
 def test_render_nesting():
     tag = shift(
-        html >> body(classname="test") >> div >> (
+        html >> body @ { "class": "test" } >> div >> (
             h1 >> "Welcome to the Test Page",
             p >> "This is a paragraph on the test page."
         )

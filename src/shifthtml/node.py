@@ -206,6 +206,10 @@ class Element(Node):
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
 
+    def __matmul__(self, other: dict[str, str | Template]) -> Self:
+        self.attributes.update(other)
+        return self
+
 
 class HTMLElement(Element):
     def _render_attribute(self, key: str, value: str | Template) -> Generator[str]:
@@ -285,5 +289,7 @@ class Tag[T: HTMLElement]:
     def __rshift__(
         self, other: Node | list[Node] | tuple[Node, ...] | None | str | Template | Tag
     ) -> T:
-        instance = self()
-        return instance >> other
+        return self() >> other
+
+    def __matmul__(self, other: dict[str, str | Template]) -> T:
+        return self(**other)
