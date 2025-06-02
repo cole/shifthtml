@@ -1,6 +1,6 @@
-from string.templatelib import Template
 from typing import ClassVar
 
+from .compat import Template
 from .node import HTMLElement, HTMLVoidElement
 
 

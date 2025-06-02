@@ -1,6 +1,7 @@
 from html import escape
-from string.templatelib import Interpolation, Template
 from typing import Literal, Generator
+
+from .compat import Interpolation, Template
 
 
 def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:

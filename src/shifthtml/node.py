@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Iterable, Sequence
-from string.templatelib import Template
 from typing import Generator, ClassVar, Never, Self
 
+from .compat import Template
 from .render import render_template
 
 
@@ -17,7 +17,6 @@ from .render import render_template
 # DocumentFragment -> https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment
 
 # Our objects:
-# Tag -> No equivalent, used for HTMLElement creation
 # Node
 # NodeList -> Multiple node object, acts as a list but with a parent
 # Text
@@ -197,6 +196,10 @@ class Element(Node):
 
         self.attributes = attributes or {}
 
+        # handle "classname" in place of reserved word "class"
+        if "classname" in self.attributes:
+            self.attributes["class"] = self.attributes.pop("classname")
+
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
 
@@ -206,28 +209,20 @@ class Element(Node):
 
 
 class HTMLElement(Element):
-    def _render_attribute(self, key: str, value: str | Template) -> Generator[str]:
-        # Special case for the reserved word "class"
-        if key == "classname":
-            yield "class"
-        else:
-            yield key
-
-        yield '="'
-
+    def _render_attribute(self, key: str, value: str | Template) -> str:
         if isinstance(value, Template):
-            yield from render_template(value)
+            rendered_value = "".join(render_template(value))
         else:
-            yield value
+            rendered_value = value
 
-        yield '"'
+        return f'{key}="{rendered_value}"'
 
     def render(self) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
-                yield " "  # space before each attribute
-                yield from self._render_attribute(key, value)
+                # space before each attribute
+                yield f" {self._render_attribute(key, value)}"
 
             yield ">"
         else:

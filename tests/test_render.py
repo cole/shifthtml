@@ -129,7 +129,7 @@ def test_render_h1_string():
 def test_render_h1_template():
     place = "World"
     tag = shift(
-        h1 >> t"Hello, {place}!"
+        h1 >> f"Hello, {place}!"
     )
 
     assert tag.render() == "<h1>Hello, World!</h1>"
@@ -146,7 +146,7 @@ def test_render_h1_attributes():
 def test_render_h1_dynamic_attribute_value():
     element_id = "testing"
     tag = shift(
-        h1(id=t"{element_id}") >> t"Hello, World!"
+        h1(id=f"{element_id}") >> "Hello, World!"
     )
 
     assert tag.render() == '<h1 id="testing">Hello, World!</h1>'
@@ -200,7 +200,7 @@ def test_render_img_child_errors():
 def test_render_nesting():
     count = 1
     tag = shift(
-        html >> body @ { "class": "test", "data-testid": t"body-{count}" } >> div >> (
+        html >> body @ { "class": "test", "data-testid": f"body-{count}" } >> div >> (
             h1 >> "Welcome to the Test Page",
             p >> "This is a paragraph on the test page."
         )
@@ -226,7 +226,7 @@ def test_render_multiple_vars():
     tag1 = shift(
         div >> (
             p >> "paragraph 1",
-            p >> "paragraph 1.5"
+            p >> "paragraph 1.5",
         )
     )
     tag2 = shift(
