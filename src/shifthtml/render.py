@@ -12,7 +12,7 @@ def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
     if conversion == "s":
         return str(value)
 
-    return value
+    return str(value)
 
 
 def render_template(template: Template, quote: bool = False) -> Generator[str]:

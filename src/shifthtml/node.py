@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Iterable, Sequence
-from typing import Generator, ClassVar, Never, Self
+from typing import Any, Generator, ClassVar, Iterator, Never, Self, overload
 
 from .compat import Template
 from .render import render_template
@@ -35,7 +35,7 @@ class Node:
     """
 
     parent: None | Node
-    children: None | list[Node]
+    children: list[Node | Fragment]
 
     def __init__(self, *args, **kwargs):
         self.parent = None
@@ -44,7 +44,7 @@ class Node:
     def __rshift__(
         self,
         other: type[Node] | Node | None | str | Template | list[Node] | tuple[Node, ...],
-    ) -> Self:
+    ) -> Node | None:
         if isinstance(other, (Node, Fragment)):
             resolved = other
         elif isinstance(other, (str, Template)):
@@ -132,19 +132,25 @@ class NodeList(Node, Sequence):
     def __repr__(self):
         return f"NodeList({repr(self.children)})"
 
-    def __getitem__(self, index: int) -> Node | Fragment:
+    @overload
+    def __getitem__(self, index: int) -> Node | Fragment: ...
+
+    @overload
+    def __getitem__(self, index: slice[Any, Any, Any]) -> list[Node | Fragment]: ...
+
+    def __getitem__(self, index):
         return self.children[index]
 
     def __len__(self) -> int:
         return len(self.children)
 
-    def __iter__(self) -> Iterable[Node | Fragment]:
+    def __iter__(self) -> Iterator[Node | Fragment]:
         return iter(self.children)
 
-    def __contains__(self, item: Node | Fragment) -> bool:
+    def __contains__(self, item: object) -> bool:
         return item in self.children
 
-    def __reversed__(self) -> Iterable[Node | Fragment]:
+    def __reversed__(self) -> Iterator[Node | Fragment]:
         return reversed(self.children)
 
     def count(self, value: Node | Fragment) -> int:
@@ -154,6 +160,8 @@ class NodeList(Node, Sequence):
     def index(
         self, value: Node | Fragment, start: int = 0, stop: int | None = None
     ) -> int:
+        if stop is None:
+            return self.children.index(value, start)
         return self.children.index(value, start, stop)
 
     def render(self) -> Generator[str]:
@@ -191,7 +199,7 @@ class Element(Node):
     tag: ClassVar[str]
     attributes: dict[str, str | Template]
 
-    def __init__(self, *args, **attributes: dict[str, str | Template]):
+    def __init__(self, *args, **attributes: str | Template):
         super().__init__(*args)
 
         self.attributes = attributes or {}

@@ -5,7 +5,7 @@ from .node import HTMLElement, HTMLVoidElement
 
 
 
-class TagMeta(type(HTMLElement)):
+class TagMeta(type):
     element_class: ClassVar[type[HTMLElement]]
 
     def __new__(
