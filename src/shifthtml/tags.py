@@ -1,37 +1,5 @@
-from typing import ClassVar
-
-from .compat import Template
+from .meta import TagMeta
 from .node import HTMLElement, HTMLVoidElement
-
-
-
-class TagMeta(type):
-    element_class: ClassVar[type[HTMLElement]]
-
-    def __new__(
-        mcls, name: str, bases: tuple[type, ...], attrs: dict[str, object]
-    ) -> type:
-        if "tag" not in attrs:
-            raise ValueError(f"{name} must define a 'tag' class attribute")
-        if not isinstance(attrs["tag"], str):
-            raise TypeError(f"{name}.tag must be a string")
-
-        return super().__new__(mcls, name, bases, attrs)
-
-    def __rshift__(
-        self,
-        other: type[HTMLElement]
-        | HTMLElement
-        | list[HTMLElement]
-        | tuple[HTMLElement, ...]
-        | None
-        | str
-        | Template,
-    ) -> HTMLElement:
-        return self() >> other
-
-    def __matmul__(self, other: dict[str, str | Template]) -> HTMLElement:
-        return self(**other)
 
 
 # Root
@@ -168,6 +136,6 @@ dialog = TagMeta("HTMLDialogElement", (HTMLElement,), {"tag": "dialog"})
 menu = TagMeta("HTMLMenuElement", (HTMLElement,), {"tag": "menu"})
 summary = TagMeta("HTMLSummaryElement", (HTMLElement,), {"tag": "summary"})
 
-# Web Components
+# Web components
 slot = TagMeta("HTMLSlotElement", (HTMLElement,), {"tag": "slot"})
 template = TagMeta("HTMLTemplateElement", (HTMLElement,), {"tag": "template"})

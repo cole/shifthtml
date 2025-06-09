@@ -1,34 +1,48 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Iterable, Sequence
-from typing import Any, Generator, ClassVar, Iterator, Never, Self, overload
+from collections.abc import Generator, Sequence
+from typing import Any, ClassVar, Iterator, Never, Self, overload
 
 from .compat import Template
 from .render import render_template
 
 
-# DOM classes:
-# Node -> https://developer.mozilla.org/en-US/docs/Web/API/Node
-# NodeList -> https://developer.mozilla.org/en-US/docs/Web/API/NodeList
-# Element -> https://developer.mozilla.org/en-US/docs/Web/API/Element
-# HTMLElement -> https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement
-# Text -> https://developer.mozilla.org/en-US/docs/Web/API/Text
-# DocumentFragment -> https://developer.mozilla.org/en-US/docs/Web/API/DocumentFragment
+class Fragment:
+    """
+    A chunk of HTML that can be passed around and rendered.
 
-# Our objects:
-# Node
-# NodeList -> Multiple node object, acts as a list but with a parent
-# Text
-# Element
-# HTMLElement
-# HTMLVoidElement -> No equivalent, used for void elements like <img>, <br>, etc.
-# Fragment -> DocumentFragment
+    Fragments can be included in a node tree but they don't have a parent or children.
+    """
+
+    def __init__(self, content: Node):
+        self.content = content
+        self.deferred: list[DeferredNode] = []
+
+    def __repr__(self):
+        return f"Fragment({self.content!r})"
+
+    def __str__(self):
+        return self.render()
+
+    def render(self, *, fragment: Fragment | None = None) -> str:
+        return "".join(
+            list(self.content.render(fragment=fragment or self))
+            + list(self.render_deferred(fragment=fragment or self))
+        )
+
+    def add_deferred(self, node: DeferredNode) -> None:
+        self.deferred.append(node)
+
+    def render_deferred(self, *, fragment: Fragment | None = None) -> Generator[str]:
+        while len(self.deferred) > 0:
+            node = self.deferred.pop(0)
+            yield from node.render_result(fragment=fragment)
 
 
 class Node:
     """
-    A node in the document tree. Usually and HTML element or text content.
+    A node in the document tree. Usually an HTML element or text content.
 
     Nodes have one parent and zero or more children. They are initialized without these,
     and then put into a tree by the shift operator (>>) which calls `add_child`.
@@ -43,7 +57,13 @@ class Node:
 
     def __rshift__(
         self,
-        other: type[Node] | Node | None | str | Template | list[Node] | tuple[Node, ...],
+        other: type[Node]
+        | Node
+        | None
+        | str
+        | Template
+        | list[Node]
+        | tuple[Node, ...],
     ) -> Node | None:
         if isinstance(other, (Node, Fragment)):
             resolved = other
@@ -51,7 +71,7 @@ class Node:
             resolved = Text(content=other)
         elif inspect.isclass(other) and issubclass(other, Node):
             resolved = other()
-        elif isinstance(other, (list, tuple)):
+        elif isinstance(other, (list, tuple, Generator)):
             resolved = NodeList()
             for item in other:
                 if isinstance(item, Node):
@@ -101,29 +121,10 @@ class Node:
                 f"Node can only contain Node or Fragment instances, got {type(child)}"
             )
 
-    def render(self) -> Generator[str]:
-        """Render the node to a string."""
-        raise NotImplementedError("Subclasses must implement render method")
-
-
-class Fragment:
-    """
-    A chunk of HTML that can be passed around and rendered.
-
-    Fragments can be included in a node tree but they don't have a parent or children.
-    """
-
-    def __init__(self, content: Node):
-        self.content = content
-
-    def __repr__(self):
-        return f"Fragment({self.content!r})"
-
-    def render(self) -> str:
-        return "".join(self.content.render())
-
-    def __str__(self):
-        return self.render()
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
+        """Render the node to a string"""
+        for child in self.children:
+            yield from child.render(fragment=fragment)
 
 
 class NodeList(Node, Sequence):
@@ -164,10 +165,6 @@ class NodeList(Node, Sequence):
             return self.children.index(value, start)
         return self.children.index(value, start, stop)
 
-    def render(self) -> Generator[str]:
-        for child in self.children:
-            yield from child.render()
-
 
 class Text(Node):
     content: str | Template
@@ -188,7 +185,7 @@ class Text(Node):
     def add_child(self, child: Node | Fragment) -> Never:
         raise ValueError("Text nodes cannot have children")
 
-    def render(self) -> Generator[str]:
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
         if isinstance(self.content, Template):
             yield from render_template(self.content)
         else:
@@ -225,7 +222,7 @@ class HTMLElement(Element):
 
         return f'{key}="{rendered_value}"'
 
-    def render(self) -> Generator[str]:
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -238,7 +235,7 @@ class HTMLElement(Element):
 
         if self.children:
             for child in self.children:
-                yield from child.render()
+                yield from child.render(fragment=fragment)
 
         yield f"</{self.tag}>"
 
@@ -250,7 +247,7 @@ class HTMLVoidElement(HTMLElement):
     def __rshift__(self, other):
         raise ValueError(f"Cannot add children to a VoidElement ({self.tag})")
 
-    def render(self) -> Generator[str]:
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -260,3 +257,34 @@ class HTMLVoidElement(HTMLElement):
             yield " />"
         else:
             yield f"<{self.tag} />"
+
+
+class DeferredNode(Node):
+    def __init__(
+        self,
+        node: Node | Fragment,
+        /,
+        slot_name: str,
+        loading: Node | Fragment | str | Template | None = None,
+    ):
+        super().__init__()
+        self.loading = loading
+        self.slot_name = slot_name
+        self.add_child(node.root)
+
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
+        # TODO: fix import cycle
+        from .tags import template, slot
+        if fragment is None:
+            raise ValueError("defer must be used inside a fragment")
+
+        self.id = fragment.add_deferred(self)
+
+        element = template(shadowrootmode="open")
+        element >> slot(name=self.slot_name) >> self.loading
+
+        yield from element.render(fragment=fragment)
+
+    def render_result(self, *, fragment: Fragment | None) -> Generator[str]:
+        self.children[0].attributes["slot"] = self.slot_name
+        yield from self.children[0].render(fragment=fragment)

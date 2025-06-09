@@ -1,4 +1,13 @@
-from .node import Fragment, HTMLElement, HTMLVoidElement, Node, NodeList, Text
+from .compat import Template
+from .node import (
+    DeferredNode,
+    Fragment,
+    HTMLElement,
+    HTMLVoidElement,
+    Node,
+    NodeList,
+    Text,
+)
 from .tags import (
     html,
     head,
@@ -117,9 +126,9 @@ from .tags import (
 
 __all__ = (
     "Fragment",
-    "HTMLElement", 
-    "HTMLVoidElement", 
-    "Node", 
+    "HTMLElement",
+    "HTMLVoidElement",
+    "Node",
     "NodeList",
     "Text",
     "html",
@@ -241,3 +250,12 @@ __all__ = (
 
 def shift(html: Node) -> Fragment:
     return Fragment(html.root)
+
+
+def defer(
+    slot_name: str,
+    node: Node | Fragment,
+    *,
+    loading: Node | Fragment | str | Template | None = None,
+) -> DeferredNode:
+    return DeferredNode(node, slot_name=slot_name, loading=loading)

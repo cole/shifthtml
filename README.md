@@ -10,6 +10,12 @@ todos = [
     "Improve the spectrum technology",
 ]
 
+
+def get_view_count() -> int:
+    response = requests.get("https://example.com/count.json")
+    return response.json()["count"]
+
+
 html = shift(
     h1 >> t"{username}'s Todos",
     img @ {"src": user_img, "alt": username, "class": "photo"},
@@ -19,7 +25,8 @@ html = shift(
         p >> "lots of long text, blah blah"
     ),
     defer(
-        div >> t"Slow to load count: {lambda: click_count()}"
+        "view-count",
+        div >> t"Slow to load count: {get_view_count}"
         loading=(div >> "Loading...")
     )
     button(hx_post="/clicked", hx_swap="outerHTML") >> "Click me"
