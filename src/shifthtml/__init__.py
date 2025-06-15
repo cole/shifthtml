@@ -1,8 +1,9 @@
 from .compat import Template
-from .deferred import DeferredNode
-from .element import HTMLElement, HTMLVoidElement
-from .fragment import Fragment
 from .node import (
+    DeferredNode,
+    Fragment,
+    HTMLElement,
+    HTMLVoidElement,
     Node,
     NodeList,
     Text,
@@ -253,8 +254,8 @@ def shift(html: Node) -> Fragment:
 
 def defer(
     slot_name: str,
-    node: Node | Fragment,
+    node: Node,
     *,
-    loading: Node | Fragment | str | Template | None = None,
+    loading: Node | str | Template | None = None,
 ) -> DeferredNode:
     return DeferredNode(node, slot_name=slot_name, loading=loading)

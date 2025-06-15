@@ -2,11 +2,42 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Generator, Sequence
-from typing import Any, Iterator, Never, overload
+from typing import Any, ClassVar, Iterator, Never, Self, overload
 
 from .compat import Template
-from .protocols import Fragment
 from .render import render_template
+
+
+class Fragment:
+    """
+    A chunk of HTML that can be passed around and rendered.
+
+    Fragments can be included in a node tree but they don't have a parent or children.
+    """
+
+    def __init__(self, content: Node):
+        self.content = content
+        self.deferred: list[DeferredNode] = []
+
+    def __repr__(self):
+        return f"Fragment({self.content!r})"
+
+    def __str__(self):
+        return self.render()
+
+    def render(self, *, fragment: Fragment | None = None) -> str:
+        return "".join(
+            list(self.content.render(fragment=fragment or self))
+            + list(self.render_deferred(fragment=fragment or self))
+        )
+
+    def add_deferred(self, node: DeferredNode) -> None:
+        self.deferred.append(node)
+
+    def render_deferred(self, *, fragment: Fragment | None = None) -> Generator[str]:
+        while len(self.deferred) > 0:
+            node = self.deferred.pop(0)
+            yield from node.render_result(fragment=fragment)
 
 
 class Node:
@@ -159,3 +190,102 @@ class Text(Node):
             yield from render_template(self.content)
         else:
             yield self.content
+
+
+class Element(Node):
+    tag: ClassVar[str]
+    attributes: dict[str, str | Template]
+
+    def __init__(self, *args, **attributes: str | Template):
+        super().__init__(*args)
+
+        self.attributes = attributes or {}
+
+        # handle "classname" in place of reserved word "class"
+        if "classname" in self.attributes:
+            self.attributes["class"] = self.attributes.pop("classname")
+
+    def __repr__(self):
+        return f"{type(self)}({self.tag!r}, {self.attributes!r})"
+
+    def __matmul__(self, other: dict[str, str | Template]) -> Self:
+        self.attributes.update(other)
+        return self
+
+
+class HTMLElement(Element):
+    def _render_attribute(self, key: str, value: str | Template) -> str:
+        if isinstance(value, Template):
+            rendered_value = "".join(render_template(value))
+        else:
+            rendered_value = value
+
+        return f'{key}="{rendered_value}"'
+
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
+        if self.attributes:
+            yield f"<{self.tag}"
+            for key, value in self.attributes.items():
+                # space before each attribute
+                yield f" {self._render_attribute(key, value)}"
+
+            yield ">"
+        else:
+            yield f"<{self.tag}>"
+
+        if self.children:
+            for child in self.children:
+                yield from child.render(fragment=fragment)
+
+        yield f"</{self.tag}>"
+
+
+class HTMLVoidElement(HTMLElement):
+    def __repr__(self):
+        return f"HTMLVoidElement({self.tag!r}, {self.attributes!r})"
+
+    def __rshift__(self, other):
+        raise ValueError(f"Cannot add children to a VoidElement ({self.tag})")
+
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
+        if self.attributes:
+            yield f"<{self.tag}"
+            for key, value in self.attributes.items():
+                yield " "  # space before each attribute
+                yield from self._render_attribute(key, value)
+
+            yield " />"
+        else:
+            yield f"<{self.tag} />"
+
+
+class DeferredNode(Node):
+    def __init__(
+        self,
+        node: Node,
+        /,
+        slot_name: str,
+        loading: Node | str | Template | None = None,
+    ):
+        super().__init__()
+        self.loading = loading
+        self.slot_name = slot_name
+        self.add_child(node.root)
+
+    def render(self, *, fragment: Fragment | None) -> Generator[str]:
+        # TODO: fix import cycle
+        from .tags import template, slot
+        if fragment is None:
+            raise ValueError("defer must be used inside a fragment")
+
+        fragment.add_deferred(self)
+
+        element = template(shadowrootmode="open")
+        element >> slot(name=self.slot_name) >> self.loading
+
+        yield from element.render(fragment=fragment)
+
+    def render_result(self, *, fragment: Fragment | None) -> Generator[str]:
+        if isinstance(self.children[0], HTMLElement):
+            self.children[0].attributes["slot"] = self.slot_name
+        yield from self.children[0].render(fragment=fragment)
