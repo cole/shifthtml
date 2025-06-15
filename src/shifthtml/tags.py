@@ -1,5 +1,5 @@
 from .meta import TagMeta
-from .node import HTMLElement, HTMLVoidElement
+from .element import HTMLElement, HTMLVoidElement
 
 
 # Root

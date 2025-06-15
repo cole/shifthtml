@@ -1,9 +1,8 @@
 from .compat import Template
+from .deferred import DeferredNode
+from .element import HTMLElement, HTMLVoidElement
+from .fragment import Fragment
 from .node import (
-    DeferredNode,
-    Fragment,
-    HTMLElement,
-    HTMLVoidElement,
     Node,
     NodeList,
     Text,
