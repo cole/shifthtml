@@ -3,7 +3,6 @@ from .node import HTMLElement
 
 
 class TagMeta(type):
-
     def __new__(
         mcls, name: str, bases: tuple[type, ...], attrs: dict[str, object]
     ) -> type:

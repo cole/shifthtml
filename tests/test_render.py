@@ -123,7 +123,7 @@ def test_render_h1_string():
         h1 >> "Hello, World!"
     )
 
-    assert tag.render() == "<h1>Hello, World!</h1>"
+    assert str(tag) == "<h1>Hello, World!</h1>"
 
 
 def test_render_h1_template():
@@ -132,7 +132,7 @@ def test_render_h1_template():
         h1 >> f"Hello, {place}!"
     )
 
-    assert tag.render() == "<h1>Hello, World!</h1>"
+    assert str(tag) == "<h1>Hello, World!</h1>"
 
 
 def test_render_h1_attributes():
@@ -140,7 +140,7 @@ def test_render_h1_attributes():
         h1(id="bighead") >> "Hello, World!"
     )
 
-    assert tag.render() == '<h1 id="bighead">Hello, World!</h1>'
+    assert str(tag) == '<h1 id="bighead">Hello, World!</h1>'
 
 
 def test_render_h1_dynamic_attribute_value():
@@ -149,7 +149,7 @@ def test_render_h1_dynamic_attribute_value():
         h1(id=f"{element_id}") >> "Hello, World!"
     )
 
-    assert tag.render() == '<h1 id="testing">Hello, World!</h1>'
+    assert str(tag) == '<h1 id="testing">Hello, World!</h1>'
 
 
 def test_render_h1_dynamic_attribute_name():
@@ -158,7 +158,7 @@ def test_render_h1_dynamic_attribute_name():
         h1(**{ attr_name: "foo" }) >> "Hello, World!"
     )
 
-    assert tag.render() == '<h1 my-test-attr="foo">Hello, World!</h1>'
+    assert str(tag) == '<h1 my-test-attr="foo">Hello, World!</h1>'
 
 
 def test_render_ul():
@@ -170,7 +170,7 @@ def test_render_ul():
         )
     )
 
-    assert tag.render() == '<ul><li>Test</li><li>one</li><li>two</li></ul>'
+    assert str(tag) == '<ul><li>Test</li><li>one</li><li>two</li></ul>'
 
 
 
@@ -179,7 +179,7 @@ def test_render_img_attributes_as_keywords():
         img(id="photo", src="https://example.com/photo.jpg")
     )
 
-    assert tag.render() == '<img id="photo" src="https://example.com/photo.jpg" />'
+    assert str(tag) == '<img id="photo" src="https://example.com/photo.jpg" />'
 
 
 def test_render_img_attributes_with_dict():
@@ -187,7 +187,7 @@ def test_render_img_attributes_with_dict():
         img @ {"id": "photo", "src": "https://example.com/photo.jpg"}
     )
 
-    assert tag.render() == '<img id="photo" src="https://example.com/photo.jpg" />'
+    assert str(tag) == '<img id="photo" src="https://example.com/photo.jpg" />'
 
 
 def test_render_img_child_errors():
@@ -206,7 +206,7 @@ def test_render_nesting():
         )
     )
 
-    assert tag.render() == '<html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
+    assert str(tag) == '<html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
 
 
 def test_render_head_tag():
@@ -219,7 +219,7 @@ def test_render_head_tag():
         )
     )
 
-    assert tag.render() == '<head><title>Test Page</title><meta charset="UTF-8" /><link rel="stylesheet" href="style.css" /><style>body { background-color: #fff; }</style></head>'
+    assert str(tag) == '<head><title>Test Page</title><meta charset="UTF-8" /><link rel="stylesheet" href="style.css" /><style>body { background-color: #fff; }</style></head>'
 
 
 def test_render_multiple_vars():
@@ -241,5 +241,5 @@ def test_render_multiple_vars():
         )
     )
 
-    assert main_tag.render() == '<main><div><p>paragraph 1</p><p>paragraph 1.5</p></div><aside><div><p>paragraph 2</p></div></aside><div class="test"><div><p>paragraph 2</p></div></div></main>'
+    assert str(main_tag) == '<main><div><p>paragraph 1</p><p>paragraph 1.5</p></div><aside><div><p>paragraph 2</p></div></aside><div class="test"><div><p>paragraph 2</p></div></div></main>'
 

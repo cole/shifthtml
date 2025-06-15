@@ -12,7 +12,7 @@ def test_render_h1_template():
         h1 >> t"Hello, {place}!"
     )
 
-    assert tag.render() == "<h1>Hello, World!</h1>"
+    assert str(tag) == "<h1>Hello, World!</h1>"
 
 
 def test_render_h1_dynamic_attribute_value():
@@ -21,7 +21,7 @@ def test_render_h1_dynamic_attribute_value():
         h1(id=t"{element_id}") >> "Hello, World!"
     )
 
-    assert tag.render() == '<h1 id="testing">Hello, World!</h1>'
+    assert str(tag) == '<h1 id="testing">Hello, World!</h1>'
 
 
 def test_render_nesting():
@@ -33,4 +33,4 @@ def test_render_nesting():
         )
     )
 
-    assert tag.render() == '<html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
+    assert str(tag) == '<html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'

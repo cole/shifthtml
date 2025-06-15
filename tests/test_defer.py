@@ -128,7 +128,7 @@ def test_render_deferred_paragraph():
     )
 
     assert (
-        tag.render()
+        str(tag)
         == '<div><p>Paragraph 1</p><template shadowrootmode="open"><slot name="para-2">Loading...</slot></template><p>Paragraph 3</p></div><p slot="para-2">Paragraph 2</p>'
     )
 
@@ -154,6 +154,6 @@ def test_render_deferred_list_and_nested_items():
     )
     # TODO: needs to handle deferred before body & preserve template context
     assert (
-        tag.render()
+        str(tag)
         == '<div><header><h1>Deferred streaming</h1></header><main><template shadowrootmode="open"><slot name="list">Loading...</slot></template></main><footer>Footer content</footer></div><ul slot="list"><li><template shadowrootmode="open"><slot name="item-0">Loading...</slot></template></li><li><template shadowrootmode="open"><slot name="item-1">Loading...</slot></template></li><li><template shadowrootmode="open"><slot name="item-2">Loading...</slot></template></li></ul><span slot="item-0">Item 0</span><span slot="item-1">Item 1</span><span slot="item-2">Item 2</span>'
     )
