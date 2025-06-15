@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import inspect
-from collections.abc import Generator, Sequence
+from collections.abc import Callable, Generator, Sequence
 from typing import Any, ClassVar, Iterator, Never, Self, overload
 
 from .compat import Template
@@ -63,17 +62,29 @@ class Node:
         | str
         | Template
         | list[Node]
-        | tuple[Node, ...],
+        | tuple[Node, ...]
+        | Callable[
+            [],
+            type[Node] | Node | None | str | Template | list[Node] | tuple[Node, ...],
+        ],
     ) -> Node | None:
+        if callable(other):
+            other = other()
+            if isinstance(other, Node):
+                other = other.root
+
         if isinstance(other, (Node, Fragment)):
             resolved = other
         elif isinstance(other, (str, Template)):
             resolved = Text(content=other)
-        elif inspect.isclass(other) and issubclass(other, Node):
-            resolved = other()
         elif isinstance(other, (list, tuple, Generator)):
             resolved = NodeList()
             for item in other:
+                if callable(item):
+                    item = item()
+                    if isinstance(item, Node):
+                        item = item.root
+
                 if isinstance(item, Node):
                     item_root = item.root
                     resolved.add_child(item_root)
@@ -275,6 +286,7 @@ class DeferredNode(Node):
     def render(self, *, fragment: Fragment | None) -> Generator[str]:
         # TODO: fix import cycle
         from .tags import template, slot
+
         if fragment is None:
             raise ValueError("defer must be used inside a fragment")
 
