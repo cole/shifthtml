@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
-from typing import Any, ClassVar, Never, Self, TypeVar, overload
+from typing import Any, ClassVar, Never, Self, overload
 
 from .compat import Template
 from .render import render_string
@@ -13,10 +13,7 @@ type NodeCallableContent = Callable[[], NodeClassContent | NodeTextContent | Nod
 type NodeContent = NodeClassContent | NodeTextContent | NodeListContent | NodeCallableContent
 
 
-type T = TypeVar["T"]
-
-
-def _maybe_call(item: Callable[[], T] | T) -> T:
+def _maybe_call[T](item: Callable[[], T] | T) -> T:
     if callable(item):
         return item()
     return item
@@ -45,7 +42,7 @@ class Fragment:
     def add_deferred(self, node: DeferredNode) -> None:
         self.deferred.append(node)
 
-    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if defer_callback is None:
             defer_callback = self.add_deferred
         yield from self.content.render(defer_callback=defer_callback)
@@ -73,7 +70,7 @@ class Node:
         self.children = []
 
     @classmethod
-    def create(cls, contents: NodeContent) -> Node:
+    def create(cls, contents: NodeContent) -> Node | None:
         if isinstance(contents, Node):
             # Assign the root, to handle chaining
             resolved = contents.root
@@ -88,18 +85,18 @@ class Node:
 
         return resolved
 
-    def __rshift__(
-        self,
-        other: NodeContent | Fragment,
-    ) -> Node | None:
-        other = _maybe_call(other)
+    def __rshift__(self, other: NodeContent | Fragment) -> Node | None:
+        called = _maybe_call(other)
 
-        if isinstance(other, Fragment):
-            self.add_child(other)
+        if isinstance(called, Fragment):
+            self.add_child(called)
             # Don't chain fragments
             return self
 
-        node = Node.create(other)
+        node = Node.create(called)
+        if node is None:
+            return None
+
         self.add_child(node)
         return node
 
@@ -123,7 +120,7 @@ class Node:
         else:
             raise ValueError(f"Node can only contain Node or Fragment instances, got {type(child)}")
 
-    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         """Render the node to a string"""
         for child in self.children:
             yield from child.render(defer_callback=defer_callback)
@@ -140,7 +137,8 @@ class NodeList(Node, Sequence):
                 self.add_child(item)
             else:
                 item_node = Node.create(_maybe_call(item))
-                self.add_child(item_node)
+                if item_node is not None:
+                    self.add_child(item_node)
 
     def __repr__(self):
         return f"NodeList({repr(self.children)})"
@@ -190,7 +188,7 @@ class Text(Node):
     def add_child(self, child: Node | Fragment) -> Never:
         raise ValueError("Text nodes cannot have children")
 
-    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         yield from render_string(self.content)
 
 
@@ -220,7 +218,7 @@ class HTMLElement(Element):
         rendered_value = "".join(render_string(value))
         return f'{key}="{rendered_value}"'
 
-    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -245,7 +243,7 @@ class HTMLVoidElement(HTMLElement):
     def __rshift__(self, other):
         raise ValueError(f"Cannot add children to a VoidElement ({self.tag})")
 
-    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -270,16 +268,20 @@ class DeferredNode(Node):
         self.slot_name = slot_name
         self.add_child(node.root)
 
-    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         # Render the loading message
+        if defer_callback is None:
+            raise ValueError("Deferred node rendered outside of Fragment")
+
         defer_callback(self)
         loading_node = Node.create(self.loading)
 
         yield f'<template shadowrootmode="open"><slot name="{self.slot_name}">'
-        yield from loading_node.render(defer_callback=defer_callback)
+        if loading_node is not None:
+            yield from loading_node.render(defer_callback=defer_callback)
         yield "</slot></template>"
 
-    def render_result(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
+    def render_result(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if isinstance(self.children[0], HTMLElement):
             self.children[0].attributes["slot"] = self.slot_name
         yield from self.children[0].render(defer_callback=defer_callback)

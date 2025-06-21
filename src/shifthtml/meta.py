@@ -1,5 +1,5 @@
 from .compat import Template
-from .node import HTMLElement
+from .node import HTMLElement, NodeContent
 
 
 class TagMeta(type):
@@ -11,10 +11,7 @@ class TagMeta(type):
 
         return super().__new__(mcls, name, bases, attrs)
 
-    def __rshift__(
-        self,
-        other: type[HTMLElement] | HTMLElement | list[HTMLElement] | tuple[HTMLElement, ...] | None | str | Template,
-    ) -> HTMLElement:
+    def __rshift__(self, other: NodeContent) -> HTMLElement:
         return self() >> other
 
     def __matmul__(self, other: dict[str, str | Template]) -> HTMLElement:
