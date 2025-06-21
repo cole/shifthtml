@@ -1,4 +1,3 @@
-from .compat import Template
 from .node import HTMLElement, NodeContent
 
 

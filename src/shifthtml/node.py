@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
-from typing import Any, ClassVar, Never, Self, overload
+from typing import Any, ClassVar, Never, overload
 
 from .compat import Template
 from .render import render_string

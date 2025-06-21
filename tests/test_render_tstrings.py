@@ -1,9 +1,4 @@
-from shifthtml import (
-    html,
-    body,
-    h1,
-    shift
-)
+from shifthtml import body, h1, html, shift
 
 
 def test_render_h1_template():
