@@ -3,9 +3,7 @@ from .node import HTMLElement
 
 
 class TagMeta(type):
-    def __new__(
-        mcls, name: str, bases: tuple[type, ...], attrs: dict[str, object]
-    ) -> type:
+    def __new__(mcls, name: str, bases: tuple[type, ...], attrs: dict[str, object]) -> type:
         if "tag" not in attrs:
             raise ValueError(f"{name} must define a 'tag' class attribute")
         if not isinstance(attrs["tag"], str):

@@ -10,12 +10,8 @@ from .render import render_template
 type NodeClassContent = type[Node] | Node | None
 type NodeTextContent = str | Template
 type NodeListContent = Iterable[NodeClassContent | NodeTextContent]
-type NodeCallableContent = Callable[
-    [], NodeClassContent | NodeTextContent | NodeListContent
-]
-type NodeContent = (
-    NodeClassContent | NodeTextContent | NodeListContent | NodeCallableContent
-)
+type NodeCallableContent = Callable[[], NodeClassContent | NodeTextContent | NodeListContent]
+type NodeContent = NodeClassContent | NodeTextContent | NodeListContent | NodeCallableContent
 
 
 type T = TypeVar["T"]
@@ -50,9 +46,7 @@ class Fragment:
     def add_deferred(self, node: DeferredNode) -> None:
         self.deferred.append(node)
 
-    def render(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         if defer_callback is None:
             defer_callback = self.add_deferred
         yield from self.content.render(defer_callback=defer_callback)
@@ -130,13 +124,9 @@ class Node:
         elif isinstance(child, Fragment):
             self.children.append(child)
         else:
-            raise ValueError(
-                f"Node can only contain Node or Fragment instances, got {type(child)}"
-            )
+            raise ValueError(f"Node can only contain Node or Fragment instances, got {type(child)}")
 
-    def render(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         """Render the node to a string"""
         for child in self.children:
             yield from child.render(defer_callback=defer_callback)
@@ -180,9 +170,7 @@ class NodeList(Node, Sequence):
         """Count occurrences of a value in the NodeList."""
         return self.children.count(value)
 
-    def index(
-        self, value: Node | Fragment, start: int = 0, stop: int | None = None
-    ) -> int:
+    def index(self, value: Node | Fragment, start: int = 0, stop: int | None = None) -> int:
         if stop is None:
             return self.children.index(value, start)
         return self.children.index(value, start, stop)
@@ -202,9 +190,7 @@ class Text(Node):
     def add_child(self, child: Node | Fragment) -> Never:
         raise ValueError("Text nodes cannot have children")
 
-    def render(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         if isinstance(self.content, Template):
             yield from render_template(self.content)
         else:
@@ -241,9 +227,7 @@ class HTMLElement(Element):
 
         return f'{key}="{rendered_value}"'
 
-    def render(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -268,9 +252,7 @@ class HTMLVoidElement(HTMLElement):
     def __rshift__(self, other):
         raise ValueError(f"Cannot add children to a VoidElement ({self.tag})")
 
-    def render(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for key, value in self.attributes.items():
@@ -295,9 +277,7 @@ class DeferredNode(Node):
         self.slot_name = slot_name
         self.add_child(node.root)
 
-    def render(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         # Render the loading message
         defer_callback(self)
         loading_node = Node.create(self.loading)

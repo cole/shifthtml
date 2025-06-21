@@ -73,8 +73,6 @@ from .tags import (
     u,
     var,
     wbr,
-    del_,
-    ins,
     area,
     audio,
     img,
