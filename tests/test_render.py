@@ -184,7 +184,7 @@ def test_render_img_attributes_as_keywords():
 
 def test_render_img_attributes_with_dict():
     tag = shift(
-        img @ {"id": "photo", "src": "https://example.com/photo.jpg"}
+        img({"id": "photo", "src": "https://example.com/photo.jpg"})
     )
 
     assert str(tag) == '<img id="photo" src="https://example.com/photo.jpg" />'
@@ -200,7 +200,7 @@ def test_render_img_child_errors():
 def test_render_nesting():
     count = 1
     tag = shift(
-        html >> body @ { "class": "test", "data-testid": f"body-{count}" } >> div >> (
+        html >> body({ "class": "test", "data-testid": f"body-{count}"}) >> div >> (
             h1 >> "Welcome to the Test Page",
             p >> "This is a paragraph on the test page."
         )

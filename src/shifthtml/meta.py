@@ -13,6 +13,3 @@ class TagMeta(type):
 
     def __rshift__(self, other: NodeContent) -> HTMLElement:
         return self() >> other
-
-    def __matmul__(self, other: dict[str, str | Template]) -> HTMLElement:
-        return self(**other)

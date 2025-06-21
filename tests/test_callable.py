@@ -152,7 +152,7 @@ def test_render_callable_in_sequence():
 
 def test_render_single_callable_nested_return():
     def photo_component():
-        return div @ {"id": "div2"} >> img(
+        return div({"id": "div2"}) >> img(
             id="photo", src="https://example.com/photo.jpg"
         )
 

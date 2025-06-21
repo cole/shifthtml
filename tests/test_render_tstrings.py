@@ -27,7 +27,7 @@ def test_render_h1_dynamic_attribute_value():
 def test_render_nesting():
     count = 1
     tag = shift(
-        html >> body @ { "class": "test", "data-testid": t"body-{count}" } >> div >> (
+        html >> body({"class": "test", "data-testid": t"body-{count}"}) >> div >> (
             h1 >> "Welcome to the Test Page",
             p >> "This is a paragraph on the test page."
         )

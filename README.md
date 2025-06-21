@@ -18,10 +18,10 @@ def get_view_count() -> int:
 
 html = shift(
     h1 >> t"{username}'s Todos",
-    img @ {"src": user_img, "alt": username, "class": "photo"},
+    img({"src": user_img, "alt": username, "class": "photo"}),
     ul >> (li >> todo for todo in todos),
     div >> (
-        span @ {"class": "username"} >> username
+        span({"class": "username"}) >> username
         p >> "lots of long text, blah blah"
     ),
     defer(

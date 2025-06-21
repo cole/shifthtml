@@ -196,21 +196,19 @@ class Element(Node):
     tag: ClassVar[str]
     attributes: dict[str, str | Template]
 
-    def __init__(self, **attributes: str | Template):
+    def __init__(self, attributes: dict[str, str | Template] | None = None, /, **keyword_attributes: str | Template):
         super().__init__()
 
         self.attributes = attributes or {}
 
         # handle "classname" in place of reserved word "class"
-        if "classname" in self.attributes:
-            self.attributes["class"] = self.attributes.pop("classname")
+        if "classname" in keyword_attributes:
+            self.attributes["class"] = keyword_attributes.pop("classname")
+
+        self.attributes.update(keyword_attributes)
 
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
-
-    def __matmul__(self, other: dict[str, str | Template]) -> Self:
-        self.attributes.update(other)
-        return self
 
 
 class HTMLElement(Element):
