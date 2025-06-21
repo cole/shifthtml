@@ -36,3 +36,11 @@ def render_string(value: str | Template, quote: bool = True) -> Generator[str]:
         yield from render_template(template=value, quote=quote)
     else:
         yield escape(value, quote=quote)
+
+
+def render_attributes(attributes: dict[str, str | Template]) -> Generator[str]:
+    for key, value in attributes.items():
+        value = attributes[key]
+        rendered_value = "".join(render_string(value, quote=True))
+
+        yield f'{key}="{rendered_value}"'

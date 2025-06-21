@@ -39,10 +39,10 @@ def test_render_h1_template():
 
 def test_render_h1_attributes():
     tag = shift(
-        h1(id="bighead") >> "Hello, World!"
+        h1({"style": "color: red;"}, id="hello", classname="bighead") >> "Hello, World!"
     )
 
-    assert str(tag) == '<h1 id="bighead">Hello, World!</h1>'
+    assert str(tag) == '<h1 style="color: red;" id="hello" class="bighead">Hello, World!</h1>'
 
 
 def test_render_h1_dynamic_attribute_value():

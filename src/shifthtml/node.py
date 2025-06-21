@@ -4,7 +4,7 @@ from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from typing import Any, ClassVar, Never, overload
 
 from .compat import Template
-from .render import render_string
+from .render import render_attributes, render_string
 
 type NodeClassContent = type[Node] | Node | None
 type NodeTextContent = str | Template
@@ -192,6 +192,13 @@ class Text(Node):
         yield from render_string(self.content)
 
 
+def _convert_attribute_names(name: str) -> str:
+    if name == "classname":
+        return "class"
+
+    return name
+
+
 class Element(Node):
     tag: ClassVar[str]
     attributes: dict[str, str | Template]
@@ -200,12 +207,7 @@ class Element(Node):
         super().__init__()
 
         self.attributes = attributes or {}
-
-        # handle "classname" in place of reserved word "class"
-        if "classname" in keyword_attributes:
-            self.attributes["class"] = keyword_attributes.pop("classname")
-
-        self.attributes.update(keyword_attributes)
+        self.attributes.update({_convert_attribute_names(key): value for key, value in keyword_attributes.items()})
 
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
@@ -219,9 +221,9 @@ class HTMLElement(Element):
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
-            for key, value in self.attributes.items():
+            for attr in render_attributes(self.attributes):
                 # space before each attribute
-                yield f" {self._render_attribute(key, value)}"
+                yield f" {attr}"
 
             yield ">"
         else:
@@ -244,9 +246,9 @@ class HTMLVoidElement(HTMLElement):
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
-            for key, value in self.attributes.items():
-                yield " "  # space before each attribute
-                yield from self._render_attribute(key, value)
+            for attr in render_attributes(self.attributes):
+                # space before each attribute
+                yield f" {attr}"
 
             yield " />"
         else:
