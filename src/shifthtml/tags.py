@@ -1,5 +1,73 @@
+from .element import HTMLElement, HTMLVoidElement
 from .meta import TagMeta
-from .node import HTMLElement, HTMLVoidElement
+
+# Dom elements
+# HTMLAnchorElement
+# HTMLAreaElement
+# HTMLAudioElement
+# HTMLBRElement
+# HTMLBaseElement
+# HTMLBodyElement
+# HTMLButtonElement
+# HTMLCanvasElement
+# HTMLDListElement
+# HTMLDataElement
+# HTMLDataListElement
+# HTMLDialogElement
+# HTMLDivElement
+# HTMLDocument
+# HTMLElement
+# HTMLEmbedElement
+# HTMLFieldSetElement
+# HTMLFormControlsCollection
+# HTMLFormElement
+# HTMLFrameSetElement Deprecated
+# HTMLHRElement
+# HTMLHeadElement
+# HTMLHeadingElement
+# HTMLHtmlElement
+# HTMLIFrameElement
+# HTMLImageElement
+# HTMLInputElement
+# HTMLLIElement
+# HTMLLabelElement
+# HTMLLegendElement
+# HTMLLinkElement
+# HTMLMapElement
+# HTMLMediaElement
+# HTMLMenuElement
+# HTMLMetaElement
+# HTMLMeterElement
+# HTMLModElement
+# HTMLOListElement
+# HTMLObjectElement
+# HTMLOptGroupElement
+# HTMLOptionElement
+# HTMLOptionsCollection
+# HTMLOutputElement
+# HTMLParagraphElement
+# HTMLPictureElement
+# HTMLPreElement
+# HTMLProgressElement
+# HTMLQuoteElement
+# HTMLScriptElement
+# HTMLSelectElement
+# HTMLSourceElement
+# HTMLSpanElement
+# HTMLStyleElement
+# HTMLTableCaptionElement
+# HTMLTableCellElement
+# HTMLTableColElement
+# HTMLTableElement
+# HTMLTableRowElement
+# HTMLTemplateElement
+# HTMLTextAreaElement
+# HTMLTimeElement
+# HTMLTitleElement
+# HTMLTrackElement
+# HTMLUListElement
+# HTMLUnknownElement
+# HTMLVideoElement
 
 # Root
 html = TagMeta("HTMLRootElement", (HTMLElement,), {"tag": "html"})
@@ -37,12 +105,12 @@ dl = TagMeta("HTMLDLElement", (HTMLElement,), {"tag": "dl"})
 dt = TagMeta("HTMLDTElement", (HTMLElement,), {"tag": "dt"})
 figcaption = TagMeta("HTMLFigcaptionElement", (HTMLElement,), {"tag": "figcaption"})
 figure = TagMeta("HTMLFigureElement", (HTMLElement,), {"tag": "figure"})
-hr = TagMeta("HTMLHRElement", (HTMLVoidElement,), {"tag": "hr"})
-li = TagMeta("HTMLLIElement", (HTMLElement,), {"tag": "li"})
-ol = TagMeta("HTMLOLElement", (HTMLElement,), {"tag": "ol"})
+hr = TagMeta("HTMLHrElement", (HTMLVoidElement,), {"tag": "hr"})
+li = TagMeta("HTMLLiElement", (HTMLElement,), {"tag": "li"})
+ol = TagMeta("HTMLOlElement", (HTMLElement,), {"tag": "ol"})
 p = TagMeta("HTMLParagraphElement", (HTMLElement,), {"tag": "p"})
 pre = TagMeta("HTMLPreElement", (HTMLElement,), {"tag": "pre"})
-ul = TagMeta("HTMLULElement", (HTMLElement,), {"tag": "ul"})
+ul = TagMeta("HTMLUlElement", (HTMLElement,), {"tag": "ul"})
 # Text-level semantics
 a = TagMeta("HTMLAnchorElement", (HTMLElement,), {"tag": "a"})
 abbr = TagMeta("HTMLAbbrElement", (HTMLElement,), {"tag": "abbr"})

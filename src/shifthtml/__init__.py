@@ -1,5 +1,5 @@
 from .compat import Template
-from .node import (
+from .element import (
     DeferredNode,
     Fragment,
     HTMLElement,
@@ -246,8 +246,11 @@ __all__ = (
 )
 
 
-def shift(html: Node) -> Fragment:
-    return Fragment(html.root)
+def shift(html: Node | Fragment) -> Fragment:
+    if isinstance(html, Fragment):
+        return html
+
+    return Fragment(html, html)
 
 
 def defer(

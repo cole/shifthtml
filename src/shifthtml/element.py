@@ -1,16 +1,14 @@
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from typing import Any, ClassVar, Never, overload
 
 from .compat import Template
+from .protocol import Node as NodeProtocol
+from .protocol import NodeTree as NodeTreeProtocol
 from .render import render_attributes, render_string
-
-type NodeClassContent = type[Node] | Node | None
-type NodeTextContent = str | Template
-type NodeListContent = Iterable[NodeClassContent | NodeTextContent]
-type NodeCallableContent = Callable[[], NodeClassContent | NodeTextContent | NodeListContent]
-type NodeContent = NodeClassContent | NodeTextContent | NodeListContent | NodeCallableContent
+from .types import NodeContent, NodeListContent
 
 
 def _maybe_call[T](item: Callable[[], T] | T) -> T:
@@ -19,19 +17,18 @@ def _maybe_call[T](item: Callable[[], T] | T) -> T:
     return item
 
 
-class Fragment:
+class Fragment(NodeTreeProtocol):
     """
-    A chunk of HTML that can be passed around and rendered.
-
-    Fragments can be included in a node tree but they don't have a parent or children.
+    A document fragment that can contain nodes and other fragments.
     """
 
-    def __init__(self, content: Node):
-        self.content = content
+    def __init__(self, root: Node, append_pointer: Node, /, **kwargs: Any):
+        super().__init__(root, append_pointer)
+
         self.deferred: list[DeferredNode] = []
 
     def __repr__(self):
-        return f"Fragment({self.content!r})"
+        return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
         return "".join(self)
@@ -39,22 +36,44 @@ class Fragment:
     def __iter__(self) -> Iterator[str]:
         yield from self.render()
 
-    def add_deferred(self, node: DeferredNode) -> None:
+    @overload
+    def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
+    
+    @overload
+    def __rshift__(self, other: None) -> None: ...
+
+    def __rshift__(self, other):
+        resolved = _maybe_call(other)
+
+        if resolved is None:
+            return None
+
+        if isinstance(resolved, Fragment):
+            new_fragment = copy.replace(self)
+            new_fragment.append(copy.replace(resolved))
+            return new_fragment
+
+        node = Node.factory(resolved)
+        self.append(node)
+
+        return self
+
+    def defer_node(self, node: DeferredNode) -> None:
         self.deferred.append(node)
 
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if defer_callback is None:
-            defer_callback = self.add_deferred
-        yield from self.content.render(defer_callback=defer_callback)
-        yield from self.render_deferred()
+            defer_callback = self.defer_node
+        yield from self.root.render(defer_callback=defer_callback)
+        yield from self.render_deferred_nodes()
 
-    def render_deferred(self) -> Generator[str]:
+    def render_deferred_nodes(self) -> Generator[str]:
         while len(self.deferred) > 0:
             node = self.deferred.pop(0)
-            yield from node.render_result(defer_callback=self.add_deferred)
+            yield from node.render_result(defer_callback=self.defer_node)
 
 
-class Node:
+class Node(NodeProtocol):
     """
     A node in the document tree. Usually an HTML element or text content.
 
@@ -62,18 +81,18 @@ class Node:
     and then put into a tree by the shift operator (>>) which calls `add_child`.
     """
 
-    parent: None | Node
-    children: list[Node | Fragment]
+    @overload
+    @classmethod
+    def factory(cls, contents: NodeContent) -> Node: ...
 
-    def __init__(self):
-        self.parent = None
-        self.children = []
+    @overload
+    @classmethod
+    def factory(cls, contents: None) -> None: ...
 
     @classmethod
-    def create(cls, contents: NodeContent) -> Node | None:
+    def factory(cls, contents):
         if isinstance(contents, Node):
-            # Assign the root, to handle chaining
-            resolved = contents.root
+            resolved = contents
         elif isinstance(contents, (str | Template)):
             resolved = Text(contents)
         elif contents is None:
@@ -85,40 +104,35 @@ class Node:
 
         return resolved
 
-    def __rshift__(self, other: NodeContent | Fragment) -> Node | None:
-        called = _maybe_call(other)
+    @overload
+    def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
+    
+    @overload
+    def __rshift__(self, other: None) -> None: ...
 
-        if isinstance(called, Fragment):
-            self.add_child(called)
-            # Don't chain fragments
-            return self
+    def __rshift__(self, other):
+        resolved = _maybe_call(other)
 
-        node = Node.create(called)
-        if node is None:
+        if resolved is None:
             return None
 
-        self.add_child(node)
-        return node
+        new_fragment = Fragment(self, self)
 
-    @property
-    def root(self) -> Node:
-        root = self
-        while root.parent is not None:
-            root = root.parent
+        if isinstance(resolved, Fragment):
+            new_fragment.append(resolved)
+            return new_fragment
 
-        return root
+        node = Node.factory(resolved)
+        new_fragment.append(node)
+
+        return new_fragment
 
     def add_child(self, child: Node | Fragment) -> None:
-        """Add a child node or fragment to this node."""
-        if isinstance(child, Node):
-            if child.parent is not None:
-                raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent!r}")
-            child.parent = self
-            self.children.append(child)
-        elif isinstance(child, Fragment):
-            self.children.append(child)
-        else:
-            raise ValueError(f"Node can only contain Node or Fragment instances, got {type(child)}")
+        if isinstance(child, Fragment):
+            child = child.root
+
+        super().add_child(child)
+
 
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         """Render the node to a string"""
@@ -126,17 +140,17 @@ class Node:
             yield from child.render(defer_callback=defer_callback)
 
 
-class NodeList(Node, Sequence):
+class NodeList(Node, Sequence[NodeProtocol]):
     """A list of nodes with a position in the tree."""
 
-    def __init__(self, contents: NodeListContent):
+    def __init__(self, contents: NodeListContent, /, **kwargs):
         super().__init__()
 
         for item in contents:
             if isinstance(item, Fragment):
                 self.add_child(item)
             else:
-                item_node = Node.create(_maybe_call(item))
+                item_node = Node.factory(_maybe_call(item))
                 if item_node is not None:
                     self.add_child(item_node)
 
@@ -177,13 +191,18 @@ class NodeList(Node, Sequence):
 class Text(Node):
     content: str | Template
 
-    def __init__(self, content: str | Template):
+    def __init__(self, content: str | Template, /, **kwargs: Any):
         super().__init__()
 
         self.content = content
 
     def __repr__(self):
         return f"Text({self.content!r})"
+
+    def __replace__(self, **changes):
+        new_obj = type(self)(self.content)
+
+        return new_obj
 
     def add_child(self, child: Node | Fragment) -> Never:
         raise ValueError("Text nodes cannot have children")
@@ -212,11 +231,14 @@ class Element(Node):
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
 
+    def __replace__(self, /, **changes):
+        new_obj = super().__replace__(**changes)
+        new_obj.attributes = self.attributes.copy()
+
+        return new_obj
+
 
 class HTMLElement(Element):
-    def _render_attribute(self, key: str, value: str | Template) -> str:
-        rendered_value = "".join(render_string(value))
-        return f'{key}="{rendered_value}"'
 
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if self.attributes:
@@ -229,9 +251,7 @@ class HTMLElement(Element):
         else:
             yield f"<{self.tag}>"
 
-        if self.children:
-            for child in self.children:
-                yield from child.render(defer_callback=defer_callback)
+        yield from super().render(defer_callback=defer_callback)
 
         yield f"</{self.tag}>"
 
@@ -258,15 +278,29 @@ class HTMLVoidElement(HTMLElement):
 class DeferredNode(Node):
     def __init__(
         self,
-        node: Node,
-        /,
+        child: Node | Fragment,
+        *,
         slot_name: str,
         loading: NodeContent = None,
     ):
         super().__init__()
-        self.loading = loading
+        self.loading_node = Node.factory(loading)
         self.slot_name = slot_name
-        self.add_child(node.root)
+
+        if isinstance(child, Fragment):
+            self.add_child(child.root)
+        elif isinstance(child, Node):
+            self.add_child(child)
+        else:
+            raise ValueError(f"DeferredNode can only be initialized with a Node or Fragment, not {type(child)}")
+
+    def __replace__(self, /, **changes):
+        new_obj = type(self)(copy.replace(self.children[0]), slot_name=self.slot_name, loading=self.loading_node)
+
+        for child in self.children:
+            new_obj.add_child(copy.replace(child))
+
+        return new_obj
 
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         # Render the loading message
@@ -274,11 +308,10 @@ class DeferredNode(Node):
             raise ValueError("Deferred node rendered outside of Fragment")
 
         defer_callback(self)
-        loading_node = Node.create(self.loading)
 
         yield f'<template shadowrootmode="open"><slot name="{self.slot_name}">'
-        if loading_node is not None:
-            yield from loading_node.render(defer_callback=defer_callback)
+        if self.loading_node is not None:
+            yield from self.loading_node.render(defer_callback=defer_callback)
         yield "</slot></template>"
 
     def render_result(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:

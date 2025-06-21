@@ -14,10 +14,7 @@ def test_render_single_node_callable():
         div >> user_avatar,
     )
 
-    assert (
-        str(tag)
-        == '<div><img id="photo" src="https://example.com/photo.jpg" /></div>'
-    )
+    assert str(tag) == '<div><img id="photo" src="https://example.com/photo.jpg" /></div>'
 
 
 def test_render_callable_in_sequence():
@@ -32,23 +29,15 @@ def test_render_callable_in_sequence():
         )
     )
 
-    assert (
-        str(tag)
-        == '<div><p>text</p><img id="photo" src="https://example.com/photo.jpg" /></div>'
-    )
+    assert str(tag) == '<div><p>text</p><img id="photo" src="https://example.com/photo.jpg" /></div>'
 
 
 def test_render_single_callable_nested_return():
     def photo_component():
-        return div({"id": "div2"}) >> img(
-            id="photo", src="https://example.com/photo.jpg"
-        )
+        return div({"id": "div2"}) >> img(id="photo", src="https://example.com/photo.jpg")
 
     tag = shift(
         div >> photo_component,
     )
 
-    assert (
-        str(tag)
-        == '<div><div id="div2"><img id="photo" src="https://example.com/photo.jpg" /></div></div>'
-    )
+    assert str(tag) == '<div><div id="div2"><img id="photo" src="https://example.com/photo.jpg" /></div></div>'
