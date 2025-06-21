@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Generator, Iterable, Sequence
-from typing import Any, ClassVar, Iterator, Never, Self, TypeVar, overload
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+from typing import Any, ClassVar, Never, Self, TypeVar, overload
 
 from .compat import Template
-from .render import render_template
-
+from .render import render_string
 
 type NodeClassContent = type[Node] | Node | None
 type NodeTextContent = str | Template
@@ -75,15 +74,15 @@ class Node:
 
     @classmethod
     def create(cls, contents: NodeContent) -> Node:
-        if isinstance(contents, cls):
+        if isinstance(contents, Node):
             # Assign the root, to handle chaining
             resolved = contents.root
-        elif isinstance(contents, (str, Template)):
+        elif isinstance(contents, (str | Template)):
             resolved = Text(contents)
         elif contents is None:
             resolved = None
         elif isinstance(contents, Iterable):
-            resolved = NodeList([item for item in contents])
+            resolved = NodeList(contents)
         else:
             raise ValueError(f"Unsupported shift type for >>: {type(contents)}")
 
@@ -116,9 +115,7 @@ class Node:
         """Add a child node or fragment to this node."""
         if isinstance(child, Node):
             if child.parent is not None:
-                raise ValueError(
-                    f"Child {child!r} is already in the tree. Parent: {child.parent!r}"
-                )
+                raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent!r}")
             child.parent = self
             self.children.append(child)
         elif isinstance(child, Fragment):
@@ -139,8 +136,11 @@ class NodeList(Node, Sequence):
         super().__init__()
 
         for item in contents:
-            item_node = Node.create(_maybe_call(item))
-            self.children.append(item_node)
+            if isinstance(item, Fragment):
+                self.add_child(item)
+            else:
+                item_node = Node.create(_maybe_call(item))
+                self.add_child(item_node)
 
     def __repr__(self):
         return f"NodeList({repr(self.children)})"
@@ -191,10 +191,7 @@ class Text(Node):
         raise ValueError("Text nodes cannot have children")
 
     def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
-        if isinstance(self.content, Template):
-            yield from render_template(self.content)
-        else:
-            yield self.content
+        yield from render_string(self.content)
 
 
 class Element(Node):
@@ -220,11 +217,7 @@ class Element(Node):
 
 class HTMLElement(Element):
     def _render_attribute(self, key: str, value: str | Template) -> str:
-        if isinstance(value, Template):
-            rendered_value = "".join(render_template(value))
-        else:
-            rendered_value = value
-
+        rendered_value = "".join(render_string(value))
         return f'{key}="{rendered_value}"'
 
     def render(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
@@ -286,9 +279,7 @@ class DeferredNode(Node):
         yield from loading_node.render(defer_callback=defer_callback)
         yield "</slot></template>"
 
-    def render_result(
-        self, *, defer_callback: Callable[[Node], None] | None = None
-    ) -> Generator[str]:
+    def render_result(self, *, defer_callback: Callable[[Node], None] | None = None) -> Generator[str]:
         if isinstance(self.children[0], HTMLElement):
             self.children[0].attributes["slot"] = self.slot_name
         yield from self.children[0].render(defer_callback=defer_callback)

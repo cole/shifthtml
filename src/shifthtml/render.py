@@ -1,5 +1,6 @@
+from collections.abc import Generator
 from html import escape
-from typing import Literal, Generator
+from typing import Literal
 
 from .compat import Interpolation, Template
 
@@ -28,3 +29,10 @@ def render_template(template: Template, quote: bool = False) -> Generator[str]:
                 value = escape(value, quote=quote)
 
                 yield value
+
+
+def render_string(value: str | Template, quote: bool = True) -> Generator[str]:
+    if isinstance(value, Template):
+        yield from render_template(template=value, quote=quote)
+    else:
+        yield escape(value, quote=quote)

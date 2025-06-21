@@ -13,13 +13,7 @@ class TagMeta(type):
 
     def __rshift__(
         self,
-        other: type[HTMLElement]
-        | HTMLElement
-        | list[HTMLElement]
-        | tuple[HTMLElement, ...]
-        | None
-        | str
-        | Template,
+        other: type[HTMLElement] | HTMLElement | list[HTMLElement] | tuple[HTMLElement, ...] | None | str | Template,
     ) -> HTMLElement:
         return self() >> other
 

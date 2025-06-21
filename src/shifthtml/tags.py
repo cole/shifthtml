@@ -1,7 +1,6 @@
 from .meta import TagMeta
 from .node import HTMLElement, HTMLVoidElement
 
-
 # Root
 html = TagMeta("HTMLRootElement", (HTMLElement,), {"tag": "html"})
 head = TagMeta("HTMLHeadElement", (HTMLElement,), {"tag": "head"})
