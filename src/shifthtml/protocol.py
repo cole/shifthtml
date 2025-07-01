@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Generator
+from collections.abc import Generator, Iterator
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -34,16 +34,19 @@ class Node(Protocol):
 
         return new_obj
 
-    def __iter__(self) -> Generator[Node]:
+    def __iter__(self) -> Iterator[Node]:
         """Iterate over all nodes in the tree."""
         yield self
         for child in self.children:
             yield from iter(child)
 
-    def add_child(self, child: Node) -> None:
+    def add_child(self, child: Node | NodeTree) -> None:
         """Add a child node to this node."""
         if child is self:
             raise ValueError("Can't make a node a child of itself")
+
+        if isinstance(child, NodeTree):
+            child = child.root
 
         if isinstance(child, Node):
             if child.parent is not None:
@@ -57,7 +60,7 @@ class Node(Protocol):
         raise NotImplementedError("Node subclasses must implement render")
 
 
-def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
+def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node]:
     pointer_found, child_pointer_found = None, None
 
     new_node = copy.replace(old_node, children=[])
@@ -69,7 +72,11 @@ def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]
         new_child, child_pointer_found = _copy_tree(child, pointer_target)
         new_node.add_child(new_child)
 
-    return new_node, pointer_found or child_pointer_found
+    new_pointer = pointer_found or child_pointer_found
+    if not new_pointer:
+        raise ValueError("Pointer target not found in the tree")
+
+    return new_node, new_pointer
 
 
 @runtime_checkable
@@ -83,7 +90,7 @@ class NodeTree(Protocol):
 
     def __copy__(self) -> NodeTree:
         return self.__class__(self.root, self.append_pointer)
-    
+
     def __deepcopy__(self, memo=None) -> NodeTree:
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
         return self.__class__(new_root, new_pointer)

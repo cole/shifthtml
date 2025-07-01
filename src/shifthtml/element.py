@@ -37,10 +37,10 @@ class Fragment(NodeTreeProtocol):
         yield from self.render()
 
     @overload
-    def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
-    
-    @overload
     def __rshift__(self, other: None) -> None: ...
+
+    @overload
+    def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
 
     def __rshift__(self, other):
         resolved = _maybe_call(other)
@@ -81,22 +81,12 @@ class Node(NodeProtocol):
     and then put into a tree by the shift operator (>>) which calls `add_child`.
     """
 
-    @overload
     @classmethod
-    def factory(cls, contents: NodeContent) -> Node: ...
-
-    @overload
-    @classmethod
-    def factory(cls, contents: None) -> None: ...
-
-    @classmethod
-    def factory(cls, contents):
+    def factory(cls, contents: NodeContent) -> Node:
         if isinstance(contents, Node):
             resolved = contents
         elif isinstance(contents, (str | Template)):
             resolved = Text(contents)
-        elif contents is None:
-            resolved = None
         elif isinstance(contents, Iterable):
             resolved = NodeList(contents)
         else:
@@ -106,7 +96,7 @@ class Node(NodeProtocol):
 
     @overload
     def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
-    
+
     @overload
     def __rshift__(self, other: None) -> None: ...
 
@@ -127,13 +117,6 @@ class Node(NodeProtocol):
 
         return new_fragment
 
-    def add_child(self, child: Node | Fragment) -> None:
-        if isinstance(child, Fragment):
-            child = child.root
-
-        super().add_child(child)
-
-
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         """Render the node to a string"""
         for child in self.children:
@@ -147,10 +130,14 @@ class NodeList(Node, Sequence[NodeProtocol]):
         super().__init__()
 
         for item in contents:
+            if item is None:
+                continue
+
             if isinstance(item, Fragment):
                 self.add_child(item)
             else:
-                item_node = Node.factory(_maybe_call(item))
+                resolved_item = _maybe_call(item)
+                item_node = Node.factory(resolved_item)
                 if item_node is not None:
                     self.add_child(item_node)
 
@@ -158,10 +145,10 @@ class NodeList(Node, Sequence[NodeProtocol]):
         return f"NodeList({repr(self.children)})"
 
     @overload
-    def __getitem__(self, index: int) -> Node | Fragment: ...
+    def __getitem__(self, index: int) -> NodeProtocol: ...
 
     @overload
-    def __getitem__(self, index: slice[Any, Any, Any]) -> list[Node | Fragment]: ...
+    def __getitem__(self, index: slice[Any, Any, Any]) -> Sequence[NodeProtocol]: ...
 
     def __getitem__(self, index):
         return self.children[index]
@@ -169,20 +156,20 @@ class NodeList(Node, Sequence[NodeProtocol]):
     def __len__(self) -> int:
         return len(self.children)
 
-    def __iter__(self) -> Iterator[Node | Fragment]:
+    def __iter__(self) -> Iterator[NodeProtocol]:
         return iter(self.children)
 
     def __contains__(self, item: object) -> bool:
         return item in self.children
 
-    def __reversed__(self) -> Iterator[Node | Fragment]:
+    def __reversed__(self) -> Iterator[NodeProtocol]:
         return reversed(self.children)
 
-    def count(self, value: Node | Fragment) -> int:
+    def count(self, value: NodeProtocol) -> int:
         """Count occurrences of a value in the NodeList."""
         return self.children.count(value)
 
-    def index(self, value: Node | Fragment, start: int = 0, stop: int | None = None) -> int:
+    def index(self, value: NodeProtocol, start: int = 0, stop: int | None = None) -> int:
         if stop is None:
             return self.children.index(value, start)
         return self.children.index(value, start, stop)
@@ -204,7 +191,7 @@ class Text(Node):
 
         return new_obj
 
-    def add_child(self, child: Node | Fragment) -> Never:
+    def add_child(self, child: NodeProtocol | NodeTreeProtocol) -> Never:
         raise ValueError("Text nodes cannot have children")
 
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
@@ -239,7 +226,6 @@ class Element(Node):
 
 
 class HTMLElement(Element):
-
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
@@ -281,10 +267,10 @@ class DeferredNode(Node):
         child: Node | Fragment,
         *,
         slot_name: str,
-        loading: NodeContent = None,
+        loading: NodeContent | None = None,
     ):
         super().__init__()
-        self.loading_node = Node.factory(loading)
+        self.loading_node = Node.factory(loading) if loading is not None else None
         self.slot_name = slot_name
 
         if isinstance(child, Fragment):
