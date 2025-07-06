@@ -1,0 +1,8 @@
+{% for todo in todos %}
+    {% include 'todo_item.html' %}
+{% endfor %}
+{% if not todos %}
+<div style="padding: 20px; text-align: center; color: #999;">
+    No todos yet. Add one above!
+</div>
+{% endif %}
