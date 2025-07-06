@@ -202,7 +202,7 @@ def _convert_attribute_names(name: str) -> str:
     if name == "classname":
         return "class"
 
-    return name
+    return name.replace("_", "-")
 
 
 class Element(Node):

@@ -53,6 +53,12 @@ def test_render_h1_dynamic_attribute_name():
     assert str(tag) == '<h1 my-test-attr="foo">Hello, World!</h1>'
 
 
+def test_render_h1_attribute_conversion():
+    tag = shift(h1(data_testid="foo") >> "Hello, World!")
+
+    assert str(tag) == '<h1 data-testid="foo">Hello, World!</h1>'
+
+
 def test_render_ul():
     tag = shift(ul >> (li >> "Test", li >> "one", li >> "two"))
 
