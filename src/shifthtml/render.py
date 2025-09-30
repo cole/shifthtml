@@ -41,6 +41,13 @@ def render_string(value: str | Template, quote: bool = True) -> Generator[str]:
 def render_attributes(attributes: dict[str, str | Template]) -> Generator[str]:
     for key, value in attributes.items():
         value = attributes[key]
-        rendered_value = "".join(render_string(value, quote=True))
+        if value is None:
+            rendered_value = ""
+        elif value is True:
+            rendered_value = "true"
+        elif value is False:
+            rendered_value = "false"
+        else:
+            rendered_value = "".join(render_string(str(value), quote=True))
 
         yield f'{key}="{rendered_value}"'

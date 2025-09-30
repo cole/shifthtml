@@ -1,73 +1,84 @@
 import sqlite3
-from flask import Flask, render_template, request, g
+
+from components import page, todo_item, todo_list
+from flask import Flask, g, request
 
 app = Flask(__name__)
-DATABASE = 'todos.db'
+DATABASE = "todos.db"
+
 
 # Database functions
 def get_db():
-    db = getattr(g, '_database', None)
+    db = getattr(g, "_database", None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
         db.row_factory = sqlite3.Row
     return db
 
+
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, '_database', None)
+    db = getattr(g, "_database", None)
     if db is not None:
         db.close()
+
 
 def init_db():
     with app.app_context():
         db = get_db()
-        db.execute('''
+        db.execute("""
             CREATE TABLE IF NOT EXISTS todos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 title TEXT NOT NULL,
                 completed BOOLEAN NOT NULL DEFAULT 0
             )
-        ''')
+        """)
         db.commit()
+
 
 # Routes
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.route("/")
+def index_route():
+    return page().render()
 
-@app.route('/todos')
+
+@app.route("/todos")
 def get_todos():
     db = get_db()
-    todos = db.execute('SELECT * FROM todos ORDER BY id DESC').fetchall()
-    return render_template('todos.html', todos=todos)
+    todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
+    return todo_list(todos).render()
 
-@app.route('/todos', methods=['POST'])
+
+@app.route("/todos", methods=["POST"])
 def add_todo():
-    title = request.form.get('title')
+    title = request.form.get("title")
+    db = get_db()
     if title:
-        db = get_db()
-        db.execute('INSERT INTO todos (title) VALUES (?)', (title,))
+        db.execute("INSERT INTO todos (title) VALUES (?)", (title,))
         db.commit()
 
-    todos = db.execute('SELECT * FROM todos ORDER BY id DESC').fetchall()
-    return render_template('todos.html', todos=todos)
+    todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
+    return todo_list(todos).render()
 
-@app.route('/todos/<int:todo_id>/toggle', methods=['PUT'])
+
+@app.route("/todos/<int:todo_id>/toggle", methods=["PUT"])
 def toggle_todo(todo_id):
     db = get_db()
-    db.execute('UPDATE todos SET completed = NOT completed WHERE id = ?', (todo_id,))
+    db.execute("UPDATE todos SET completed = NOT completed WHERE id = ?", (todo_id,))
     db.commit()
 
-    todo = db.execute('SELECT * FROM todos WHERE id = ?', (todo_id,)).fetchone()
-    return render_template('todo_item.html', todo=todo)
+    todo = db.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
+    return todo_item(todo).render()
 
-@app.route('/todos/<int:todo_id>', methods=['DELETE'])
+
+@app.route("/todos/<int:todo_id>", methods=["DELETE"])
 def delete_todo(todo_id):
     db = get_db()
-    db.execute('DELETE FROM todos WHERE id = ?', (todo_id,))
+    db.execute("DELETE FROM todos WHERE id = ?", (todo_id,))
     db.commit()
-    return ''
+    return ""
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     init_db()
     app.run(debug=True)
