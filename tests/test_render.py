@@ -137,3 +137,23 @@ def test_render_multiple_vars():
         str(main_tag)
         == '<main><div><p>paragraph 1</p><p>paragraph 1.5</p></div><aside><div><p>paragraph 2</p></div></aside><div class="test"><div><p>paragraph 2</p></div></div></main>'
     )
+
+
+def test_render_h1_classname_list():
+    tag = shift(h1(classname=["bighead", "heading", "page1"]) >> "Hello, World!")
+
+    assert str(tag) == '<h1 class="bighead heading page1">Hello, World!</h1>'
+
+
+def test_render_h1_classname_set():
+    tag = shift(h1(classname={"bighead", "heading", "page1"}) >> "Hello, World!")
+
+    assert "bighead" in str(tag)
+    assert "heading" in str(tag)
+    assert "page1" in str(tag)
+
+
+def test_render_h1_classname_tuple():
+    tag = shift(h1(classname=("bighead", "heading", "page1")) >> "Hello, World!")
+
+    assert str(tag) == '<h1 class="bighead heading page1">Hello, World!</h1>'
