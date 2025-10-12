@@ -39,14 +39,10 @@ def init_db():
 # Routes
 @app.route("/")
 def index_route():
-    return page().render()
-
-
-@app.route("/todos")
-def get_todos():
     db = get_db()
     todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
-    return todo_list(todos).render()
+
+    return page(todos).render()
 
 
 @app.route("/todos", methods=["POST"])

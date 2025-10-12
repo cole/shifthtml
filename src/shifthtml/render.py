@@ -47,6 +47,10 @@ def render_attributes(attributes: dict[str, str | Template]) -> Generator[str]:
             rendered_value = "true"
         elif value is False:
             rendered_value = "false"
+        elif isinstance(value, set | list | tuple):
+            rendered_value = " ".join(
+                "".join(render_string(str(v), quote=True)) for v in value if v
+            )
         else:
             rendered_value = "".join(render_string(str(value), quote=True))
 

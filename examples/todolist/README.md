@@ -19,7 +19,7 @@ uv run app.py
 ## How it works
 
 The app uses HTMX to make AJAX requests without writing JavaScript:
-- `hx-get` loads todos on page load
+
 - `hx-post` adds new todos
 - `hx-put` toggles todo completion status
 - `hx-delete` removes todos

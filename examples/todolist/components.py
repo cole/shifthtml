@@ -62,10 +62,25 @@ h1 {
   color: #ff4d4f;
   cursor: pointer;
 }
+
+.todo-item input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.todo-label {
+  flex: 1;
+}
+
+.todo-label.completed {
+  text-decoration: line-through;
+  color: #999;
+}
 """
 
 
-def page():
+def page(todos):
     return shift(
         html({"lang": "en"})
         >> (
@@ -81,7 +96,7 @@ def page():
             >> (
                 h1 >> "Todo List",
                 add_todo_form,
-                div(id="todo-list", hx_get="/todos", hx_trigger="load") >> "Loading...",
+                todo_list(todos),
             ),
         )
     )
@@ -108,12 +123,15 @@ def todo_item(todo):
     todo_id = todo["id"]
     is_completed = todo["completed"]
 
+    label_classes = set(["todo-label"])
+    if is_completed:
+        label_classes.add("completed")
+  
     checkbox_attrs = {
         "type": "checkbox",
         "hx-put": f"/todos/{todo_id}/toggle",
         "hx-target": f"#todo-{todo_id}",
         "hx-swap": "outerHTML",
-        "style": "width: 20px; height: 20px; cursor: pointer;",
     }
     if is_completed:
         checkbox_attrs["checked"] = "checked"
@@ -125,7 +143,7 @@ def todo_item(todo):
         )
         >> (
             input_(checkbox_attrs),
-            span(style=f"flex: 1; {'text-decoration: line-through; color: #999;' if is_completed else ''}")
+            span(classname=label_classes)
             >> todo["title"],
             button(
                 hx_delete=f"/todos/{todo_id}",
