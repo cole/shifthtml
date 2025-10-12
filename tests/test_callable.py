@@ -17,7 +17,22 @@ def test_render_single_node_callable():
     assert str(tag) == '<div><img id="photo" src="https://example.com/photo.jpg" /></div>'
 
 
-def test_render_callable_in_sequence():
+def test_render_callable_in_nodelist():
+    def nested_text():
+        return p >> "some text"
+
+    tag = shift(
+        div
+        >> (
+            nested_text,
+            p >> "other text",
+        )
+    )
+
+    assert str(tag) == "<div><p>some text</p><p>other text</p></div>"
+
+
+def test_render_callable_last_in_sequence():
     def user_avatar():
         return img(id="photo", src="https://example.com/photo.jpg")
 

@@ -132,12 +132,13 @@ class NodeList(Node, Sequence[NodeProtocol]):
         for item in contents:
             if item is None:
                 continue
+            
+            item = _maybe_call(item)
 
             if isinstance(item, Fragment):
                 self.add_child(item)
             else:
-                resolved_item = _maybe_call(item)
-                item_node = Node.factory(resolved_item)
+                item_node = Node.factory(item)
                 if item_node is not None:
                     self.add_child(item_node)
 

@@ -92,7 +92,7 @@ def page_header():
 
 def page(todos):
     return html({"lang": "en"}) >> (
-        page_header(),
+        page_header,
         body
         >> (
             h1 >> "Todo List",
