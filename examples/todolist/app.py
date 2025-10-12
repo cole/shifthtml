@@ -3,6 +3,8 @@ import sqlite3
 from components import page, todo_item, todo_list
 from flask import Flask, g, request
 
+from shifthtml import shift
+
 app = Flask(__name__)
 DATABASE = "todos.db"
 
@@ -42,7 +44,7 @@ def index_route():
     db = get_db()
     todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
 
-    return page(todos).render()
+    return shift(page(todos)).render()
 
 
 @app.route("/todos", methods=["POST"])
@@ -54,7 +56,7 @@ def add_todo():
         db.commit()
 
     todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
-    return todo_list(todos).render()
+    return shift(todo_list(todos)).render()
 
 
 @app.route("/todos/<int:todo_id>/toggle", methods=["PUT"])
@@ -64,7 +66,7 @@ def toggle_todo(todo_id):
     db.commit()
 
     todo = db.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
-    return todo_item(todo).render()
+    return shift(todo_item(todo)).render()
 
 
 @app.route("/todos/<int:todo_id>", methods=["DELETE"])

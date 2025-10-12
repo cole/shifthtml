@@ -1,19 +1,11 @@
-# Todo Example
+# Todolist Example
 
 A simple todo list application demonstrating Shift with Flask, HTMX, and SQLite.
 
 ## Setup
 
-1. Install dependencies:
-```bash
-uv pip install -r requirements.txt
-```
-
-2. Run the application:
-```bash
-uv run app.py
-```
-
+1. Install dependencies: `uv pip install -r requirements.txt`
+2. Run the application: `uv run app.py`
 3. Open your browser to `http://127.0.0.1:5000`
 
 ## How it works

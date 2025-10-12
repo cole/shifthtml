@@ -1,4 +1,4 @@
-from shifthtml import body, button, div, form, h1, head, html, input_, meta, script, shift, span, style, title
+from shifthtml import body, button, div, form, h1, head, html, input_, meta, script, span, style, title
 
 CSS = """body {
   font-family: system-ui, -apple-system, sans-serif;
@@ -80,25 +80,25 @@ h1 {
 """
 
 
+def page_header():
+    return head >> (
+        meta({"charset": "UTF-8"}),
+        meta({"name": "viewport", "content": "width=device-width, initial-scale=1.0"}),
+        title >> "Todo List",
+        script({"src": "https://unpkg.com/htmx.org@1.9.10"}),
+        style >> CSS,
+    )
+
+
 def page(todos):
-    return shift(
-        html({"lang": "en"})
+    return html({"lang": "en"}) >> (
+        page_header(),
+        body
         >> (
-            head
-            >> (
-                meta({"charset": "UTF-8"}),
-                meta({"name": "viewport", "content": "width=device-width, initial-scale=1.0"}),
-                title >> "Todo List",
-                script({"src": "https://unpkg.com/htmx.org@1.9.10"}),
-                style >> CSS,
-            ),
-            body
-            >> (
-                h1 >> "Todo List",
-                add_todo_form,
-                todo_list(todos),
-            ),
-        )
+            h1 >> "Todo List",
+            add_todo_form,
+            todo_list(todos),
+        ),
     )
 
 
@@ -114,9 +114,9 @@ def add_todo_form():
 
 def todo_list(todos):
     if not todos:
-        return shift(div(classname="todo-list empty") >> "No todos yet. Add one above!")
+        return div(classname="todo-list empty") >> "No todos yet. Add one above!"
 
-    return shift(div(id="todo-list", classname="todo-list") >> (todo_item(todo) for todo in todos))
+    return div(id="todo-list", classname="todo-list") >> (todo_item(todo) for todo in todos)
 
 
 def todo_item(todo):
@@ -126,25 +126,20 @@ def todo_item(todo):
     label_classes = set(["todo-label"])
     if is_completed:
         label_classes.add("completed")
-  
+
     checkbox_attrs = {
         "type": "checkbox",
         "hx-put": f"/todos/{todo_id}/toggle",
         "hx-target": f"#todo-{todo_id}",
         "hx-swap": "outerHTML",
+        "autocomplete": "off",
     }
     if is_completed:
         checkbox_attrs["checked"] = "checked"
 
-    return shift(
-        div(
-            id=f"todo-{todo_id}",
-            classname="todo-item",
-        )
-        >> (
+    return div(id=f"todo-{todo_id}", classname="todo-item") >> (
             input_(checkbox_attrs),
-            span(classname=label_classes)
-            >> todo["title"],
+            span(classname=label_classes) >> todo["title"],
             button(
                 hx_delete=f"/todos/{todo_id}",
                 hx_target=f"#todo-{todo_id}",
@@ -152,4 +147,4 @@ def todo_item(todo):
             )
             >> "Delete",
         )
-    )
+  
