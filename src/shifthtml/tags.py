@@ -1,7 +1,8 @@
+from collections.abc import Generator
 from .element import HTMLElement, HTMLVoidElement
 from .meta import TagMeta
 
-# Dom elements
+# DOM elements
 # HTMLAnchorElement
 # HTMLAreaElement
 # HTMLAudioElement
@@ -70,7 +71,16 @@ from .meta import TagMeta
 # HTMLVideoElement
 
 # Root
-html = TagMeta("HTMLRootElement", (HTMLElement,), {"tag": "html"})
+
+class HTMLRootElement(HTMLElement, metaclass=TagMeta):
+    tag = "html"
+
+    def render(self, *args, **kwargs) -> Generator[str]:
+        yield "<!DOCTYPE html>"
+        yield from super().render(*args, **kwargs)
+
+
+html = HTMLRootElement
 head = TagMeta("HTMLHeadElement", (HTMLElement,), {"tag": "head"})
 body = TagMeta("HTMLBodyElement", (HTMLElement,), {"tag": "body"})
 

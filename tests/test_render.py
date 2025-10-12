@@ -93,7 +93,7 @@ def test_render_nesting():
 
     assert (
         str(tag)
-        == '<html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
+        == '<!DOCTYPE html><html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
     )
 
 
