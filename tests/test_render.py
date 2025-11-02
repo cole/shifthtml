@@ -85,10 +85,10 @@ def test_render_img_child_errors():
 def test_render_nesting():
     count = 1
     tag = shift(
-        html
+        html()
         >> body({"class": "test", "data-testid": f"body-{count}"})
-        >> div
-        >> (h1 >> "Welcome to the Test Page", p >> "This is a paragraph on the test page.")
+        >> div()
+        >> (h1() >> "Welcome to the Test Page", p() >> "This is a paragraph on the test page.")
     )
 
     assert (
@@ -99,12 +99,12 @@ def test_render_nesting():
 
 def test_render_head_tag():
     tag = shift(
-        head
+        head()
         >> (
-            title >> "Test Page",
+            title() >> "Test Page",
             meta(charset="UTF-8"),
             link(rel="stylesheet", href="style.css"),
-            style >> "body { background-color: #fff; }",
+            style() >> "body { background-color: #fff; }",
         )
     )
 

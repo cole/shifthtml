@@ -15,6 +15,10 @@ class Node(metaclass=ABCMeta):
 
     Different types on nodes are supported, analogous to Document Object Model (DOM)
     nodes, such as document, element, text, comment nodes, etc.
+
+    Nodes are initially "floating" without parent, children, or document.
+    They are added to a tree via `append_child`, which sets up parent/child/document
+    relationships. Adding an existing node elsewhere will raise an error.
     """
 
     parent_node: None | Node
@@ -49,7 +53,11 @@ class Node(metaclass=ABCMeta):
         if not isinstance(child, Node):
             raise ValueError(f"Node can only contain other nodes. Unexpected type {child.__class__.__name__!r}")
 
+        if child.parent_node is not None:
+            raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
+        
         child.parent_node = self
+        child._document = self._document
         self.children.append(child)
 
     def remove_child(self, child: Node) -> None:
@@ -117,10 +125,29 @@ class Node(metaclass=ABCMeta):
 
 class DocumentFragment(Node, metaclass=ABCMeta):
     """
-    An HTML Document Fragment, analogous to DOM DocumentFragment.
+    An HTML Document Fragment, somewhere between a DOM Document and DocumentFragment.
     """
 
-    parent_node: None | Node
+    parent_node: None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._document = self
+
+    def create_element(self, tag_name: str, attributes: dict[str, str] | None = None) -> Element:
+        node = Element(tag_name, attributes)
+        node._document = self
+        return node
+
+    def create_text_node(self, content: str) -> Text:
+        node = Text(content)
+        node._document = self
+        return node
+
+    def create_comment(self, content: str) -> Comment:
+        node = Comment(content)
+        node._document = self
+        return node
 
 
 class Element(Node, metaclass=ABCMeta):
@@ -152,6 +179,9 @@ class Text(Node):
         super().__init__(*args, **kwargs)
         self.content = content
 
+    def append_child(self, child):
+        raise ValueError("Cannot add children to a Text node")
+
     def render(self, *args, **kwargs) -> Generator[str]:
         yield self.content
 
@@ -166,6 +196,9 @@ class Comment(Node):
     def __init__(self, content: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.content = content
+
+    def append_child(self, child):
+        raise ValueError("Cannot add children to a Comment node")
 
     def render(self, *args, **kwargs) -> Generator[str]:
         yield f"<!--{self.content}-->"

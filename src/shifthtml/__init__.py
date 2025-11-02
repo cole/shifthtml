@@ -210,8 +210,6 @@ __all__ = (
     "canvas",
     "noscript",
     "script",
-    "del_",
-    "ins",
     "caption",
     "col",
     "colgroup",
@@ -243,6 +241,7 @@ __all__ = (
     "slot",
     "template",
     "shift",
+    "defer",
 )
 
 

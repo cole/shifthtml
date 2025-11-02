@@ -8,5 +8,4 @@ else:
         pass
 
     class Interpolation:
-        def __match_args__(self):
-            return ("value", "name", "conversion", "format_spec")
+        __match_args__ = ("value", "name", "conversion", "format_spec")

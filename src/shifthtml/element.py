@@ -284,9 +284,6 @@ class DeferredNode(Node):
     def __replace__(self, /, **changes):
         new_obj = type(self)(copy.replace(self.children[0]), slot_name=self.slot_name, loading=self.loading_node)
 
-        for child in self.children:
-            new_obj.add_child(copy.replace(child))
-
         return new_obj
 
     def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:

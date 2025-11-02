@@ -175,10 +175,6 @@ canvas = TagMeta("HTMLCanvasElement", (HTMLElement,), {"tag": "canvas"})
 noscript = TagMeta("HTMLNoscriptElement", (HTMLElement,), {"tag": "noscript"})
 script = TagMeta("HTMLScriptElement", (HTMLElement,), {"tag": "script"})
 
-# Demarcating edits
-del_ = TagMeta("HTMLDelElement", (HTMLElement,), {"tag": "del"})
-ins = TagMeta("HTMLInsElement", (HTMLElement,), {"tag": "ins"})
-
 # Table content
 caption = TagMeta("HTMLCaptionElement", (HTMLElement,), {"tag": "caption"})
 col = TagMeta("HTMLColElement", (HTMLVoidElement,), {"tag": "col"})

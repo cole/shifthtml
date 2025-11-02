@@ -38,9 +38,8 @@ def render_string(value: str | Template, quote: bool = True) -> Generator[str]:
         yield escape(value, quote=quote)
 
 
-def render_attributes(attributes: dict[str, str | Template]) -> Generator[str]:
+def render_attributes(attributes: dict[str, object]) -> Generator[str]:
     for key, value in attributes.items():
-        value = attributes[key]
         if value is None:
             rendered_value = ""
         elif value is True:

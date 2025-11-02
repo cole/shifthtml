@@ -60,8 +60,8 @@ class Node(Protocol):
         raise NotImplementedError("Node subclasses must implement render")
 
 
-def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node]:
-    pointer_found, child_pointer_found = None, None
+def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
+    pointer_found: Node | None = None
 
     new_node = copy.replace(old_node, children=[])
 
@@ -69,14 +69,12 @@ def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node]:
         pointer_found = new_node
 
     for child in old_node.children:
-        new_child, child_pointer_found = _copy_tree(child, pointer_target)
+        new_child, child_pointer = _copy_tree(child, pointer_target)
         new_node.add_child(new_child)
+        if child_pointer is not None:
+            pointer_found = child_pointer
 
-    new_pointer = pointer_found or child_pointer_found
-    if not new_pointer:
-        raise ValueError("Pointer target not found in the tree")
-
-    return new_node, new_pointer
+    return new_node, pointer_found
 
 
 @runtime_checkable
@@ -93,10 +91,14 @@ class NodeTree(Protocol):
 
     def __deepcopy__(self, memo=None) -> NodeTree:
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
+        if new_pointer is None:
+            raise ValueError("Pointer target not found in the tree")
         return self.__class__(new_root, new_pointer)
 
     def __replace__(self, /, **changes):
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
+        if new_pointer is None:
+            raise ValueError("Pointer target not found in the tree")
         return self.__class__(new_root, new_pointer)
 
     def append(self, node: Node | NodeTree) -> None:
