@@ -12,11 +12,14 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "mypy>=1.16.0",
+    "ty>=0.0.1a7",
     "ruff",
     "pytest>=8.3.5",
     "pytest-asyncio>=1.0.0",
 ]
+
+[tool.ty.src]
+include = ["src/", "tests/"]
 
 [tool.ruff]
 line-length = 120
