@@ -1,6 +1,6 @@
 from collections.abc import Callable, Iterable
+from string.templatelib import Template
 
-from .compat import Template
 from .node import Node
 
 type NodeClassContent = type[Node] | Node

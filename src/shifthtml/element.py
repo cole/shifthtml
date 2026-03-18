@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+from string.templatelib import Template
 from typing import Any, ClassVar, overload
 
-from .compat import Template
 from .node import Element as DOMElement
 from .node import Node as DOMNode
 from .node import Text as DOMText

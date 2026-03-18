@@ -1,4 +1,5 @@
-from .compat import Template
+from string.templatelib import Template
+
 from .element import (
     DeferredNode,
     Fragment,
