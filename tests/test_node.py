@@ -65,7 +65,7 @@ def test_node_breadth():
     assert node3_3.parent_node is node2_3
     assert node3_4.parent_node is node2_3
 
-    assert [n.value for n in node1] == ["1", "2.1", "2.2", "3.1", "3.2", "2.3", "3.3", "3.4"]
+    assert [n.value for n in node1 if isinstance(n, SimpleNode)] == ["1", "2.1", "2.2", "3.1", "3.2", "2.3", "3.3", "3.4"]
 
 
 def test_node_child_of_self():
@@ -76,7 +76,7 @@ def test_node_child_of_self():
 
 def test_node_add_unknown_type():
     with pytest.raises(ValueError, match="Node can only contain other nodes. Unexpected type 'str'"):
-        SimpleNode("test").append_child("NotANode")
+        SimpleNode("test").append_child("NotANode")  # type: ignore[invalid-argument-type]
 
 
 def test_fragment_append_node():
@@ -97,12 +97,12 @@ def test_fragment_append_node():
     assert tree is not tree2
     assert tree.root is node1
     assert tree.append_pointer is node1
-    assert tree2.root.value == node1.value
-    assert tree2.append_pointer.value == node2.value
-    assert tree3.root.value == node1.value
-    assert tree3.append_pointer.value == node3.value
-    assert tree4.root.value == node1.value
-    assert tree4.append_pointer.value == node4.value
+    assert isinstance(tree2.root, SimpleNode) and tree2.root.value == node1.value
+    assert isinstance(tree2.append_pointer, SimpleNode) and tree2.append_pointer.value == node2.value
+    assert isinstance(tree3.root, SimpleNode) and tree3.root.value == node1.value
+    assert isinstance(tree3.append_pointer, SimpleNode) and tree3.append_pointer.value == node3.value
+    assert isinstance(tree4.root, SimpleNode) and tree4.root.value == node1.value
+    assert isinstance(tree4.append_pointer, SimpleNode) and tree4.append_pointer.value == node4.value
 
     assert "".join(tree.render()) == "Node(1, children=[])"
     assert "".join(tree2.render()) == "Node(1, children=[Node(2, children=[])])"

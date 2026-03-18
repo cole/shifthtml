@@ -255,7 +255,7 @@ def shift(html: Node | Fragment) -> Fragment:
 
 def defer(
     slot_name: str,
-    node: Node,
+    node: Node | Fragment,
     *,
     loading: Node | str | Template | None = None,
 ) -> DeferredNode:

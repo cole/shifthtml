@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 from abc import ABCMeta, abstractmethod
 from collections.abc import Generator, Iterator
+from string.templatelib import Template
 
 
 class Node(metaclass=ABCMeta):
@@ -134,7 +135,7 @@ class DocumentFragment(Node):
         super().__init__(*args, **kwargs)
         self._document = self
 
-    def create_element(self, tag_name: str, attributes: dict[str, str] | None = None) -> Element:
+    def create_element(self, tag_name: str, attributes: dict[str, str | Template] | None = None) -> Element:
         node = Element(tag_name, attributes)
         node._document = self
         return node
@@ -159,9 +160,9 @@ class Element(Node):
     An HTML Element Node, analogous to DOM HTMLElement.
     """
 
-    attributes: dict[str, str]
+    attributes: dict[str, str | Template]
 
-    def __init__(self, tag_name: str, attributes: dict[str, str] | None = None, *args, **kwargs):
+    def __init__(self, tag_name: str, attributes: dict[str, str | Template] | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._tag_name = tag_name
         self.attributes = attributes or {}
@@ -186,9 +187,9 @@ class Text(Node):
     An HTML Text Node, analogous to DOM Text.
     """
 
-    content: str
+    content: str | Template
 
-    def __init__(self, content: str, *args, **kwargs):
+    def __init__(self, content: str | Template, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.content = content
 
@@ -207,9 +208,9 @@ class Comment(Node):
     An HTML Comment Node, analogous to DOM Comment.
     """
 
-    content: str
+    content: str | Template
 
-    def __init__(self, content: str, *args, **kwargs):
+    def __init__(self, content: str | Template, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.content = content
 

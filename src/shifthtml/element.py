@@ -14,7 +14,7 @@ from .types import NodeContent, NodeListContent
 
 def _maybe_call[T](item: Callable[[], T] | T) -> T:
     if callable(item):
-        return item()
+        return item()  # type: ignore[call-top-callable]  # ty can't narrow Callable[[], T] | T when T itself may be callable
     return item
 
 
@@ -77,7 +77,7 @@ class Fragment:
     def __rshift__(self, other: None) -> None: ...
 
     @overload
-    def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
+    def __rshift__(self, other: NodeContent) -> Fragment: ...
 
     def __rshift__(self, other):
         resolved = _maybe_call(other)
@@ -134,18 +134,19 @@ class Node(DOMNode):
     @classmethod
     def factory(cls, contents: NodeContent) -> Node:
         if isinstance(contents, Node):
-            resolved = contents
-        elif isinstance(contents, (str | Template)):
-            resolved = Text(contents)
-        elif isinstance(contents, Iterable):
-            resolved = NodeList(contents)
-        else:
-            raise ValueError(f"Unsupported shift type for >>: {type(contents)}")
-
-        return resolved
+            return contents
+        if isinstance(contents, Fragment):
+            return NodeList([contents])
+        if isinstance(contents, (str, Template)):
+            return Text(contents)
+        if callable(contents):
+            return cls.factory(contents())  # type: ignore[call-top-callable]
+        if isinstance(contents, Iterable):
+            return NodeList(contents)
+        raise ValueError(f"Unsupported shift type for >>: {type(contents)}")
 
     @overload
-    def __rshift__(self, other: NodeContent | Fragment) -> Fragment: ...
+    def __rshift__(self, other: NodeContent) -> Fragment: ...
 
     @overload
     def __rshift__(self, other: None) -> None: ...
@@ -256,7 +257,7 @@ class Element(Node, DOMElement):
     attributes: dict[str, str | Template]
 
     def __init__(self, attributes: dict[str, str | Template] | None = None, /, **keyword_attributes: str | Template):
-        merged = attributes or {}
+        merged: dict[str, str | Template] = attributes or {}
         merged.update({_convert_attribute_names(key): value for key, value in keyword_attributes.items()})
         super().__init__(tag_name=type(self).tag, attributes=merged)
 
