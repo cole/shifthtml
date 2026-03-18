@@ -1,10 +1,10 @@
-from typing import Protocol
+from abc import ABCMeta
 
 from .element import Fragment
 from .types import NodeContent
 
 
-class TagMeta(type(Protocol)):
+class TagMeta(ABCMeta):
     def __new__(mcls, name: str, bases: tuple[type, ...], attrs: dict[str, object]) -> type:
         if "tag" not in attrs:
             raise ValueError(f"{name} must define a 'tag' class attribute")

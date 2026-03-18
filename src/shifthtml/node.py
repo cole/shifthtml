@@ -13,7 +13,7 @@ class Node(metaclass=ABCMeta):
     """
     Abstract base class for nodes in a tree structure.
 
-    Different types on nodes are supported, analogous to Document Object Model (DOM)
+    Different types of nodes are supported, analogous to Document Object Model (DOM)
     nodes, such as document, element, text, comment nodes, etc.
 
     Nodes are initially "floating" without parent, children, or document.
@@ -40,13 +40,13 @@ class Node(metaclass=ABCMeta):
         return new_obj
 
     def __iter__(self) -> Iterator[Node]:
-        """Iterate over all child nodes."""
-        yield from self.children
+        """Iterate depth-first over this node and all descendants."""
+        yield self
+        for child in self.children:
+            yield from iter(child)
 
     def append_child(self, child: Node) -> None:
         """Add a child node to this node."""
-        # TODO: check for ancestry loops
-        # https://developer.mozilla.org/en-US/docs/Web/API/Node/appendChild
         if child is self:
             raise ValueError("Can't make a node a child of itself")
 
@@ -55,7 +55,7 @@ class Node(metaclass=ABCMeta):
 
         if child.parent_node is not None:
             raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
-        
+
         child.parent_node = self
         child._document = self._document
         self.children.append(child)
@@ -123,7 +123,7 @@ class Node(metaclass=ABCMeta):
         raise NotImplementedError("Subclasses must implement render")
 
 
-class DocumentFragment(Node, metaclass=ABCMeta):
+class DocumentFragment(Node):
     """
     An HTML Document Fragment, somewhere between a DOM Document and DocumentFragment.
     """
@@ -149,8 +149,12 @@ class DocumentFragment(Node, metaclass=ABCMeta):
         node._document = self
         return node
 
+    def render(self, *args, **kwargs) -> Generator[str]:
+        for child in self.children:
+            yield from child.render(*args, **kwargs)
 
-class Element(Node, metaclass=ABCMeta):
+
+class Element(Node):
     """
     An HTML Element Node, analogous to DOM HTMLElement.
     """
@@ -161,6 +165,15 @@ class Element(Node, metaclass=ABCMeta):
         super().__init__(*args, **kwargs)
         self._tag_name = tag_name
         self.attributes = attributes or {}
+
+    def __replace__(self, /, **changes):
+        new_obj = type(self)(self._tag_name)
+        new_obj.attributes = dict(self.attributes)
+        new_children = changes.get("children", self.children)
+        if new_children:
+            for child in new_children:
+                new_obj.append_child(copy.replace(child))
+        return new_obj
 
     @property
     def tag_name(self) -> str:
@@ -179,6 +192,9 @@ class Text(Node):
         super().__init__(*args, **kwargs)
         self.content = content
 
+    def __replace__(self, /, **changes):
+        return type(self)(self.content)
+
     def append_child(self, child):
         raise ValueError("Cannot add children to a Text node")
 
@@ -196,6 +212,9 @@ class Comment(Node):
     def __init__(self, content: str, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.content = content
+
+    def __replace__(self, /, **changes):
+        return type(self)(self.content)
 
     def append_child(self, child):
         raise ValueError("Cannot add children to a Comment node")

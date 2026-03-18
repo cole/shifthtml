@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Generator, Mapping
 from html import escape
 from typing import Literal
 
@@ -38,7 +38,7 @@ def render_string(value: str | Template, quote: bool = True) -> Generator[str]:
         yield escape(value, quote=quote)
 
 
-def render_attributes(attributes: dict[str, object]) -> Generator[str]:
+def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
     for key, value in attributes.items():
         if value is None:
             rendered_value = ""
