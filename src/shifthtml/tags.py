@@ -1,4 +1,5 @@
 from collections.abc import Generator
+
 from .element import HTMLElement, HTMLVoidElement
 from .meta import TagMeta
 

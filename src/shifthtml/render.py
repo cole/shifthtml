@@ -48,9 +48,9 @@ def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
             rendered_value = "false"
         elif isinstance(value, set | list | tuple):
             rendered_value = " ".join(
-                "".join(render_string(str(v), quote=True)) for v in value if v
+                "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
             )
         else:
-            rendered_value = "".join(render_string(str(value), quote=True))
+            rendered_value = "".join(render_string(value if isinstance(value, Template) else str(value), quote=True))
 
         yield f'{key}="{rendered_value}"'

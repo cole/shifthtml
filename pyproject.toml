@@ -7,7 +7,7 @@ name = "shifthtml"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = []
 
 [dependency-groups]
@@ -23,6 +23,3 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "UP", "B", "SIM", "I"]
-
-[tool.ruff.per-file-target-version]
-"tests/test_render_tstrings.py" = "py314"

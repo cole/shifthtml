@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
-from typing import Any, ClassVar, Never, overload
+from typing import Any, ClassVar, overload
 
 from .compat import Template
-from .node import Node as DOMNode
 from .node import Element as DOMElement
+from .node import Node as DOMNode
 from .node import Text as DOMText
 from .render import render_attributes, render_string
 from .types import NodeContent, NodeListContent
