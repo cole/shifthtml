@@ -20,6 +20,10 @@ class SimpleNode(tree.TreeNode):
             yield from child.render(*args, **kwargs)
         yield "])"
 
+    async def arender(self, *args, **kwargs):
+        for chunk in self.render(*args, **kwargs):
+            yield chunk
+
 
 def test_node_depth():
     node1 = SimpleNode("1")

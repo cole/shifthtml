@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
+import inspect
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator, Sequence
 from string.templatelib import Template
 from typing import Any, ClassVar, NoReturn, overload
+
+import anyio
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .render import render_attributes, render_string
@@ -12,9 +15,9 @@ from .types import NodeContent, NodeListContent
 
 
 def _maybe_call[T](item: Callable[[], T] | T) -> T:
-    if callable(item):
+    if callable(item) and not inspect.iscoroutinefunction(item):
         return item()  # type: ignore[call-top-callable]  # ty can't narrow Callable[[], T] | T when T itself may be callable
-    return item
+    return item  # type: ignore[invalid-return-type]  # async callables are passed through unchanged
 
 
 def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, TreeNode | None]:
@@ -127,6 +130,20 @@ class Fragment:
             node = self.deferred.pop(0)
             yield from node.render_result(defer_callback=self.defer_node)
 
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        if defer_callback is None:
+            defer_callback = self.defer_node
+        async for chunk in self.root.arender(defer_callback=defer_callback):
+            yield chunk
+        async for chunk in self.arender_deferred_nodes():
+            yield chunk
+
+    async def arender_deferred_nodes(self) -> AsyncGenerator[str]:
+        while len(self.deferred) > 0:
+            node = self.deferred.pop(0)
+            async for chunk in node.arender_result(defer_callback=self.defer_node):
+                yield chunk
+
 
 class Node(TreeNode):
     """
@@ -145,6 +162,8 @@ class Node(TreeNode):
         if isinstance(contents, str | Template):
             return Text(contents)
         if callable(contents):
+            if inspect.iscoroutinefunction(contents):
+                return Async(contents)
             return cls.factory(contents())  # type: ignore[call-top-callable]
         if isinstance(contents, Iterable):
             return NodeList(contents)
@@ -190,6 +209,21 @@ class Node(TreeNode):
         """Render the node to a string"""
         for child in self.children:
             yield from child.render(defer_callback=defer_callback)
+
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        """Async rendering with parallel sibling resolution."""
+        results: list[list[str]] = [[] for _ in self.children]
+
+        async def collect(i: int, child: TreeNode) -> None:
+            results[i] = [chunk async for chunk in child.arender(defer_callback=defer_callback)]
+
+        async with anyio.create_task_group() as tg:
+            for i, child in enumerate(self.children):
+                tg.start_soon(collect, i, child)
+
+        for chunks in results:
+            for chunk in chunks:
+                yield chunk
 
 
 class NodeList(Node, Sequence[TreeNode]):
@@ -266,6 +300,12 @@ class Text(Node):
     def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         yield from render_string(self.content)
 
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        from .arender import arender_string
+
+        async for chunk in arender_string(self.content):
+            yield chunk
+
 
 class Comment(Node):
     """An HTML Comment Node."""
@@ -286,6 +326,9 @@ class Comment(Node):
         raise ValueError("Cannot add children to a Comment node")
 
     def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+        yield f"<!--{self.content}-->"
+
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
         yield f"<!--{self.content}-->"
 
 
@@ -378,6 +421,37 @@ class Element(Node):
                 yield from child.render(defer_callback=defer_callback)
             yield f"</{self.tag}>"
 
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        if self._style:
+            self["style"] = self._style.css_text
+
+        if self.attributes:
+            yield f"<{self.tag}"
+            for attr in render_attributes(self.attributes):
+                yield f" {attr}"
+        else:
+            yield f"<{self.tag}"
+
+        if self.void:
+            yield " />"
+        else:
+            yield ">"
+
+            results: list[list[str]] = [[] for _ in self.children]
+
+            async def collect(i: int, child: TreeNode) -> None:
+                results[i] = [chunk async for chunk in child.arender(defer_callback=defer_callback)]
+
+            async with anyio.create_task_group() as tg:
+                for i, child in enumerate(self.children):
+                    tg.start_soon(collect, i, child)
+
+            for chunks in results:
+                for chunk in chunks:
+                    yield chunk
+
+            yield f"</{self.tag}>"
+
 
 class VoidElement(Element):
     """An HTML element that cannot have children (e.g., img, br, input)."""
@@ -431,3 +505,46 @@ class Deferred(Node):
         if isinstance(self.children[0], Element):
             self.children[0]["slot"] = self.slot_name
         yield from self.children[0].render(defer_callback=defer_callback)
+
+    async def arender_result(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        if isinstance(self.children[0], Element):
+            self.children[0]["slot"] = self.slot_name
+        async for chunk in self.children[0].arender(defer_callback=defer_callback):
+            yield chunk
+
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        if defer_callback is None:
+            raise ValueError("Deferred node rendered outside of Fragment")
+
+        defer_callback(self)
+
+        yield f'<template shadowrootmode="open"><slot name="{self.slot_name}">'
+        if self.loading_node is not None:
+            async for chunk in self.loading_node.arender(defer_callback=defer_callback):
+                yield chunk
+        yield "</slot></template>"
+
+
+class Async(Node):
+    """Wraps an async callable, resolved during async rendering."""
+
+    fn: Callable[[], Awaitable[NodeContent]]
+
+    def __init__(self, fn: Callable[[], Awaitable[NodeContent]], /, **kwargs: Any):
+        super().__init__()
+        self.fn = fn
+
+    def __repr__(self):
+        return f"Async({self.fn!r})"
+
+    def __replace__(self, **changes):
+        return type(self)(self.fn)
+
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+        raise TypeError("Async nodes require async rendering")
+
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        result = await self.fn()
+        node = Node.factory(result)
+        async for chunk in node.arender(defer_callback=defer_callback):
+            yield chunk

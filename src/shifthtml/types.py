@@ -1,4 +1,4 @@
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from string.templatelib import Template
 from typing import TYPE_CHECKING
 
@@ -10,3 +10,4 @@ if TYPE_CHECKING:
 type NodeAtom = type[Node] | Node | Fragment | str | Template
 type NodeListContent = Iterable[NodeAtom | Callable[[], NodeAtom] | None]
 type NodeContent = NodeAtom | NodeListContent | Callable[[], NodeAtom | NodeListContent]
+type AsyncNodeContent = NodeContent | Callable[[], Awaitable[NodeContent]]

@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "A concise HTML renderer."
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = ["anyio>=4.0"]
 
 [dependency-groups]
 dev = [

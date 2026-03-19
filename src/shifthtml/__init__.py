@@ -1,6 +1,7 @@
 from string.templatelib import Template
 
 from .element import (
+    Async,
     Deferred,
     Element,
     Fragment,
@@ -124,6 +125,7 @@ from .tags import (
 )
 
 __all__ = (
+    "Async",
     "Deferred",
     "Element",
     "Fragment",

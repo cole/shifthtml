@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import copy
 from abc import ABCMeta, abstractmethod
-from collections.abc import Generator, Iterator
+from collections.abc import AsyncGenerator, Generator, Iterator
 from typing import Self
 
 
@@ -216,3 +216,8 @@ class TreeNode(metaclass=ABCMeta):
     @abstractmethod
     def render(self, *args, **kwargs) -> Generator[str]:
         raise NotImplementedError("Subclasses must implement render")
+
+    @abstractmethod
+    async def arender(self, *args, **kwargs) -> AsyncGenerator[str]:
+        raise NotImplementedError("Subclasses must implement arender")
+        yield  # pragma: no cover
