@@ -138,13 +138,12 @@ def todo_item(todo):
         checkbox_attrs["checked"] = "checked"
 
     return div(id=f"todo-{todo_id}", classname="todo-item") >> (
-            input_(checkbox_attrs),
-            span(classname=label_classes) >> todo["title"],
-            button(
-                hx_delete=f"/todos/{todo_id}",
-                hx_target=f"#todo-{todo_id}",
-                hx_swap="outerHTML",
-            )
-            >> "Delete",
+        input_(checkbox_attrs),
+        span(classname=label_classes) >> todo["title"],
+        button(
+            hx_delete=f"/todos/{todo_id}",
+            hx_target=f"#todo-{todo_id}",
+            hx_swap="outerHTML",
         )
-  
+        >> "Delete",
+    )
