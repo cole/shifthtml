@@ -25,6 +25,7 @@ def test_remove_no_parent():
 def test_replace_with_single():
     f = shift(div() >> (p >> "old",))
     old = f.root.first_child
+    assert old is not None
     new = shift(span >> "new").root
     old.replace_with(new)
     assert str(f) == "<div><span>new</span></div>"
@@ -33,6 +34,7 @@ def test_replace_with_single():
 def test_replace_with_multiple():
     f = shift(div() >> (p >> "target",))
     target = f.root.first_child
+    assert target is not None
     a = shift(span >> "a").root
     b = shift(span >> "b").root
     target.replace_with(a, b)
@@ -48,6 +50,7 @@ def test_replace_with_no_parent():
 def test_before():
     f = shift(ul() >> (li >> "second",))
     second = f.root.first_child
+    assert second is not None
     first = shift(li >> "first").root
     second.before(first)
     assert str(f) == "<ul><li>first</li><li>second</li></ul>"
@@ -56,6 +59,7 @@ def test_before():
 def test_before_multiple():
     f = shift(ul() >> (li >> "third",))
     third = f.root.first_child
+    assert third is not None
     first = shift(li >> "first").root
     second = shift(li >> "second").root
     third.before(first, second)
@@ -71,6 +75,7 @@ def test_before_no_parent():
 def test_after():
     f = shift(ul() >> (li >> "first",))
     first = f.root.first_child
+    assert first is not None
     second = shift(li >> "second").root
     first.after(second)
     assert str(f) == "<ul><li>first</li><li>second</li></ul>"
@@ -79,6 +84,7 @@ def test_after():
 def test_after_multiple():
     f = shift(ul() >> (li >> "first",))
     first = f.root.first_child
+    assert first is not None
     second = shift(li >> "second").root
     third = shift(li >> "third").root
     first.after(second, third)
@@ -136,6 +142,7 @@ def test_insert_before_invalid_reference():
 def test_replace_child():
     f = shift(div() >> (p >> "old",))
     old = f.root.first_child
+    assert old is not None
     new = shift(span >> "new").root
     returned = f.root.replace_child(new, old)
     assert returned is old
@@ -154,7 +161,10 @@ def test_replace_child_not_found():
 def test_contains():
     f = shift(div() >> p >> span >> "deep")
     root = f.root
-    deep_span = root.first_child.first_child
+    first = root.first_child
+    assert first is not None
+    deep_span = first.first_child
+    assert deep_span is not None
     assert root.contains(deep_span) is True
     assert root.contains(root) is True
 

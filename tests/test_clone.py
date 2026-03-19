@@ -1,18 +1,22 @@
-from shifthtml import div, li, p, shift, span
+from conftest import root
+
+from shifthtml import Element, div, li, p, shift, span
 
 
 def test_clone_node_shallow():
     f = shift(div(id="original") >> p >> "child")
-    clone = f.root.clone_node()
-    assert clone is not f.root
+    clone = root(f).clone_node()
+    assert isinstance(clone, Element)
+    assert clone is not root(f)
     assert clone["id"] == "original"
     assert len(clone.children) == 0
 
 
 def test_clone_node_deep():
     f = shift(div(id="original") >> p >> span >> "text")
-    clone = f.root.clone_node(deep=True)
-    assert clone is not f.root
+    clone = root(f).clone_node(deep=True)
+    assert isinstance(clone, Element)
+    assert clone is not root(f)
     assert clone["id"] == "original"
     assert len(clone.children) == 1
     assert str(shift(clone)) == '<div id="original"><p><span>text</span></p></div>'
@@ -20,15 +24,16 @@ def test_clone_node_deep():
 
 def test_clone_node_no_parent():
     f = shift(div(id="test") >> p >> "child")
-    clone = f.root.clone_node(deep=True)
+    clone = root(f).clone_node(deep=True)
     assert clone.parent_node is None
 
 
 def test_clone_node_independent():
     f = shift(div(classname="original"))
-    clone = f.root.clone_node()
+    clone = root(f).clone_node()
+    assert isinstance(clone, Element)
     clone["class"] = "clone"
-    assert f.root["class"] == "original"
+    assert root(f)["class"] == "original"
     assert clone["class"] == "clone"
 
 

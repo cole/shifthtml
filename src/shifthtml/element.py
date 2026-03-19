@@ -6,8 +6,8 @@ from string.templatelib import Template
 from typing import Any, ClassVar, NoReturn, overload
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
-from .node import Node as _Node
 from .render import render_attributes, render_string
+from .tree import TreeNode
 from .types import NodeContent, NodeListContent
 
 
@@ -17,8 +17,8 @@ def _maybe_call[T](item: Callable[[], T] | T) -> T:
     return item
 
 
-def _copy_tree(old_node: _Node, pointer_target: _Node) -> tuple[_Node, _Node | None]:
-    pointer_found: _Node | None = None
+def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, TreeNode | None]:
+    pointer_found: TreeNode | None = None
 
     new_node = copy.replace(old_node, children=[])
 
@@ -46,10 +46,10 @@ class Fragment:
     Not a DOM node — a builder wrapper around a DOM tree.
     """
 
-    root: _Node
-    append_pointer: _Node
+    root: TreeNode
+    append_pointer: TreeNode
 
-    def __init__(self, root: _Node, append_pointer: _Node, /, **kwargs: Any):
+    def __init__(self, root: TreeNode, append_pointer: TreeNode, /, **kwargs: Any):
         self.root = root
         self.append_pointer = append_pointer
         self.deferred: list[Deferred] = []
@@ -75,7 +75,7 @@ class Fragment:
     def __str__(self):
         return "".join(self.render())
 
-    def __iter__(self) -> Iterator[_Node]:
+    def __iter__(self) -> Iterator[TreeNode]:
         return iter(self.root.children)
 
     @overload
@@ -100,7 +100,7 @@ class Fragment:
 
         return self
 
-    def append(self, node: _Node | Fragment) -> None:
+    def append(self, node: TreeNode | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
@@ -128,7 +128,7 @@ class Fragment:
             yield from node.render_result(defer_callback=self.defer_node)
 
 
-class Node(_Node):
+class Node(TreeNode):
     """
     A node in the document tree with builder support.
 
@@ -192,7 +192,7 @@ class Node(_Node):
             yield from child.render(defer_callback=defer_callback)
 
 
-class NodeList(Node, Sequence[_Node]):
+class NodeList(Node, Sequence[TreeNode]):
     """A list of nodes with a position in the tree."""
 
     def __init__(self, contents: NodeListContent, /, **kwargs):
@@ -215,10 +215,10 @@ class NodeList(Node, Sequence[_Node]):
         return f"NodeList({repr(self.children)})"
 
     @overload
-    def __getitem__(self, index: int) -> _Node: ...
+    def __getitem__(self, index: int) -> TreeNode: ...
 
     @overload
-    def __getitem__(self, index: slice[Any, Any, Any]) -> Sequence[_Node]: ...
+    def __getitem__(self, index: slice[Any, Any, Any]) -> Sequence[TreeNode]: ...
 
     def __getitem__(self, index):
         return self.children[index]
@@ -226,20 +226,20 @@ class NodeList(Node, Sequence[_Node]):
     def __len__(self) -> int:
         return len(self.children)
 
-    def __iter__(self) -> Iterator[_Node]:
+    def __iter__(self) -> Iterator[TreeNode]:
         return iter(self.children)
 
     def __contains__(self, item: object) -> bool:
         return item in self.children
 
-    def __reversed__(self) -> Iterator[_Node]:
+    def __reversed__(self) -> Iterator[TreeNode]:
         return reversed(self.children)
 
-    def count(self, value: _Node) -> int:
+    def count(self, value: TreeNode) -> int:
         """Count occurrences of a value in the NodeList."""
         return self.children.count(value)
 
-    def index(self, value: _Node, start: int = 0, stop: int | None = None) -> int:
+    def index(self, value: TreeNode, start: int = 0, stop: int | None = None) -> int:
         if stop is None:
             return self.children.index(value, start)
         return self.children.index(value, start, stop)

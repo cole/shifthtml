@@ -1,3 +1,5 @@
+from conftest import root as element_root
+
 from shifthtml import div, shift
 from shifthtml.mappings import StyleMap
 
@@ -109,7 +111,7 @@ def test_get_missing_property():
 def test_element_style_property():
     el = div()
     fragment = shift(el)
-    root = fragment.root
+    root = element_root(fragment)
     root.style.color = "red"
     root.style.font_size = "16px"
     assert str(fragment) == '<div style="color: red; font-size: 16px"></div>'
@@ -118,7 +120,7 @@ def test_element_style_property():
 def test_element_style_from_existing_attribute():
     el = div(style="color: red")
     fragment = shift(el)
-    root = fragment.root
+    root = element_root(fragment)
     assert root.style["color"] == "red"
     root.style.font_size = "16px"
     assert str(fragment) == '<div style="color: red; font-size: 16px"></div>'

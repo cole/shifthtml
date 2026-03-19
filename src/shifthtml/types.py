@@ -2,7 +2,7 @@ from collections.abc import Callable, Iterable
 from string.templatelib import Template
 from typing import TYPE_CHECKING
 
-from .node import Node
+from .tree import TreeNode as Node
 
 if TYPE_CHECKING:
     from .element import Fragment
