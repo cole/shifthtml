@@ -1,80 +1,12 @@
 from collections.abc import Generator
 
-from .element import HTMLElement, HTMLVoidElement
+from .element import Element, VoidElement
 from .meta import TagMeta
-
-# DOM elements
-# HTMLAnchorElement
-# HTMLAreaElement
-# HTMLAudioElement
-# HTMLBRElement
-# HTMLBaseElement
-# HTMLBodyElement
-# HTMLButtonElement
-# HTMLCanvasElement
-# HTMLDListElement
-# HTMLDataElement
-# HTMLDataListElement
-# HTMLDialogElement
-# HTMLDivElement
-# HTMLDocument
-# HTMLElement
-# HTMLEmbedElement
-# HTMLFieldSetElement
-# HTMLFormControlsCollection
-# HTMLFormElement
-# HTMLFrameSetElement Deprecated
-# HTMLHRElement
-# HTMLHeadElement
-# HTMLHeadingElement
-# HTMLHtmlElement
-# HTMLIFrameElement
-# HTMLImageElement
-# HTMLInputElement
-# HTMLLIElement
-# HTMLLabelElement
-# HTMLLegendElement
-# HTMLLinkElement
-# HTMLMapElement
-# HTMLMediaElement
-# HTMLMenuElement
-# HTMLMetaElement
-# HTMLMeterElement
-# HTMLModElement
-# HTMLOListElement
-# HTMLObjectElement
-# HTMLOptGroupElement
-# HTMLOptionElement
-# HTMLOptionsCollection
-# HTMLOutputElement
-# HTMLParagraphElement
-# HTMLPictureElement
-# HTMLPreElement
-# HTMLProgressElement
-# HTMLQuoteElement
-# HTMLScriptElement
-# HTMLSelectElement
-# HTMLSourceElement
-# HTMLSpanElement
-# HTMLStyleElement
-# HTMLTableCaptionElement
-# HTMLTableCellElement
-# HTMLTableColElement
-# HTMLTableElement
-# HTMLTableRowElement
-# HTMLTemplateElement
-# HTMLTextAreaElement
-# HTMLTimeElement
-# HTMLTitleElement
-# HTMLTrackElement
-# HTMLUListElement
-# HTMLUnknownElement
-# HTMLVideoElement
 
 # Root
 
 
-class HTMLRootElement(HTMLElement, metaclass=TagMeta):
+class HTMLRootElement(Element, metaclass=TagMeta):
     tag = "html"
 
     def render(self, *args, **kwargs) -> Generator[str]:
@@ -83,134 +15,134 @@ class HTMLRootElement(HTMLElement, metaclass=TagMeta):
 
 
 html = HTMLRootElement
-head = TagMeta("HTMLHeadElement", (HTMLElement,), {"tag": "head"})
-body = TagMeta("HTMLBodyElement", (HTMLElement,), {"tag": "body"})
+head = TagMeta("HTMLHeadElement", (Element,), {"tag": "head"})
+body = TagMeta("HTMLBodyElement", (Element,), {"tag": "body"})
 
 # Metadata
-base = TagMeta("HTMLBaseElement", (HTMLVoidElement,), {"tag": "base"})
-link = TagMeta("HTMLLinkElement", (HTMLVoidElement,), {"tag": "link"})
-meta = TagMeta("HTMLMetaElement", (HTMLVoidElement,), {"tag": "meta"})
-style = TagMeta("HTMLStyleElement", (HTMLElement,), {"tag": "style"})
-title = TagMeta("HTMLTitleElement", (HTMLElement,), {"tag": "title"})
+base = TagMeta("HTMLBaseElement", (VoidElement,), {"tag": "base"})
+link = TagMeta("HTMLLinkElement", (VoidElement,), {"tag": "link"})
+meta = TagMeta("HTMLMetaElement", (VoidElement,), {"tag": "meta"})
+style = TagMeta("HTMLStyleElement", (Element,), {"tag": "style"})
+title = TagMeta("HTMLTitleElement", (Element,), {"tag": "title"})
 
 # Sectioning
-address = TagMeta("HTMLAddressElement", (HTMLElement,), {"tag": "address"})
-article = TagMeta("HTMLArticleElement", (HTMLElement,), {"tag": "article"})
-aside = TagMeta("HTMLAsideElement", (HTMLElement,), {"tag": "aside"})
-footer = TagMeta("HTMLFooterElement", (HTMLElement,), {"tag": "footer"})
-header = TagMeta("HTMLHeaderElement", (HTMLElement,), {"tag": "header"})
-h1 = TagMeta("HTMLHeading1Element", (HTMLElement,), {"tag": "h1"})
-h2 = TagMeta("HTMLHeading2Element", (HTMLElement,), {"tag": "h2"})
-h3 = TagMeta("HTMLHeading3Element", (HTMLElement,), {"tag": "h3"})
-h4 = TagMeta("HTMLHeading4Element", (HTMLElement,), {"tag": "h4"})
-h5 = TagMeta("HTMLHeading5Element", (HTMLElement,), {"tag": "h5"})
-h6 = TagMeta("HTMLHeading6Element", (HTMLElement,), {"tag": "h6"})
-main = TagMeta("HTMLMainElement", (HTMLElement,), {"tag": "main"})
-nav = TagMeta("HTMLNavElement", (HTMLElement,), {"tag": "nav"})
-section = TagMeta("HTMLSectionElement", (HTMLElement,), {"tag": "section"})
+address = TagMeta("HTMLAddressElement", (Element,), {"tag": "address"})
+article = TagMeta("HTMLArticleElement", (Element,), {"tag": "article"})
+aside = TagMeta("HTMLAsideElement", (Element,), {"tag": "aside"})
+footer = TagMeta("HTMLFooterElement", (Element,), {"tag": "footer"})
+header = TagMeta("HTMLHeaderElement", (Element,), {"tag": "header"})
+h1 = TagMeta("HTMLHeading1Element", (Element,), {"tag": "h1"})
+h2 = TagMeta("HTMLHeading2Element", (Element,), {"tag": "h2"})
+h3 = TagMeta("HTMLHeading3Element", (Element,), {"tag": "h3"})
+h4 = TagMeta("HTMLHeading4Element", (Element,), {"tag": "h4"})
+h5 = TagMeta("HTMLHeading5Element", (Element,), {"tag": "h5"})
+h6 = TagMeta("HTMLHeading6Element", (Element,), {"tag": "h6"})
+main = TagMeta("HTMLMainElement", (Element,), {"tag": "main"})
+nav = TagMeta("HTMLNavElement", (Element,), {"tag": "nav"})
+section = TagMeta("HTMLSectionElement", (Element,), {"tag": "section"})
 
 # Grouping content
-blockquote = TagMeta("HTMLBlockquoteElement", (HTMLElement,), {"tag": "blockquote"})
-dd = TagMeta("HTMLDDElement", (HTMLElement,), {"tag": "dd"})
-div = TagMeta("HTMLDivElement", (HTMLElement,), {"tag": "div"})
-dl = TagMeta("HTMLDLElement", (HTMLElement,), {"tag": "dl"})
-dt = TagMeta("HTMLDTElement", (HTMLElement,), {"tag": "dt"})
-figcaption = TagMeta("HTMLFigcaptionElement", (HTMLElement,), {"tag": "figcaption"})
-figure = TagMeta("HTMLFigureElement", (HTMLElement,), {"tag": "figure"})
-hr = TagMeta("HTMLHrElement", (HTMLVoidElement,), {"tag": "hr"})
-li = TagMeta("HTMLLiElement", (HTMLElement,), {"tag": "li"})
-ol = TagMeta("HTMLOlElement", (HTMLElement,), {"tag": "ol"})
-p = TagMeta("HTMLParagraphElement", (HTMLElement,), {"tag": "p"})
-pre = TagMeta("HTMLPreElement", (HTMLElement,), {"tag": "pre"})
-ul = TagMeta("HTMLUlElement", (HTMLElement,), {"tag": "ul"})
+blockquote = TagMeta("HTMLBlockquoteElement", (Element,), {"tag": "blockquote"})
+dd = TagMeta("HTMLDDElement", (Element,), {"tag": "dd"})
+div = TagMeta("HTMLDivElement", (Element,), {"tag": "div"})
+dl = TagMeta("HTMLDLElement", (Element,), {"tag": "dl"})
+dt = TagMeta("HTMLDTElement", (Element,), {"tag": "dt"})
+figcaption = TagMeta("HTMLFigcaptionElement", (Element,), {"tag": "figcaption"})
+figure = TagMeta("HTMLFigureElement", (Element,), {"tag": "figure"})
+hr = TagMeta("HTMLHrElement", (VoidElement,), {"tag": "hr"})
+li = TagMeta("HTMLLiElement", (Element,), {"tag": "li"})
+ol = TagMeta("HTMLOlElement", (Element,), {"tag": "ol"})
+p = TagMeta("HTMLParagraphElement", (Element,), {"tag": "p"})
+pre = TagMeta("HTMLPreElement", (Element,), {"tag": "pre"})
+ul = TagMeta("HTMLUlElement", (Element,), {"tag": "ul"})
 # Text-level semantics
-a = TagMeta("HTMLAnchorElement", (HTMLElement,), {"tag": "a"})
-abbr = TagMeta("HTMLAbbrElement", (HTMLElement,), {"tag": "abbr"})
-b = TagMeta("HTMLBoldElement", (HTMLElement,), {"tag": "b"})
-bdi = TagMeta("HTMLBdiElement", (HTMLElement,), {"tag": "bdi"})
-bdo = TagMeta("HTMLBdoElement", (HTMLElement,), {"tag": "bdo"})
-br = TagMeta("HTMLBRElement", (HTMLVoidElement,), {"tag": "br"})
-cite = TagMeta("HTMLCiteElement", (HTMLElement,), {"tag": "cite"})
-code = TagMeta("HTMLCodeElement", (HTMLElement,), {"tag": "code"})
-data = TagMeta("HTMLDataElement", (HTMLElement,), {"tag": "data"})
-dfn = TagMeta("HTMLDfnElement", (HTMLElement,), {"tag": "dfn"})
-em = TagMeta("HTMLEmElement", (HTMLElement,), {"tag": "em"})
-i = TagMeta("HTMLItalicElement", (HTMLElement,), {"tag": "i"})
-kbd = TagMeta("HTMLKbdElement", (HTMLElement,), {"tag": "kbd"})
-mark = TagMeta("HTMLMarkElement", (HTMLElement,), {"tag": "mark"})
-q = TagMeta("HTMLQuoteElement", (HTMLElement,), {"tag": "q"})
-rp = TagMeta("HTMLRpElement", (HTMLElement,), {"tag": "rp"})
-rt = TagMeta("HTMLRtElement", (HTMLElement,), {"tag": "rt"})
-ruby = TagMeta("HTMLRubyElement", (HTMLElement,), {"tag": "ruby"})
-s = TagMeta("HTMLSElement", (HTMLElement,), {"tag": "s"})
-samp = TagMeta("HTMLSampElement", (HTMLElement,), {"tag": "samp"})
-small = TagMeta("HTMLSmallElement", (HTMLElement,), {"tag": "small"})
-span = TagMeta("HTMLSpanElement", (HTMLElement,), {"tag": "span"})
-strong = TagMeta("HTMLStrongElement", (HTMLElement,), {"tag": "strong"})
-sub = TagMeta("HTMLSubElement", (HTMLElement,), {"tag": "sub"})
-sup = TagMeta("HTMLSupElement", (HTMLElement,), {"tag": "sup"})
-time = TagMeta("HTMLTimeElement", (HTMLElement,), {"tag": "time"})
-u = TagMeta("HTMLUElement", (HTMLElement,), {"tag": "u"})
-var = TagMeta("HTMLVarElement", (HTMLElement,), {"tag": "var"})
-wbr = TagMeta("HTMLWBRElement", (HTMLVoidElement,), {"tag": "wbr"})
+a = TagMeta("HTMLAnchorElement", (Element,), {"tag": "a"})
+abbr = TagMeta("HTMLAbbrElement", (Element,), {"tag": "abbr"})
+b = TagMeta("HTMLBoldElement", (Element,), {"tag": "b"})
+bdi = TagMeta("HTMLBdiElement", (Element,), {"tag": "bdi"})
+bdo = TagMeta("HTMLBdoElement", (Element,), {"tag": "bdo"})
+br = TagMeta("HTMLBRElement", (VoidElement,), {"tag": "br"})
+cite = TagMeta("HTMLCiteElement", (Element,), {"tag": "cite"})
+code = TagMeta("HTMLCodeElement", (Element,), {"tag": "code"})
+data = TagMeta("HTMLDataElement", (Element,), {"tag": "data"})
+dfn = TagMeta("HTMLDfnElement", (Element,), {"tag": "dfn"})
+em = TagMeta("HTMLEmElement", (Element,), {"tag": "em"})
+i = TagMeta("HTMLItalicElement", (Element,), {"tag": "i"})
+kbd = TagMeta("HTMLKbdElement", (Element,), {"tag": "kbd"})
+mark = TagMeta("HTMLMarkElement", (Element,), {"tag": "mark"})
+q = TagMeta("HTMLQuoteElement", (Element,), {"tag": "q"})
+rp = TagMeta("HTMLRpElement", (Element,), {"tag": "rp"})
+rt = TagMeta("HTMLRtElement", (Element,), {"tag": "rt"})
+ruby = TagMeta("HTMLRubyElement", (Element,), {"tag": "ruby"})
+s = TagMeta("HTMLSElement", (Element,), {"tag": "s"})
+samp = TagMeta("HTMLSampElement", (Element,), {"tag": "samp"})
+small = TagMeta("HTMLSmallElement", (Element,), {"tag": "small"})
+span = TagMeta("HTMLSpanElement", (Element,), {"tag": "span"})
+strong = TagMeta("HTMLStrongElement", (Element,), {"tag": "strong"})
+sub = TagMeta("HTMLSubElement", (Element,), {"tag": "sub"})
+sup = TagMeta("HTMLSupElement", (Element,), {"tag": "sup"})
+time = TagMeta("HTMLTimeElement", (Element,), {"tag": "time"})
+u = TagMeta("HTMLUElement", (Element,), {"tag": "u"})
+var = TagMeta("HTMLVarElement", (Element,), {"tag": "var"})
+wbr = TagMeta("HTMLWBRElement", (VoidElement,), {"tag": "wbr"})
 
 # Edits
-del_ = TagMeta("HTMLDelElement", (HTMLElement,), {"tag": "del"})
-ins = TagMeta("HTMLInsElement", (HTMLElement,), {"tag": "ins"})
+del_ = TagMeta("HTMLDelElement", (Element,), {"tag": "del"})
+ins = TagMeta("HTMLInsElement", (Element,), {"tag": "ins"})
 
 # Embedded content
-area = TagMeta("HTMLAreaElement", (HTMLVoidElement,), {"tag": "area"})
-audio = TagMeta("HTMLAudioElement", (HTMLElement,), {"tag": "audio"})
-img = TagMeta("HTMLImageElement", (HTMLVoidElement,), {"tag": "img"})
-map_ = TagMeta("HTMLMapElement", (HTMLElement,), {"tag": "map"})
-track = TagMeta("HTMLTrackElement", (HTMLVoidElement,), {"tag": "track"})
-video = TagMeta("HTMLVideoElement", (HTMLElement,), {"tag": "video"})
-embed = TagMeta("HTMLEmbedElement", (HTMLVoidElement,), {"tag": "embed"})
-iframe = TagMeta("HTMLIFrameElement", (HTMLElement,), {"tag": "iframe"})
-object_ = TagMeta("HTMLObjectElement", (HTMLElement,), {"tag": "object"})
-picture = TagMeta("HTMLPictureElement", (HTMLElement,), {"tag": "picture"})
-portal = TagMeta("HTMLPortalElement", (HTMLElement,), {"tag": "portal"})
-source = TagMeta("HTMLSourceElement", (HTMLVoidElement,), {"tag": "source"})
+area = TagMeta("HTMLAreaElement", (VoidElement,), {"tag": "area"})
+audio = TagMeta("HTMLAudioElement", (Element,), {"tag": "audio"})
+img = TagMeta("HTMLImageElement", (VoidElement,), {"tag": "img"})
+map_ = TagMeta("HTMLMapElement", (Element,), {"tag": "map"})
+track = TagMeta("HTMLTrackElement", (VoidElement,), {"tag": "track"})
+video = TagMeta("HTMLVideoElement", (Element,), {"tag": "video"})
+embed = TagMeta("HTMLEmbedElement", (VoidElement,), {"tag": "embed"})
+iframe = TagMeta("HTMLIFrameElement", (Element,), {"tag": "iframe"})
+object_ = TagMeta("HTMLObjectElement", (Element,), {"tag": "object"})
+picture = TagMeta("HTMLPictureElement", (Element,), {"tag": "picture"})
+portal = TagMeta("HTMLPortalElement", (Element,), {"tag": "portal"})
+source = TagMeta("HTMLSourceElement", (VoidElement,), {"tag": "source"})
 
 # Scripting
-canvas = TagMeta("HTMLCanvasElement", (HTMLElement,), {"tag": "canvas"})
-noscript = TagMeta("HTMLNoscriptElement", (HTMLElement,), {"tag": "noscript"})
-script = TagMeta("HTMLScriptElement", (HTMLElement,), {"tag": "script"})
+canvas = TagMeta("HTMLCanvasElement", (Element,), {"tag": "canvas"})
+noscript = TagMeta("HTMLNoscriptElement", (Element,), {"tag": "noscript"})
+script = TagMeta("HTMLScriptElement", (Element,), {"tag": "script"})
 
 # Table content
-caption = TagMeta("HTMLCaptionElement", (HTMLElement,), {"tag": "caption"})
-col = TagMeta("HTMLColElement", (HTMLVoidElement,), {"tag": "col"})
-colgroup = TagMeta("HTMLColgroupElement", (HTMLElement,), {"tag": "colgroup"})
-table = TagMeta("HTMLTableElement", (HTMLElement,), {"tag": "table"})
-tbody = TagMeta("HTMLTbodyElement", (HTMLElement,), {"tag": "tbody"})
-td = TagMeta("HTMLTdElement", (HTMLElement,), {"tag": "td"})
-tfoot = TagMeta("HTMLTfootElement", (HTMLElement,), {"tag": "tfoot"})
-th = TagMeta("HTMLThElement", (HTMLElement,), {"tag": "th"})
-thead = TagMeta("HTMLTheadElement", (HTMLElement,), {"tag": "thead"})
-tr = TagMeta("HTMLTrElement", (HTMLElement,), {"tag": "tr"})
+caption = TagMeta("HTMLCaptionElement", (Element,), {"tag": "caption"})
+col = TagMeta("HTMLColElement", (VoidElement,), {"tag": "col"})
+colgroup = TagMeta("HTMLColgroupElement", (Element,), {"tag": "colgroup"})
+table = TagMeta("HTMLTableElement", (Element,), {"tag": "table"})
+tbody = TagMeta("HTMLTbodyElement", (Element,), {"tag": "tbody"})
+td = TagMeta("HTMLTdElement", (Element,), {"tag": "td"})
+tfoot = TagMeta("HTMLTfootElement", (Element,), {"tag": "tfoot"})
+th = TagMeta("HTMLThElement", (Element,), {"tag": "th"})
+thead = TagMeta("HTMLTheadElement", (Element,), {"tag": "thead"})
+tr = TagMeta("HTMLTrElement", (Element,), {"tag": "tr"})
 
 # Forms
-button = TagMeta("HTMLButtonElement", (HTMLElement,), {"tag": "button"})
-datalist = TagMeta("HTMLDatalistElement", (HTMLElement,), {"tag": "datalist"})
-fieldset = TagMeta("HTMLFieldsetElement", (HTMLElement,), {"tag": "fieldset"})
-form = TagMeta("HTMLFormElement", (HTMLElement,), {"tag": "form"})
-input_ = TagMeta("HTMLInputElement", (HTMLVoidElement,), {"tag": "input"})
-label = TagMeta("HTMLLabelElement", (HTMLElement,), {"tag": "label"})
-legend = TagMeta("HTMLLegendElement", (HTMLElement,), {"tag": "legend"})
-meter = TagMeta("HTMLMeterElement", (HTMLElement,), {"tag": "meter"})
-optgroup = TagMeta("HTMLOptgroupElement", (HTMLElement,), {"tag": "optgroup"})
-option = TagMeta("HTMLOptionElement", (HTMLElement,), {"tag": "option"})
-output = TagMeta("HTMLOutputElement", (HTMLElement,), {"tag": "output"})
-progress = TagMeta("HTMLProgressElement", (HTMLElement,), {"tag": "progress"})
-select = TagMeta("HTMLSelectElement", (HTMLElement,), {"tag": "select"})
-textarea = TagMeta("HTMLTextAreaElement", (HTMLElement,), {"tag": "textarea"})
+button = TagMeta("HTMLButtonElement", (Element,), {"tag": "button"})
+datalist = TagMeta("HTMLDatalistElement", (Element,), {"tag": "datalist"})
+fieldset = TagMeta("HTMLFieldsetElement", (Element,), {"tag": "fieldset"})
+form = TagMeta("HTMLFormElement", (Element,), {"tag": "form"})
+input_ = TagMeta("HTMLInputElement", (VoidElement,), {"tag": "input"})
+label = TagMeta("HTMLLabelElement", (Element,), {"tag": "label"})
+legend = TagMeta("HTMLLegendElement", (Element,), {"tag": "legend"})
+meter = TagMeta("HTMLMeterElement", (Element,), {"tag": "meter"})
+optgroup = TagMeta("HTMLOptgroupElement", (Element,), {"tag": "optgroup"})
+option = TagMeta("HTMLOptionElement", (Element,), {"tag": "option"})
+output = TagMeta("HTMLOutputElement", (Element,), {"tag": "output"})
+progress = TagMeta("HTMLProgressElement", (Element,), {"tag": "progress"})
+select = TagMeta("HTMLSelectElement", (Element,), {"tag": "select"})
+textarea = TagMeta("HTMLTextAreaElement", (Element,), {"tag": "textarea"})
 
 # Interactive elements
-details = TagMeta("HTMLDetailsElement", (HTMLElement,), {"tag": "details"})
-dialog = TagMeta("HTMLDialogElement", (HTMLElement,), {"tag": "dialog"})
-menu = TagMeta("HTMLMenuElement", (HTMLElement,), {"tag": "menu"})
-summary = TagMeta("HTMLSummaryElement", (HTMLElement,), {"tag": "summary"})
+details = TagMeta("HTMLDetailsElement", (Element,), {"tag": "details"})
+dialog = TagMeta("HTMLDialogElement", (Element,), {"tag": "dialog"})
+menu = TagMeta("HTMLMenuElement", (Element,), {"tag": "menu"})
+summary = TagMeta("HTMLSummaryElement", (Element,), {"tag": "summary"})
 
 # Web components
-slot = TagMeta("HTMLSlotElement", (HTMLElement,), {"tag": "slot"})
-template = TagMeta("HTMLTemplateElement", (HTMLElement,), {"tag": "template"})
+slot = TagMeta("HTMLSlotElement", (Element,), {"tag": "slot"})
+template = TagMeta("HTMLTemplateElement", (Element,), {"tag": "template"})

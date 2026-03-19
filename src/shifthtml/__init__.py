@@ -2,12 +2,12 @@ from string.templatelib import Template
 
 from .element import (
     Deferred,
+    Element,
     Fragment,
-    HTMLElement,
-    HTMLVoidElement,
     Node,
     NodeList,
     Text,
+    VoidElement,
 )
 from .tags import (
     a,
@@ -125,12 +125,12 @@ from .tags import (
 
 __all__ = (
     "Deferred",
+    "Element",
     "Fragment",
-    "HTMLElement",
-    "HTMLVoidElement",
     "Node",
     "NodeList",
     "Text",
+    "VoidElement",
     "html",
     "head",
     "body",

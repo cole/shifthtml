@@ -64,5 +64,5 @@ def test_dataset_stores_lowercase():
     el = div()
     f = shift(el)
     f.root.dataset.User_Name = "cole"
-    assert f.root.get_attribute("data-user-name") == "cole"
+    assert f.root["data-user-name"] == "cole"
     assert str(f) == '<div data-user-name="cole"></div>'

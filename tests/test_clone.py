@@ -5,7 +5,7 @@ def test_clone_node_shallow():
     f = shift(div(id="original") >> p >> "child")
     clone = f.root.clone_node()
     assert clone is not f.root
-    assert clone.get_attribute("id") == "original"
+    assert clone["id"] == "original"
     assert len(clone.children) == 0
 
 
@@ -13,7 +13,7 @@ def test_clone_node_deep():
     f = shift(div(id="original") >> p >> span >> "text")
     clone = f.root.clone_node(deep=True)
     assert clone is not f.root
-    assert clone.get_attribute("id") == "original"
+    assert clone["id"] == "original"
     assert len(clone.children) == 1
     assert str(shift(clone)) == '<div id="original"><p><span>text</span></p></div>'
 
@@ -27,9 +27,9 @@ def test_clone_node_no_parent():
 def test_clone_node_independent():
     f = shift(div(classname="original"))
     clone = f.root.clone_node()
-    clone.set_attribute("class", "clone")
-    assert f.root.get_attribute("class") == "original"
-    assert clone.get_attribute("class") == "clone"
+    clone["class"] = "clone"
+    assert f.root["class"] == "original"
+    assert clone["class"] == "clone"
 
 
 def test_clone_node_template_reuse():

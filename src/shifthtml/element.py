@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from string.templatelib import Template
-from typing import Any, ClassVar, overload
+from typing import Any, ClassVar, NoReturn, overload
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .node import Node as _Node
@@ -293,6 +293,7 @@ class Element(Node):
     """An HTML Element with tag, attributes, and builder support."""
 
     tag: ClassVar[str]
+    void: ClassVar[bool] = False
     attributes: dict[str, str | Template]
 
     def __init__(self, attributes: dict[str, str | Template] | None = None, /, **keyword_attributes: str | Template):
@@ -322,17 +323,19 @@ class Element(Node):
         """The tag name of this element."""
         return self._tag_name
 
-    def get_attribute(self, name: str) -> str | Template | None:
-        return self.attributes.get(name.lower())
+    def __getitem__(self, name: str) -> str | Template:
+        return self.attributes[name.lower()]
 
-    def set_attribute(self, name: str, value: str | Template) -> None:
+    def __setitem__(self, name: str, value: str | Template) -> None:
         self.attributes[name.lower()] = value
 
-    def has_attribute(self, name: str) -> bool:
-        return name.lower() in self.attributes
+    def __delitem__(self, name: str) -> None:
+        del self.attributes[name.lower()]
 
-    def remove_attribute(self, name: str) -> None:
-        self.attributes.pop(name.lower(), None)
+    def __contains__(self, name: object) -> bool:
+        if not isinstance(name, str):
+            return NotImplemented
+        return name.lower() in self.attributes
 
     @property
     def dataset(self) -> DatasetMap:
@@ -350,50 +353,42 @@ class Element(Node):
     def style(self) -> StyleMap:
         if self._style is None:
             self._style = StyleMap(owner=self)
-            existing = self.get_attribute("style")
+            existing = self.attributes.get("style")
             if existing and isinstance(existing, str):
                 self._style.css_text = existing
-                self.remove_attribute("style")
+                del self["style"]
         return self._style
 
-
-class HTMLElement(Element):
     def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         if self._style:
-            self.set_attribute("style", self._style.css_text)
+            self["style"] = self._style.css_text
 
         if self.attributes:
             yield f"<{self.tag}"
             for attr in render_attributes(self.attributes):
-                # space before each attribute
                 yield f" {attr}"
-
-            yield ">"
         else:
-            yield f"<{self.tag}>"
-
-        yield from super().render(defer_callback=defer_callback)
-
-        yield f"</{self.tag}>"
-
-
-class HTMLVoidElement(HTMLElement):
-    def __repr__(self):
-        return f"HTMLVoidElement({self.tag!r}, {self.attributes!r})"
-
-    def __rshift__(self, other):
-        raise ValueError(f"Cannot add children to a VoidElement ({self.tag})")
-
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        if self.attributes:
             yield f"<{self.tag}"
-            for attr in render_attributes(self.attributes):
-                # space before each attribute
-                yield f" {attr}"
 
+        if self.void:
             yield " />"
         else:
-            yield f"<{self.tag} />"
+            yield ">"
+            for child in self.children:
+                yield from child.render(defer_callback=defer_callback)
+            yield f"</{self.tag}>"
+
+
+class VoidElement(Element):
+    """An HTML element that cannot have children (e.g., img, br, input)."""
+
+    void: ClassVar[bool] = True
+
+    def append_child(self, child: object) -> NoReturn:
+        raise ValueError(f"Cannot add children to a void element ({self.tag})")
+
+    def __rshift__(self, other: object) -> NoReturn:
+        raise ValueError(f"Cannot add children to a void element ({self.tag})")
 
 
 class Deferred(Node):
@@ -433,6 +428,6 @@ class Deferred(Node):
         yield "</slot></template>"
 
     def render_result(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        if isinstance(self.children[0], HTMLElement):
-            self.children[0].set_attribute("slot", self.slot_name)
+        if isinstance(self.children[0], Element):
+            self.children[0]["slot"] = self.slot_name
         yield from self.children[0].render(defer_callback=defer_callback)
