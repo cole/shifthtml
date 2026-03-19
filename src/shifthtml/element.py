@@ -9,7 +9,8 @@ from typing import Any, ClassVar, NoReturn, overload
 import anyio
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
-from .render import render_attributes, render_string
+from .plugin import Plugin, RenderContext
+from .render import arender_string, render_attributes, render_string
 from .tree import TreeNode
 from .types import NodeContent, NodeListContent
 
@@ -49,22 +50,28 @@ class Fragment:
     def __init__(self, root: TreeNode, append_pointer: TreeNode, /, **kwargs: Any):
         self.root = root
         self.append_pointer = append_pointer
-        self.deferred: list[Deferred] = []
+        self.plugins: tuple[Plugin, ...] = ()
 
     def __copy__(self) -> Fragment:
-        return Fragment(self.root, self.append_pointer)
+        frag = Fragment(self.root, self.append_pointer)
+        frag.plugins = self.plugins
+        return frag
 
     def __deepcopy__(self, memo=None) -> Fragment:
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
         if new_pointer is None:
             raise ValueError("Pointer target not found in the tree")
-        return Fragment(new_root, new_pointer)
+        frag = Fragment(new_root, new_pointer)
+        frag.plugins = self.plugins
+        return frag
 
     def __replace__(self, /, **changes):
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
         if new_pointer is None:
             raise ValueError("Pointer target not found in the tree")
-        return Fragment(new_root, new_pointer)
+        frag = Fragment(new_root, new_pointer)
+        frag.plugins = self.plugins
+        return frag
 
     def __repr__(self):
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
@@ -108,32 +115,26 @@ class Fragment:
         self.append_pointer.append_child(node)
         self.append_pointer = node
 
-    def defer_node(self, node: Deferred) -> None:
-        self.deferred.append(node)
+    def render(self) -> Generator[str]:
+        if self.plugins:
+            ctx = RenderContext(plugins=self.plugins)
+            yield from ctx.pre_render_all()
+            yield from ctx.render_node(self.root)
+            yield from ctx.post_render_all()
+        else:
+            yield from self.root.render()
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        if defer_callback is None:
-            defer_callback = self.defer_node
-        yield from self.root.render(defer_callback=defer_callback)
-        yield from self.render_deferred_nodes()
-
-    def render_deferred_nodes(self) -> Generator[str]:
-        while len(self.deferred) > 0:
-            node = self.deferred.pop(0)
-            yield from node.render_result(defer_callback=self.defer_node)
-
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
-        if defer_callback is None:
-            defer_callback = self.defer_node
-        async for chunk in self.root.arender(defer_callback=defer_callback):
-            yield chunk
-        async for chunk in self.arender_deferred_nodes():
-            yield chunk
-
-    async def arender_deferred_nodes(self) -> AsyncGenerator[str]:
-        while len(self.deferred) > 0:
-            node = self.deferred.pop(0)
-            async for chunk in node.arender_result(defer_callback=self.defer_node):
+    async def arender(self) -> AsyncGenerator[str]:
+        if self.plugins:
+            ctx = RenderContext(plugins=self.plugins)
+            async for chunk in ctx.apre_render_all():
+                yield chunk
+            async for chunk in ctx.arender_node(self.root):
+                yield chunk
+            async for chunk in ctx.apost_render_all():
+                yield chunk
+        else:
+            async for chunk in self.root.arender():
                 yield chunk
 
 
@@ -197,17 +198,21 @@ class Node(TreeNode):
     def __str__(self) -> str:
         return "".join(self.render())
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        """Render the node to a string"""
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         for child in self.children:
-            yield from child.render(defer_callback=defer_callback)
+            if ctx is not None:
+                yield from ctx.render_node(child)
+            else:
+                yield from child.render()
 
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
-        """Async rendering with parallel sibling resolution."""
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         results: list[list[str]] = [[] for _ in self.children]
 
         async def collect(i: int, child: TreeNode) -> None:
-            results[i] = [chunk async for chunk in child.arender(defer_callback=defer_callback)]
+            if ctx is not None:
+                results[i] = [chunk async for chunk in ctx.arender_node(child)]
+            else:
+                results[i] = [chunk async for chunk in child.arender()]
 
         async with anyio.create_task_group() as tg:
             for i, child in enumerate(self.children):
@@ -233,6 +238,14 @@ class NodeList(Node, Sequence[TreeNode]):
             else:
                 node = Node.factory(item)
                 self.append_child(node)
+
+    def __replace__(self, /, **changes):
+        new_obj = NodeList([])
+        new_children = changes.get("children", self.children)
+        if new_children:
+            for child in new_children:
+                new_obj.append_child(copy.replace(child))
+        return new_obj
 
     def __repr__(self):
         return f"NodeList({repr(self.children)})"
@@ -286,12 +299,10 @@ class Text(Node):
     def append_child(self, child):
         raise ValueError("Cannot add children to a Text node")
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         yield from render_string(self.content)
 
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
-        from .arender import arender_string
-
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         async for chunk in arender_string(self.content):
             yield chunk
 
@@ -314,10 +325,10 @@ class Comment(Node):
     def append_child(self, child):
         raise ValueError("Cannot add children to a Comment node")
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self.content}-->"
 
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         yield f"<!--{self.content}-->"
 
 
@@ -391,7 +402,7 @@ class Element(Node):
                 del self["style"]
         return self._style
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         if self._style:
             self["style"] = self._style.css_text
 
@@ -407,10 +418,13 @@ class Element(Node):
         else:
             yield ">"
             for child in self.children:
-                yield from child.render(defer_callback=defer_callback)
+                if ctx is not None:
+                    yield from ctx.render_node(child)
+                else:
+                    yield from child.render()
             yield f"</{self.tag}>"
 
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         if self._style:
             self["style"] = self._style.css_text
 
@@ -429,7 +443,10 @@ class Element(Node):
             results: list[list[str]] = [[] for _ in self.children]
 
             async def collect(i: int, child: TreeNode) -> None:
-                results[i] = [chunk async for chunk in child.arender(defer_callback=defer_callback)]
+                if ctx is not None:
+                    results[i] = [chunk async for chunk in ctx.arender_node(child)]
+                else:
+                    results[i] = [chunk async for chunk in child.arender()]
 
             async with anyio.create_task_group() as tg:
                 for i, child in enumerate(self.children):
@@ -474,44 +491,14 @@ class Deferred(Node):
             raise ValueError(f"Deferred can only be initialized with a Node or Fragment, not {type(child)}")
 
     def __replace__(self, /, **changes):
-        new_obj = type(self)(copy.replace(self.children[0]), slot_name=self.slot_name, loading=self.loading_node)
+        return type(self)(copy.replace(self.children[0]), slot_name=self.slot_name, loading=self.loading_node)
 
-        return new_obj
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+        raise TypeError("Deferred nodes require DeferPlugin")
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        # Render the loading message
-        if defer_callback is None:
-            raise ValueError("Deferred node rendered outside of Fragment")
-
-        defer_callback(self)
-
-        yield f'<template shadowrootmode="open"><slot name="{self.slot_name}">'
-        if self.loading_node is not None:
-            yield from self.loading_node.render(defer_callback=defer_callback)
-        yield "</slot></template>"
-
-    def render_result(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        if isinstance(self.children[0], Element):
-            self.children[0]["slot"] = self.slot_name
-        yield from self.children[0].render(defer_callback=defer_callback)
-
-    async def arender_result(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
-        if isinstance(self.children[0], Element):
-            self.children[0]["slot"] = self.slot_name
-        async for chunk in self.children[0].arender(defer_callback=defer_callback):
-            yield chunk
-
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
-        if defer_callback is None:
-            raise ValueError("Deferred node rendered outside of Fragment")
-
-        defer_callback(self)
-
-        yield f'<template shadowrootmode="open"><slot name="{self.slot_name}">'
-        if self.loading_node is not None:
-            async for chunk in self.loading_node.arender(defer_callback=defer_callback):
-                yield chunk
-        yield "</slot></template>"
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        raise TypeError("Deferred nodes require DeferPlugin")
+        yield  # pragma: no cover
 
 
 class Lazy(Node):
@@ -529,20 +516,27 @@ class Lazy(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn)
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         result = self.fn()
         if result is None:
             return
         node = Node.factory(result)
-        yield from node.render(defer_callback=defer_callback)
+        if ctx is not None:
+            yield from ctx.render_node(node)
+        else:
+            yield from node.render()
 
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         result = self.fn()
         if result is None:
             return
         node = Node.factory(result)
-        async for chunk in node.arender(defer_callback=defer_callback):
-            yield chunk
+        if ctx is not None:
+            async for chunk in ctx.arender_node(node):
+                yield chunk
+        else:
+            async for chunk in node.arender():
+                yield chunk
 
 
 class Async(Node):
@@ -560,11 +554,15 @@ class Async(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn)
 
-    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Async nodes require async rendering")
 
-    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         result = await self.fn()
         node = Node.factory(result)
-        async for chunk in node.arender(defer_callback=defer_callback):
-            yield chunk
+        if ctx is not None:
+            async for chunk in ctx.arender_node(node):
+                yield chunk
+        else:
+            async for chunk in node.arender():
+                yield chunk

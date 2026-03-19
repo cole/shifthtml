@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -39,7 +40,7 @@ class Message:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
-def landing_page():
+def landing_page() -> html:
     page_head = head >> (
         meta({"charset": "UTF-8"}),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
@@ -55,10 +56,16 @@ def landing_page():
     return html({"lang": "en"}) >> (page_head, page_body)
 
 
-def chat_page(msgs: list[Message], username: str):
+def chat_page(msgs: list[Message], username: str) -> html:
     async def load_messages():
         """Async component resolved during arender()."""
         return message_list(msgs)
+
+    async def server_status():
+        """Simulates a slow async fetch."""
+        await asyncio.sleep(0.5)
+        now = datetime.now()
+        return div(classname="server-status") >> (span >> f"Server time: {now:%H:%M:%S}",)
 
     page_head = head >> (
         meta({"charset": "UTF-8"}),
@@ -73,25 +80,26 @@ def chat_page(msgs: list[Message], username: str):
         span(classname="username") >> f"Chatting as {username}",
     )
 
-    input_form = chat_input()
-
-    page_body = (
-        body(dict(data.signals(username=username, messageInput="")))
-        >> div(dict(data.init("@get('/feed')")), classname="chat-container")
-        >> (header, load_messages, input_form)
+    container = div(dict(data.init("@get('/feed')")), classname="chat-container") >> (
+        header,
+        load_messages,
+        chat_input(),
+        server_status,
     )
+
+    page_body = body(dict(data.signals(username=username, messageInput=""))) >> container
 
     return html({"lang": "en"}) >> (page_head, page_body)
 
 
-def message_list(msgs: list[Message]):
+def message_list(msgs: list[Message]) -> div:
     children: list = [message_bubble(m) for m in msgs]
     if not children:
         children = [div(classname="empty-state") >> "No messages yet. Say hello!"]
     return div(id="messages", classname="messages") >> children
 
 
-def message_bubble(msg: Message):
+def message_bubble(msg: Message) -> div:
     msg_header = div(classname="message-header") >> (
         span(classname="message-username") >> msg.username,
         span(classname="message-time") >> msg.timestamp.strftime("%H:%M:%S"),
@@ -102,7 +110,7 @@ def message_bubble(msg: Message):
     return div(classname="message") >> (msg_header, msg_text)
 
 
-def chat_input():
+def chat_input() -> form:
     text_input = input_(
         dict(data.bind("messageInput")),
         type="text",

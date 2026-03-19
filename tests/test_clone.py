@@ -1,6 +1,6 @@
 from conftest import root
 
-from shifthtml import Element, div, li, p, shift, span
+from shifthtml import Element, body, div, h1, li, p, shift, span
 
 
 def test_clone_node_shallow():
@@ -42,3 +42,17 @@ def test_clone_node_template_reuse():
     items = [shift(template.clone_node() >> f"Item {i}") for i in range(3)]
     result = "".join(str(item) for item in items)
     assert result == '<li class="item">Item 0</li><li class="item">Item 1</li><li class="item">Item 2</li>'
+
+
+def test_fragment_append_fragment_with_nodelist():
+    """Appending a Fragment containing a NodeList (from a tuple) to another Fragment should work."""
+    inner = div(id="inner") >> (h1 >> "title", span >> "content")
+    result = body >> inner
+    assert str(shift(result)) == '<body><div id="inner"><h1>title</h1><span>content</span></div></body>'
+
+
+def test_deep_clone_with_nodelist():
+    """Deep cloning a tree that contains a NodeList should work."""
+    f = shift(div >> (span >> "a", span >> "b"))
+    clone = root(f).clone_node(deep=True)
+    assert str(shift(clone)) == "<div><span>a</span><span>b</span></div>"

@@ -1,5 +1,3 @@
-from string.templatelib import Template
-
 from .element import (
     Async,
     Deferred,
@@ -11,6 +9,7 @@ from .element import (
     Text,
     VoidElement,
 )
+from .plugin import Plugin, RenderContext, register, registered_plugins
 from .tags import (
     a,
     abbr,
@@ -247,21 +246,13 @@ __all__ = (
     "slot",
     "template",
     "shift",
-    "defer",
+    "Plugin",
+    "RenderContext",
+    "register",
 )
 
 
 def shift(html: Node | Fragment) -> Fragment:
-    if isinstance(html, Fragment):
-        return html
-
-    return Fragment(html, html)
-
-
-def defer(
-    slot_name: str,
-    node: Node | Fragment,
-    *,
-    loading: Node | str | Template | None = None,
-) -> Deferred:
-    return Deferred(node, slot_name=slot_name, loading=loading)
+    frag = html if isinstance(html, Fragment) else Fragment(html, html)
+    frag.plugins = registered_plugins()
+    return frag

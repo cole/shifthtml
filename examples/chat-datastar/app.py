@@ -1,7 +1,7 @@
 # /// script
 # dependencies = [
 #   "datastar-py",
-#   "sanic",
+#   "litestar[standard]",
 #   "shifthtml",
 # ]
 # [tool.uv.sources]
@@ -12,35 +12,32 @@ import asyncio
 import uuid
 from pathlib import Path
 
-from datastar_py.sanic import ServerSentEventGenerator as SSE
-from datastar_py.sanic import datastar_respond, read_signals
-from sanic import Sanic
-from sanic.response import html
-
 from components import Message, chat_page, landing_page, message_list
-from shifthtml import shift
+from datastar_py import ServerSentEventGenerator as SSE
+from datastar_py.litestar import DatastarResponse, read_signals
+from litestar import Litestar, Request, get, post
+from litestar.response import Stream
+from litestar.static_files import create_static_files_router
 
-app = Sanic("ChatDatastar")
-app.static("/static", Path(__file__).parent / "static")
+from shifthtml import shift
 
 messages: list[Message] = []
 
 
-@app.get("/")
-async def index(request):
-    return html(str(shift(landing_page())))
+@get("/")
+async def index() -> Stream:
+    return Stream(shift(landing_page()).arender(), media_type="text/html")
 
 
-@app.get("/chat")
-async def chat(request):
+@get("/chat")
+async def chat() -> Stream:
     username = f"User-{uuid.uuid4().hex[:6]}"
     page = chat_page(messages, username)
-    rendered = "".join([chunk async for chunk in shift(page).arender()])
-    return html(rendered)
+    return Stream(shift(page).arender(), media_type="text/html")
 
 
-@app.post("/send")
-async def send(request):
+@post("/send")
+async def send(request: Request) -> DatastarResponse:
     signals = await read_signals(request) or {}
     username = signals.get("username", "Anonymous")
     text = signals.get("messageInput", "").strip()
@@ -48,30 +45,33 @@ async def send(request):
     if text:
         messages.append(Message(username=username, text=text))
 
-    response = await datastar_respond(request)
-    await response.send(SSE.patch_signals({"messageInput": ""}))
-    await response.eof()
+    return DatastarResponse(SSE.patch_signals({"messageInput": ""}))
 
 
-@app.get("/feed")
-async def feed(request):
-    response = await datastar_respond(request)
-    seen = len(messages)
-
-    while True:
-        await asyncio.sleep(0.1)
-        if len(messages) > seen:
-            seen = len(messages)
-            rendered = str(shift(message_list(messages)))
-            await response.send(SSE.patch_elements(rendered, selector="#messages"))
-            await response.send(
-                SSE.execute_script(
+@get("/feed")
+async def feed(request: Request) -> DatastarResponse:
+    async def generate():
+        seen = len(messages)
+        while True:
+            await asyncio.sleep(0.1)
+            if len(messages) > seen:
+                seen = len(messages)
+                rendered = str(shift(message_list(messages)))
+                yield SSE.patch_elements(rendered, selector="#messages")
+                yield SSE.execute_script(
                     "document.getElementById('messages')"
                     ".scrollTo({top: document.getElementById('messages').scrollHeight,"
                     " behavior: 'smooth'})"
                 )
-            )
 
+    return DatastarResponse(generate())
+
+
+static_files = create_static_files_router(path="/static", directories=[Path(__file__).parent / "static"])
+
+app = Litestar(route_handlers=[index, chat, send, feed, static_files])
 
 if __name__ == "__main__":
-    app.run(dev=True)
+    import uvicorn
+
+    uvicorn.run("app:app", reload=True)

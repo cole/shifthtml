@@ -3,7 +3,8 @@ import time
 import anyio
 import pytest
 
-from shifthtml import Async, Fragment, defer, div, h1, li, p, shift, span, ul
+from shifthtml import Async, Fragment, div, h1, li, p, shift, span, ul
+from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
 

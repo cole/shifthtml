@@ -1,7 +1,13 @@
+from __future__ import annotations
+
 from collections.abc import Generator
+from typing import TYPE_CHECKING
 
 from .element import Element, VoidElement
 from .meta import TagMeta
+
+if TYPE_CHECKING:
+    from .plugin import RenderContext
 
 # Root
 
@@ -9,9 +15,9 @@ from .meta import TagMeta
 class HTMLRootElement(Element, metaclass=TagMeta):
     tag = "html"
 
-    def render(self, *args, **kwargs) -> Generator[str]:
+    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         yield "<!DOCTYPE html>"
-        yield from super().render(*args, **kwargs)
+        yield from super().render(ctx=ctx)
 
 
 html = HTMLRootElement

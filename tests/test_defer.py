@@ -1,5 +1,4 @@
 from shifthtml import (
-    defer,
     div,
     footer,
     h1,
@@ -11,6 +10,7 @@ from shifthtml import (
     span,
     ul,
 )
+from shifthtml.defer import defer
 
 
 def test_render_deferred_paragraph():
