@@ -32,7 +32,7 @@ def test_node_depth():
     assert node2.parent_node is node1
     assert node3.parent_node is node2
     assert node2.children == [node3]
-    assert list(node1) == [node1, node2, node3]
+    assert list(node1) == [node2]
 
 
 def test_node_breadth():
@@ -65,7 +65,18 @@ def test_node_breadth():
     assert node3_3.parent_node is node2_3
     assert node3_4.parent_node is node2_3
 
-    assert [n.value for n in node1 if isinstance(n, SimpleNode)] == ["1", "2.1", "2.2", "3.1", "3.2", "2.3", "3.3", "3.4"]
+    assert list(node1) == [node2_1, node2_2, node2_3]
+
+    assert [n.value for n in node1.walk() if isinstance(n, SimpleNode)] == [
+        "1",
+        "2.1",
+        "2.2",
+        "3.1",
+        "3.2",
+        "2.3",
+        "3.3",
+        "3.4",
+    ]
 
 
 def test_node_child_of_self():

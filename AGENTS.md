@@ -9,3 +9,4 @@
 - jj for version control
 - full test coverage, but not verbose
 - format and typecheck before committing
+- never use inline imports; import at the top of the file

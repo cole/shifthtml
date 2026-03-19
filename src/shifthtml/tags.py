@@ -73,6 +73,7 @@ from .meta import TagMeta
 
 # Root
 
+
 class HTMLRootElement(HTMLElement, metaclass=TagMeta):
     tag = "html"
 

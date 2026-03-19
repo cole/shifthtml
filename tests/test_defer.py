@@ -37,15 +37,10 @@ def test_render_deferred_list_and_nested_items():
             main
             >> defer(
                 "list",
-                ul
-                >> (
-                    li >> defer(f"item-{x}", span >> f"Item {x}", loading="Loading...")
-                    for x in range(3)
-                ),
+                ul >> (li >> defer(f"item-{x}", span >> f"Item {x}", loading="Loading...") for x in range(3)),
                 loading="Loading...",
             ),
             footer >> "Footer content",
-
         ),
     )
     # TODO: needs to handle deferred before body & preserve template context

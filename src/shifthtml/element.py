@@ -5,10 +5,9 @@ from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from string.templatelib import Template
 from typing import Any, ClassVar, overload
 
-from .node import Element as DOMElement
-from .node import Node as DOMNode
-from .node import Text as DOMText
+from .node import Node as _Node
 from .render import render_attributes, render_string
+from .style import CSSStyleDeclaration
 from .types import NodeContent, NodeListContent
 
 
@@ -18,8 +17,8 @@ def _maybe_call[T](item: Callable[[], T] | T) -> T:
     return item
 
 
-def _copy_tree(old_node: DOMNode, pointer_target: DOMNode) -> tuple[DOMNode, DOMNode | None]:
-    pointer_found: DOMNode | None = None
+def _copy_tree(old_node: _Node, pointer_target: _Node) -> tuple[_Node, _Node | None]:
+    pointer_found: _Node | None = None
 
     new_node = copy.replace(old_node, children=[])
 
@@ -41,13 +40,13 @@ class Fragment:
     Not a DOM node — a builder wrapper around a DOM tree.
     """
 
-    root: DOMNode
-    append_pointer: DOMNode
+    root: _Node
+    append_pointer: _Node
 
-    def __init__(self, root: DOMNode, append_pointer: DOMNode, /, **kwargs: Any):
+    def __init__(self, root: _Node, append_pointer: _Node, /, **kwargs: Any):
         self.root = root
         self.append_pointer = append_pointer
-        self.deferred: list[DeferredNode] = []
+        self.deferred: list[Deferred] = []
 
     def __copy__(self) -> Fragment:
         return Fragment(self.root, self.append_pointer)
@@ -68,10 +67,10 @@ class Fragment:
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
-        return "".join(self)
+        return "".join(self.render())
 
-    def __iter__(self) -> Iterator[str]:
-        yield from self.render()
+    def __iter__(self) -> Iterator[_Node]:
+        return iter(self.root.children)
 
     @overload
     def __rshift__(self, other: None) -> None: ...
@@ -95,7 +94,7 @@ class Fragment:
 
         return self
 
-    def append(self, node: DOMNode | Fragment) -> None:
+    def append(self, node: _Node | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
@@ -108,10 +107,10 @@ class Fragment:
         self.append_pointer.append_child(node)
         self.append_pointer = node
 
-    def defer_node(self, node: DeferredNode) -> None:
+    def defer_node(self, node: Deferred) -> None:
         self.deferred.append(node)
 
-    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         if defer_callback is None:
             defer_callback = self.defer_node
         yield from self.root.render(defer_callback=defer_callback)
@@ -123,11 +122,11 @@ class Fragment:
             yield from node.render_result(defer_callback=self.defer_node)
 
 
-class Node(DOMNode):
+class Node(_Node):
     """
     A node in the document tree with builder support.
 
-    Extends the DOM Node with the >> operator for building HTML trees,
+    Extends the abstract Node with the >> operator for building HTML trees,
     and a factory method for creating nodes from various content types.
     """
 
@@ -168,13 +167,16 @@ class Node(DOMNode):
 
         return new_fragment
 
-    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def __str__(self) -> str:
+        return "".join(self.render())
+
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         """Render the node to a string"""
         for child in self.children:
             yield from child.render(defer_callback=defer_callback)
 
 
-class NodeList(Node, Sequence[DOMNode]):
+class NodeList(Node, Sequence[_Node]):
     """A list of nodes with a position in the tree."""
 
     def __init__(self, contents: NodeListContent, /, **kwargs):
@@ -197,10 +199,10 @@ class NodeList(Node, Sequence[DOMNode]):
         return f"NodeList({repr(self.children)})"
 
     @overload
-    def __getitem__(self, index: int) -> DOMNode: ...
+    def __getitem__(self, index: int) -> _Node: ...
 
     @overload
-    def __getitem__(self, index: slice[Any, Any, Any]) -> Sequence[DOMNode]: ...
+    def __getitem__(self, index: slice[Any, Any, Any]) -> Sequence[_Node]: ...
 
     def __getitem__(self, index):
         return self.children[index]
@@ -208,41 +210,67 @@ class NodeList(Node, Sequence[DOMNode]):
     def __len__(self) -> int:
         return len(self.children)
 
-    def __iter__(self) -> Iterator[DOMNode]:
+    def __iter__(self) -> Iterator[_Node]:
         return iter(self.children)
 
     def __contains__(self, item: object) -> bool:
         return item in self.children
 
-    def __reversed__(self) -> Iterator[DOMNode]:
+    def __reversed__(self) -> Iterator[_Node]:
         return reversed(self.children)
 
-    def count(self, value: DOMNode) -> int:
+    def count(self, value: _Node) -> int:
         """Count occurrences of a value in the NodeList."""
         return self.children.count(value)
 
-    def index(self, value: DOMNode, start: int = 0, stop: int | None = None) -> int:
+    def index(self, value: _Node, start: int = 0, stop: int | None = None) -> int:
         if stop is None:
             return self.children.index(value, start)
         return self.children.index(value, start, stop)
 
 
-class Text(Node, DOMText):
+class Text(Node):
+    """An HTML Text Node."""
+
     content: str | Template
 
     def __init__(self, content: str | Template, /, **kwargs: Any):
-        super().__init__(content)
+        super().__init__()
+        self.content = content
 
     def __repr__(self):
         return f"Text({self.content!r})"
 
     def __replace__(self, **changes):
-        new_obj = type(self)(self.content)
+        return type(self)(self.content)
 
-        return new_obj
+    def append_child(self, child):
+        raise ValueError("Cannot add children to a Text node")
 
-    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         yield from render_string(self.content)
+
+
+class Comment(Node):
+    """An HTML Comment Node."""
+
+    content: str | Template
+
+    def __init__(self, content: str | Template, /, **kwargs: Any):
+        super().__init__()
+        self.content = content
+
+    def __repr__(self):
+        return f"Comment({self.content!r})"
+
+    def __replace__(self, **changes):
+        return type(self)(self.content)
+
+    def append_child(self, child):
+        raise ValueError("Cannot add children to a Comment node")
+
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+        yield f"<!--{self.content}-->"
 
 
 def _convert_attribute_names(name: str) -> str:
@@ -252,14 +280,19 @@ def _convert_attribute_names(name: str) -> str:
     return name.replace("_", "-")
 
 
-class Element(Node, DOMElement):
+class Element(Node):
+    """An HTML Element with tag, attributes, and builder support."""
+
     tag: ClassVar[str]
     attributes: dict[str, str | Template]
 
     def __init__(self, attributes: dict[str, str | Template] | None = None, /, **keyword_attributes: str | Template):
+        super().__init__()
         merged: dict[str, str | Template] = attributes or {}
         merged.update({_convert_attribute_names(key): value for key, value in keyword_attributes.items()})
-        super().__init__(tag_name=type(self).tag, attributes=merged)
+        self._tag_name = type(self).tag
+        self._style: CSSStyleDeclaration | None = None
+        self.attributes = dict(merged)
 
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
@@ -273,9 +306,39 @@ class Element(Node, DOMElement):
                 new_obj.append_child(copy.replace(child))
         return new_obj
 
+    @property
+    def tag_name(self) -> str:
+        """The tag name of this element."""
+        return self._tag_name
+
+    def get_attribute(self, name: str) -> str | Template | None:
+        return self.attributes.get(name)
+
+    def set_attribute(self, name: str, value: str | Template) -> None:
+        self.attributes[name] = value
+
+    def has_attribute(self, name: str) -> bool:
+        return name in self.attributes
+
+    def remove_attribute(self, name: str) -> None:
+        self.attributes.pop(name, None)
+
+    @property
+    def style(self) -> CSSStyleDeclaration:
+        if self._style is None:
+            self._style = CSSStyleDeclaration(owner=self)
+            existing = self.get_attribute("style")
+            if existing and isinstance(existing, str):
+                self._style.css_text = existing
+                self.remove_attribute("style")
+        return self._style
+
 
 class HTMLElement(Element):
-    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+        if self._style is not None and self._style.length > 0:
+            self.set_attribute("style", self._style.css_text)
+
         if self.attributes:
             yield f"<{self.tag}"
             for attr in render_attributes(self.attributes):
@@ -298,7 +361,7 @@ class HTMLVoidElement(HTMLElement):
     def __rshift__(self, other):
         raise ValueError(f"Cannot add children to a VoidElement ({self.tag})")
 
-    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         if self.attributes:
             yield f"<{self.tag}"
             for attr in render_attributes(self.attributes):
@@ -310,7 +373,7 @@ class HTMLVoidElement(HTMLElement):
             yield f"<{self.tag} />"
 
 
-class DeferredNode(Node):
+class Deferred(Node):
     def __init__(
         self,
         child: Node | Fragment,
@@ -327,14 +390,14 @@ class DeferredNode(Node):
         elif isinstance(child, Node):
             self.append_child(child)
         else:
-            raise ValueError(f"DeferredNode can only be initialized with a Node or Fragment, not {type(child)}")
+            raise ValueError(f"Deferred can only be initialized with a Node or Fragment, not {type(child)}")
 
     def __replace__(self, /, **changes):
         new_obj = type(self)(copy.replace(self.children[0]), slot_name=self.slot_name, loading=self.loading_node)
 
         return new_obj
 
-    def render(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         # Render the loading message
         if defer_callback is None:
             raise ValueError("Deferred node rendered outside of Fragment")
@@ -346,7 +409,7 @@ class DeferredNode(Node):
             yield from self.loading_node.render(defer_callback=defer_callback)
         yield "</slot></template>"
 
-    def render_result(self, *, defer_callback: Callable[[DeferredNode], None] | None = None) -> Generator[str]:
+    def render_result(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
         if isinstance(self.children[0], HTMLElement):
-            self.children[0].attributes["slot"] = self.slot_name
+            self.children[0].set_attribute("slot", self.slot_name)
         yield from self.children[0].render(defer_callback=defer_callback)

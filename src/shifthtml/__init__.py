@@ -1,7 +1,7 @@
 from string.templatelib import Template
 
 from .element import (
-    DeferredNode,
+    Deferred,
     Fragment,
     HTMLElement,
     HTMLVoidElement,
@@ -9,6 +9,7 @@ from .element import (
     NodeList,
     Text,
 )
+from .style import CSSStyleDeclaration
 from .tags import (
     a,
     abbr,
@@ -124,6 +125,8 @@ from .tags import (
 )
 
 __all__ = (
+    "CSSStyleDeclaration",
+    "Deferred",
     "Fragment",
     "HTMLElement",
     "HTMLVoidElement",
@@ -258,5 +261,5 @@ def defer(
     node: Node | Fragment,
     *,
     loading: Node | str | Template | None = None,
-) -> DeferredNode:
-    return DeferredNode(node, slot_name=slot_name, loading=loading)
+) -> Deferred:
+    return Deferred(node, slot_name=slot_name, loading=loading)
