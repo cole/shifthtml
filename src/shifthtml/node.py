@@ -7,6 +7,7 @@ from __future__ import annotations
 import copy
 from abc import ABCMeta, abstractmethod
 from collections.abc import Generator, Iterator
+from typing import Self
 
 
 class Node(metaclass=ABCMeta):
@@ -70,6 +71,104 @@ class Node(metaclass=ABCMeta):
         self.children.remove(child)
         child.parent_node = None
 
+    def insert_before(self, new_child: Node, reference: Node) -> None:
+        """Insert new_child before reference in this node's children."""
+        if new_child is self:
+            raise ValueError("Can't make a node a child of itself")
+        if not isinstance(new_child, Node):
+            raise ValueError(f"Node can only contain other nodes. Unexpected type {new_child.__class__.__name__!r}")
+        if reference not in self.children:
+            raise ValueError(f"Reference node {reference!r} is not a child of this node")
+        if new_child.parent_node is not None:
+            raise ValueError(f"Child {new_child!r} is already in the tree. Parent: {new_child.parent_node!r}")
+
+        idx = self.children.index(reference)
+        new_child.parent_node = self
+        self.children.insert(idx, new_child)
+
+    def replace_child(self, new_child: Node, old_child: Node) -> Node:
+        """Replace old_child with new_child. Returns old_child."""
+        if new_child is self:
+            raise ValueError("Can't make a node a child of itself")
+        if not isinstance(new_child, Node):
+            raise ValueError(f"Node can only contain other nodes. Unexpected type {new_child.__class__.__name__!r}")
+        if old_child not in self.children:
+            raise ValueError(f"Node {old_child!r} is not a child of this node")
+        if new_child.parent_node is not None:
+            raise ValueError(f"Child {new_child!r} is already in the tree. Parent: {new_child.parent_node!r}")
+
+        idx = self.children.index(old_child)
+        old_child.parent_node = None
+        new_child.parent_node = self
+        self.children[idx] = new_child
+        return old_child
+
+    def remove(self) -> None:
+        """Remove this node from its parent."""
+        if self.parent_node is None:
+            raise ValueError("Cannot remove a node that has no parent")
+        self.parent_node.remove_child(self)
+
+    def replace_with(self, *nodes: Node) -> None:
+        """Replace this node in its parent with one or more nodes."""
+        if self.parent_node is None:
+            raise ValueError("Cannot replace a node that has no parent")
+
+        parent = self.parent_node
+        idx = parent.children.index(self)
+        self.parent_node = None
+        parent.children.pop(idx)
+
+        for offset, node in enumerate(nodes):
+            if node.parent_node is not None:
+                raise ValueError(f"Child {node!r} is already in the tree. Parent: {node.parent_node!r}")
+            node.parent_node = parent
+            parent.children.insert(idx + offset, node)
+
+    def before(self, *nodes: Node) -> None:
+        """Insert nodes before this node in its parent."""
+        if self.parent_node is None:
+            raise ValueError("Cannot insert before a node that has no parent")
+
+        parent = self.parent_node
+        idx = parent.children.index(self)
+
+        for offset, node in enumerate(nodes):
+            if node.parent_node is not None:
+                raise ValueError(f"Child {node!r} is already in the tree. Parent: {node.parent_node!r}")
+            node.parent_node = parent
+            parent.children.insert(idx + offset, node)
+
+    def after(self, *nodes: Node) -> None:
+        """Insert nodes after this node in its parent."""
+        if self.parent_node is None:
+            raise ValueError("Cannot insert after a node that has no parent")
+
+        parent = self.parent_node
+        idx = parent.children.index(self) + 1
+
+        for offset, node in enumerate(nodes):
+            if node.parent_node is not None:
+                raise ValueError(f"Child {node!r} is already in the tree. Parent: {node.parent_node!r}")
+            node.parent_node = parent
+            parent.children.insert(idx + offset, node)
+
+    def prepend(self, *nodes: Node) -> None:
+        """Insert nodes at the beginning of this node's children."""
+        for offset, node in enumerate(nodes):
+            if node is self:
+                raise ValueError("Can't make a node a child of itself")
+            if not isinstance(node, Node):
+                raise ValueError(f"Node can only contain other nodes. Unexpected type {node.__class__.__name__!r}")
+            if node.parent_node is not None:
+                raise ValueError(f"Child {node!r} is already in the tree. Parent: {node.parent_node!r}")
+            node.parent_node = self
+            self.children.insert(offset, node)
+
+    def contains(self, node: Node) -> bool:
+        """Check if node is a descendant of this node."""
+        return any(descendant is node for descendant in self.walk())
+
     @property
     def first_child(self) -> Node | None:
         """The first child of this node, or None if it has no children."""
@@ -107,6 +206,12 @@ class Node(metaclass=ABCMeta):
         if index - 1 >= 0:
             return siblings[index - 1]
         return None
+
+    def clone_node(self, deep: bool = False) -> Self:
+        """Clone this node. If deep=True, clone all descendants too."""
+        if deep:
+            return copy.replace(self)
+        return copy.replace(self, children=[])
 
     @abstractmethod
     def render(self, *args, **kwargs) -> Generator[str]:

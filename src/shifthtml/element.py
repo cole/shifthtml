@@ -5,9 +5,9 @@ from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from string.templatelib import Template
 from typing import Any, ClassVar, overload
 
+from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .node import Node as _Node
 from .render import render_attributes, render_string
-from .style import CSSStyleDeclaration
 from .types import NodeContent, NodeListContent
 
 
@@ -32,6 +32,12 @@ def _copy_tree(old_node: _Node, pointer_target: _Node) -> tuple[_Node, _Node | N
             pointer_found = child_pointer
 
     return new_node, pointer_found
+
+
+def _convert_attribute_names(name: str) -> str:
+    if name == "classname":
+        return "class"
+    return _snake_to_kebab(name)
 
 
 class Fragment:
@@ -136,7 +142,7 @@ class Node(_Node):
             return contents
         if isinstance(contents, Fragment):
             return NodeList([contents])
-        if isinstance(contents, (str, Template)):
+        if isinstance(contents, str | Template):
             return Text(contents)
         if callable(contents):
             return cls.factory(contents())  # type: ignore[call-top-callable]
@@ -166,6 +172,16 @@ class Node(_Node):
         new_fragment.append(node)
 
         return new_fragment
+
+    @property
+    def text_content(self) -> str:
+        """Get the text content of this node and all descendants."""
+        parts: list[str] = []
+        for node in self.walk():
+            if isinstance(node, Text):
+                content = node.content
+                parts.append(str(content) if not isinstance(content, str) else content)
+        return "".join(parts)
 
     def __str__(self) -> str:
         return "".join(self.render())
@@ -273,13 +289,6 @@ class Comment(Node):
         yield f"<!--{self.content}-->"
 
 
-def _convert_attribute_names(name: str) -> str:
-    if name == "classname":
-        return "class"
-
-    return name.replace("_", "-")
-
-
 class Element(Node):
     """An HTML Element with tag, attributes, and builder support."""
 
@@ -288,11 +297,13 @@ class Element(Node):
 
     def __init__(self, attributes: dict[str, str | Template] | None = None, /, **keyword_attributes: str | Template):
         super().__init__()
-        merged: dict[str, str | Template] = attributes or {}
+        merged: dict[str, str | Template] = {k.lower(): v for k, v in attributes.items()} if attributes else {}
         merged.update({_convert_attribute_names(key): value for key, value in keyword_attributes.items()})
         self._tag_name = type(self).tag
-        self._style: CSSStyleDeclaration | None = None
-        self.attributes = dict(merged)
+        self._style: StyleMap | None = None
+        self._class_list: ClassList | None = None
+        self._dataset: DatasetMap | None = None
+        self.attributes = merged
 
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
@@ -312,21 +323,33 @@ class Element(Node):
         return self._tag_name
 
     def get_attribute(self, name: str) -> str | Template | None:
-        return self.attributes.get(name)
+        return self.attributes.get(name.lower())
 
     def set_attribute(self, name: str, value: str | Template) -> None:
-        self.attributes[name] = value
+        self.attributes[name.lower()] = value
 
     def has_attribute(self, name: str) -> bool:
-        return name in self.attributes
+        return name.lower() in self.attributes
 
     def remove_attribute(self, name: str) -> None:
-        self.attributes.pop(name, None)
+        self.attributes.pop(name.lower(), None)
 
     @property
-    def style(self) -> CSSStyleDeclaration:
+    def dataset(self) -> DatasetMap:
+        if self._dataset is None:
+            self._dataset = DatasetMap(owner=self)
+        return self._dataset
+
+    @property
+    def class_list(self) -> ClassList:
+        if self._class_list is None:
+            self._class_list = ClassList(owner=self)
+        return self._class_list
+
+    @property
+    def style(self) -> StyleMap:
         if self._style is None:
-            self._style = CSSStyleDeclaration(owner=self)
+            self._style = StyleMap(owner=self)
             existing = self.get_attribute("style")
             if existing and isinstance(existing, str):
                 self._style.css_text = existing
@@ -336,7 +359,7 @@ class Element(Node):
 
 class HTMLElement(Element):
     def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
-        if self._style is not None and self._style.length > 0:
+        if self._style:
             self.set_attribute("style", self._style.css_text)
 
         if self.attributes:

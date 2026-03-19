@@ -1,73 +1,108 @@
 from shifthtml import div, shift
-from shifthtml.style import CSSStyleDeclaration
+from shifthtml.mappings import StyleMap
 
 
-def test_css_style_declaration_set_get():
-    style = CSSStyleDeclaration()
+def test_style_set_get_via_attr():
+    style = StyleMap()
     style.color = "red"
     assert style.color == "red"
 
 
-def test_css_style_declaration_snake_to_kebab():
-    style = CSSStyleDeclaration()
+def test_style_snake_to_kebab():
+    style = StyleMap()
     style.font_size = "16px"
-    assert style.get_property_value("font-size") == "16px"
+    assert style["font-size"] == "16px"
     assert style.font_size == "16px"
 
 
-def test_css_style_declaration_delete():
-    style = CSSStyleDeclaration()
+def test_style_delete_via_attr():
+    style = StyleMap()
     style.color = "red"
     del style.color
     assert style.color == ""
 
 
+def test_style_setitem_getitem():
+    style = StyleMap()
+    style["color"] = "red"
+    style["font-size"] = "16px"
+    assert style.css_text == "color: red; font-size: 16px"
+
+
+def test_style_delitem():
+    style = StyleMap()
+    style["color"] = "red"
+    del style["color"]
+    assert "color" not in style
+
+
+def test_style_contains():
+    style = StyleMap()
+    style["color"] = "red"
+    assert "color" in style
+    assert "font-size" not in style
+
+
+def test_style_iter():
+    style = StyleMap()
+    style["color"] = "red"
+    style["font-size"] = "16px"
+    assert list(style) == ["color", "font-size"]
+
+
 def test_css_text_getter():
-    style = CSSStyleDeclaration()
-    style.set_property("color", "red")
-    style.set_property("font-size", "16px")
+    style = StyleMap()
+    style["color"] = "red"
+    style["font-size"] = "16px"
     assert style.css_text == "color: red; font-size: 16px"
 
 
 def test_css_text_setter():
-    style = CSSStyleDeclaration()
+    style = StyleMap()
     style.css_text = "color: red; font-size: 16px"
-    assert style.get_property_value("color") == "red"
-    assert style.get_property_value("font-size") == "16px"
+    assert style["color"] == "red"
+    assert style["font-size"] == "16px"
 
 
 def test_css_text_setter_clears_existing():
-    style = CSSStyleDeclaration()
-    style.set_property("background", "blue")
+    style = StyleMap()
+    style["background"] = "blue"
     style.css_text = "color: red"
-    assert style.get_property_value("background") == ""
-    assert style.get_property_value("color") == "red"
+    assert "background" not in style
+    assert style["color"] == "red"
 
 
-def test_remove_property():
-    style = CSSStyleDeclaration()
-    style.set_property("color", "red")
-    removed = style.remove_property("color")
+def test_pop():
+    style = StyleMap()
+    style["color"] = "red"
+    removed = style.pop("color")
     assert removed == "red"
-    assert style.get_property_value("color") == ""
+    assert "color" not in style
 
 
-def test_remove_property_missing():
-    style = CSSStyleDeclaration()
-    assert style.remove_property("color") == ""
+def test_pop_missing():
+    style = StyleMap()
+    assert style.pop("color") == ""
 
 
-def test_length():
-    style = CSSStyleDeclaration()
-    assert style.length == 0
+def test_len():
+    style = StyleMap()
+    assert len(style) == 0
     style.color = "red"
-    assert style.length == 1
+    assert len(style) == 1
     style.font_size = "16px"
-    assert style.length == 2
+    assert len(style) == 2
+
+
+def test_str():
+    style = StyleMap()
+    style["color"] = "red"
+    style["font-size"] = "16px"
+    assert str(style) == "color: red; font-size: 16px"
 
 
 def test_get_missing_property():
-    style = CSSStyleDeclaration()
+    style = StyleMap()
     assert style.color == ""
 
 
@@ -84,7 +119,7 @@ def test_element_style_from_existing_attribute():
     el = div(style="color: red")
     fragment = shift(el)
     root = fragment.root
-    assert root.style.get_property_value("color") == "red"
+    assert root.style["color"] == "red"
     root.style.font_size = "16px"
     assert str(fragment) == '<div style="color: red; font-size: 16px"></div>'
 

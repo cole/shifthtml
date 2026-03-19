@@ -46,3 +46,46 @@ def test_remove_attribute():
 def test_attributes_render_correctly():
     tag = shift(h1(id="hello", classname="bighead") >> "Hello")
     assert str(tag) == '<h1 id="hello" class="bighead">Hello</h1>'
+
+
+def test_dict_attribute_names_lowercased():
+    el = div({"ID": "main", "Data-TestId": "foo"})
+    f = shift(el)
+    assert f.root.get_attribute("id") == "main"
+    assert f.root.get_attribute("data-testid") == "foo"
+    assert str(f) == '<div id="main" data-testid="foo"></div>'
+
+
+def test_set_attribute_lowercased():
+    el = div()
+    f = shift(el)
+    f.root.set_attribute("Data-Value", "42")
+    assert f.root.get_attribute("data-value") == "42"
+    assert f.root.has_attribute("Data-Value") is True
+
+
+def test_get_attribute_case_insensitive():
+    el = div(id="test")
+    f = shift(el)
+    assert f.root.get_attribute("ID") == "test"
+    assert f.root.get_attribute("Id") == "test"
+
+
+def test_has_attribute_case_insensitive():
+    el = div(id="test")
+    f = shift(el)
+    assert f.root.has_attribute("ID") is True
+    assert f.root.has_attribute("Id") is True
+
+
+def test_remove_attribute_case_insensitive():
+    el = div(id="test")
+    f = shift(el)
+    f.root.remove_attribute("ID")
+    assert f.root.has_attribute("id") is False
+
+
+def test_keyword_attribute_names_lowercased():
+    el = div(data_TestId="foo")
+    f = shift(el)
+    assert f.root.get_attribute("data-testid") == "foo"

@@ -9,7 +9,6 @@ from .element import (
     NodeList,
     Text,
 )
-from .style import CSSStyleDeclaration
 from .tags import (
     a,
     abbr,
@@ -125,7 +124,6 @@ from .tags import (
 )
 
 __all__ = (
-    "CSSStyleDeclaration",
     "Deferred",
     "Fragment",
     "HTMLElement",
