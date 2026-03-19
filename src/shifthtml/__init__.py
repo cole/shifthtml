@@ -5,6 +5,7 @@ from .element import (
     Deferred,
     Element,
     Fragment,
+    Lazy,
     Node,
     NodeList,
     Text,
@@ -127,6 +128,7 @@ from .tags import (
 __all__ = (
     "Async",
     "Deferred",
+    "Lazy",
     "Element",
     "Fragment",
     "Node",

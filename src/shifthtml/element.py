@@ -14,12 +14,6 @@ from .tree import TreeNode
 from .types import NodeContent, NodeListContent
 
 
-def _maybe_call[T](item: Callable[[], T] | T) -> T:
-    if callable(item) and not inspect.iscoroutinefunction(item):
-        return item()  # type: ignore[call-top-callable]  # ty can't narrow Callable[[], T] | T when T itself may be callable
-    return item  # type: ignore[invalid-return-type]  # async callables are passed through unchanged
-
-
 def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, TreeNode | None]:
     pointer_found: TreeNode | None = None
 
@@ -88,17 +82,15 @@ class Fragment:
     def __rshift__(self, other: NodeContent) -> Fragment: ...
 
     def __rshift__(self, other):
-        resolved = _maybe_call(other)
-
-        if resolved is None:
+        if other is None:
             return None
 
-        if isinstance(resolved, Fragment):
+        if isinstance(other, Fragment):
             new_fragment = copy.replace(self)
-            new_fragment.append(copy.replace(resolved))
+            new_fragment.append(copy.replace(other))
             return new_fragment
 
-        node = Node.factory(resolved)
+        node = Node.factory(other)
         self.append(node)
 
         return self
@@ -161,10 +153,12 @@ class Node(TreeNode):
             return NodeList([contents])
         if isinstance(contents, str | Template):
             return Text(contents)
+        if isinstance(contents, type) and issubclass(contents, TreeNode):
+            return contents()  # type: ignore[return-value]  # tag classes always produce Node subclasses
         if callable(contents):
             if inspect.iscoroutinefunction(contents):
                 return Async(contents)
-            return cls.factory(contents())  # type: ignore[call-top-callable]
+            return Lazy(contents)  # type: ignore[arg-type]  # ty can't narrow callable after isinstance/iscoroutinefunction checks
         if isinstance(contents, Iterable):
             return NodeList(contents)
         raise ValueError(f"Unsupported shift type for >>: {type(contents)}")
@@ -176,18 +170,16 @@ class Node(TreeNode):
     def __rshift__(self, other: None) -> None: ...
 
     def __rshift__(self, other):
-        resolved = _maybe_call(other)
-
-        if resolved is None:
+        if other is None:
             return None
 
         new_fragment = Fragment(self, self)
 
-        if isinstance(resolved, Fragment):
-            new_fragment.append(resolved)
+        if isinstance(other, Fragment):
+            new_fragment.append(other)
             return new_fragment
 
-        node = Node.factory(resolved)
+        node = Node.factory(other)
         new_fragment.append(node)
 
         return new_fragment
@@ -236,14 +228,11 @@ class NodeList(Node, Sequence[TreeNode]):
             if item is None:
                 continue
 
-            item = _maybe_call(item)
-
             if isinstance(item, Fragment):
                 self.append_child(item.root)
             else:
-                item_node = Node.factory(item)
-                if item_node is not None:
-                    self.append_child(item_node)
+                node = Node.factory(item)
+                self.append_child(node)
 
     def __repr__(self):
         return f"NodeList({repr(self.children)})"
@@ -523,6 +512,37 @@ class Deferred(Node):
             async for chunk in self.loading_node.arender(defer_callback=defer_callback):
                 yield chunk
         yield "</slot></template>"
+
+
+class Lazy(Node):
+    """Wraps a sync callable, resolved during rendering."""
+
+    fn: Callable[[], NodeContent]
+
+    def __init__(self, fn: Callable[[], NodeContent], /, **kwargs: Any):
+        super().__init__()
+        self.fn = fn
+
+    def __repr__(self):
+        return f"Lazy({self.fn!r})"
+
+    def __replace__(self, **changes):
+        return type(self)(self.fn)
+
+    def render(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> Generator[str]:
+        result = self.fn()
+        if result is None:
+            return
+        node = Node.factory(result)
+        yield from node.render(defer_callback=defer_callback)
+
+    async def arender(self, *, defer_callback: Callable[[Deferred], None] | None = None) -> AsyncGenerator[str]:
+        result = self.fn()
+        if result is None:
+            return
+        node = Node.factory(result)
+        async for chunk in node.arender(defer_callback=defer_callback):
+            yield chunk
 
 
 class Async(Node):
