@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -20,11 +21,19 @@ class StyleMap:
         super().__setattr__("_properties", {})
         super().__setattr__("_owner", owner)
 
+    def _parse_css(self, value: str) -> None:
+        self._properties.clear()
+        for part in value.split(";"):
+            part = part.strip()
+            if ":" in part:
+                k, v = part.split(":", 1)
+                self._properties[k.strip()] = v.strip()
+
     def __setattr__(self, name: str, value: str) -> None:
         if name.startswith("_"):
             super().__setattr__(name, value)
         elif name == "css_text":
-            type(self).css_text.fset(self, value)
+            self._parse_css(value)
         else:
             self._properties[_snake_to_kebab(name)] = value
 
@@ -46,7 +55,7 @@ class StyleMap:
     def __contains__(self, name: str) -> bool:
         return name in self._properties
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._properties)
 
     def __len__(self) -> int:
@@ -67,12 +76,7 @@ class StyleMap:
 
     @css_text.setter
     def css_text(self, value: str) -> None:
-        self._properties.clear()
-        for part in value.split(";"):
-            part = part.strip()
-            if ":" in part:
-                k, v = part.split(":", 1)
-                self._properties[k.strip()] = v.strip()
+        self._parse_css(value)
 
 
 class ClassList:
@@ -133,7 +137,7 @@ class ClassList:
         self._save(current)
         return True
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._tokens())
 
     def __len__(self) -> int:
@@ -176,7 +180,7 @@ class DatasetMap:
     def __contains__(self, name: str) -> bool:
         return _snake_to_kebab("data-" + name) in self._owner.attributes
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return (k.removeprefix("data-").replace("-", "_") for k in self._owner.attributes if k.startswith("data-"))
 
     def __repr__(self) -> str:

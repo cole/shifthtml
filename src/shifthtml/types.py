@@ -8,6 +8,10 @@ if TYPE_CHECKING:
     from .element import Fragment
 
 type NodeAtom = type[Node] | Node | Fragment | str | Template
-type NodeListContent = Iterable[NodeAtom | Callable[[], NodeAtom] | None]
-type NodeContent = NodeAtom | NodeListContent | Callable[[], NodeAtom | NodeListContent]
-type AsyncNodeContent = NodeContent | Callable[[], Awaitable[NodeContent]]
+type NodeListContent = Iterable[NodeAtom | Callable[[], NodeAtom] | Callable[[], Awaitable[NodeAtom]] | None]
+type NodeContent = (
+    NodeAtom
+    | NodeListContent
+    | Callable[[], NodeAtom | NodeListContent]
+    | Callable[[], Awaitable[NodeAtom | NodeListContent]]
+)
