@@ -91,9 +91,10 @@ def test_render_nesting():
         >> (h1() >> "Welcome to the Test Page", p() >> "This is a paragraph on the test page.")
     )
 
-    assert (
-        str(tag)
-        == '<!DOCTYPE html><html><body class="test" data-testid="body-1"><div><h1>Welcome to the Test Page</h1><p>This is a paragraph on the test page.</p></div></body></html>'
+    assert str(tag) == (
+        '<!DOCTYPE html><html><body class="test" data-testid="body-1">'
+        "<div><h1>Welcome to the Test Page</h1>"
+        "<p>This is a paragraph on the test page.</p></div></body></html>"
     )
 
 
@@ -108,9 +109,10 @@ def test_render_head_tag():
         )
     )
 
-    assert (
-        str(tag)
-        == '<head><title>Test Page</title><meta charset="UTF-8" /><link rel="stylesheet" href="style.css" /><style>body { background-color: #fff; }</style></head>'
+    assert str(tag) == (
+        "<head><title>Test Page</title>"
+        '<meta charset="UTF-8" /><link rel="stylesheet" href="style.css" />'
+        "<style>body { background-color: #fff; }</style></head>"
     )
 
 
@@ -133,9 +135,10 @@ def test_render_multiple_vars():
         )
     )
 
-    assert (
-        str(main_tag)
-        == '<main><div><p>paragraph 1</p><p>paragraph 1.5</p></div><aside><div><p>paragraph 2</p></div></aside><div class="test"><div><p>paragraph 2</p></div></div></main>'
+    assert str(main_tag) == (
+        "<main><div><p>paragraph 1</p><p>paragraph 1.5</p></div>"
+        "<aside><div><p>paragraph 2</p></div></aside>"
+        '<div class="test"><div><p>paragraph 2</p></div></div></main>'
     )
 
 

@@ -9,7 +9,7 @@ from .element import (
     Text,
     VoidElement,
 )
-from .plugin import Plugin, RenderContext, register, registered_plugins
+from .plugin import Plugin, RenderContext, clear_registry, register, registered_plugins
 from .tags import (
     a,
     abbr,
@@ -249,6 +249,7 @@ __all__ = (
     "Plugin",
     "RenderContext",
     "register",
+    "clear_registry",
 )
 
 

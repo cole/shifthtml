@@ -38,6 +38,37 @@ def _convert_attribute_names(name: str) -> str:
     return _snake_to_kebab(name)
 
 
+async def _arender_children(children: list[TreeNode], ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    if len(children) <= 1:
+        for child in children:
+            if ctx is not None:
+                async for chunk in ctx.arender_node(child):
+                    yield chunk
+            else:
+                async for chunk in child.arender():
+                    yield chunk
+        return
+
+    results: list[list[str]] = [[] for _ in children]
+    ready: list[anyio.Event] = [anyio.Event() for _ in children]
+
+    async def collect(i: int, child: TreeNode) -> None:
+        if ctx is not None:
+            results[i] = [chunk async for chunk in ctx.arender_node(child)]
+        else:
+            results[i] = [chunk async for chunk in child.arender()]
+        ready[i].set()
+
+    async with anyio.create_task_group() as tg:
+        for i, child in enumerate(children):
+            tg.start_soon(collect, i, child)
+
+        for i in range(len(children)):
+            await ready[i].wait()
+            for chunk in results[i]:
+                yield chunk
+
+
 class Fragment:
     """
     A document fragment that can contain nodes and other fragments.
@@ -47,7 +78,7 @@ class Fragment:
     root: TreeNode
     append_pointer: TreeNode
 
-    def __init__(self, root: TreeNode, append_pointer: TreeNode, /, **kwargs: Any):
+    def __init__(self, root: TreeNode, append_pointer: TreeNode, /):
         self.root = root
         self.append_pointer = append_pointer
         self.plugins: tuple[Plugin, ...] = ()
@@ -66,12 +97,7 @@ class Fragment:
         return frag
 
     def __replace__(self, /, **changes):
-        new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
-        if new_pointer is None:
-            raise ValueError("Pointer target not found in the tree")
-        frag = Fragment(new_root, new_pointer)
-        frag.plugins = self.plugins
-        return frag
+        return copy.deepcopy(self)
 
     def __repr__(self):
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
@@ -119,23 +145,86 @@ class Fragment:
         if self.plugins:
             ctx = RenderContext(plugins=self.plugins)
             yield from ctx.pre_render_all()
-            yield from ctx.render_node(self.root)
-            yield from ctx.post_render_all()
+            yield from self._render_root(ctx)
         else:
             yield from self.root.render()
 
-    async def arender(self) -> AsyncGenerator[str]:
+    def _render_root(self, ctx: RenderContext) -> Generator[str]:
+        root = self.root
+        for plugin in ctx.plugins:
+            result = plugin.pre_render_node(root, ctx)
+            if result is not None:
+                yield from result
+                yield from ctx._post_render_node(root)
+                yield from ctx.post_render_all()
+                return
+
+        if isinstance(root, Element) and not root.void:
+            yield from root.render(ctx=ctx, before_close=ctx.post_render_all)
+        else:
+            yield from root.render(ctx=ctx)
+            yield from ctx.post_render_all()
+        yield from ctx._post_render_node(root)
+
+    async def arender(
+        self, *, min_chunk_size: int | None = 4096, cancel_scope: anyio.CancelScope | None = None
+    ) -> AsyncGenerator[str]:
+        if min_chunk_size is None:
+            async for chunk in self._arender_unbuffered(cancel_scope=cancel_scope):
+                yield chunk
+            return
+
+        buf: list[str] = []
+        buf_size = 0
+        async for chunk in self._arender_unbuffered(cancel_scope=cancel_scope):
+            buf.append(chunk)
+            buf_size += len(chunk)
+            if buf_size >= min_chunk_size:
+                yield "".join(buf)
+                buf.clear()
+                buf_size = 0
+        if buf:
+            yield "".join(buf)
+
+    async def _arender_unbuffered(self, *, cancel_scope: anyio.CancelScope | None = None) -> AsyncGenerator[str]:
         if self.plugins:
-            ctx = RenderContext(plugins=self.plugins)
+            ctx = RenderContext(plugins=self.plugins, cancel_scope=cancel_scope)
             async for chunk in ctx.apre_render_all():
                 yield chunk
-            async for chunk in ctx.arender_node(self.root):
-                yield chunk
-            async for chunk in ctx.apost_render_all():
+            async for chunk in self._arender_root(ctx):
                 yield chunk
         else:
             async for chunk in self.root.arender():
                 yield chunk
+
+    async def _arender_root(self, ctx: RenderContext) -> AsyncGenerator[str]:
+        root = self.root
+        for plugin in ctx.plugins:
+            ahook = getattr(plugin, "apre_render_node", None)
+            result = ahook(root, ctx) if ahook is not None else plugin.pre_render_node(root, ctx)
+            if result is not None:
+                if isinstance(result, AsyncGenerator):
+                    async for chunk in result:
+                        yield chunk
+                else:
+                    for chunk in result:
+                        yield chunk
+                async for chunk in ctx._apost_render_node(root):
+                    yield chunk
+                async for chunk in ctx.apost_render_all():
+                    yield chunk
+                return
+
+        if isinstance(root, Element) and not root.void:
+            async for chunk in root.arender(ctx=ctx, before_close=ctx.apost_render_all):
+                yield chunk
+        else:
+            async for chunk in root.arender(ctx=ctx):
+                yield chunk
+            async for chunk in ctx.apost_render_all():
+                yield chunk
+        async for chunk in ctx._apost_render_node(root):
+            yield chunk
 
 
 class Node(TreeNode):
@@ -206,27 +295,14 @@ class Node(TreeNode):
                 yield from child.render()
 
     async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        results: list[list[str]] = [[] for _ in self.children]
-
-        async def collect(i: int, child: TreeNode) -> None:
-            if ctx is not None:
-                results[i] = [chunk async for chunk in ctx.arender_node(child)]
-            else:
-                results[i] = [chunk async for chunk in child.arender()]
-
-        async with anyio.create_task_group() as tg:
-            for i, child in enumerate(self.children):
-                tg.start_soon(collect, i, child)
-
-        for chunks in results:
-            for chunk in chunks:
-                yield chunk
+        async for chunk in _arender_children(self.children, ctx):
+            yield chunk
 
 
 class NodeList(Node, Sequence[TreeNode]):
     """A list of nodes with a position in the tree."""
 
-    def __init__(self, contents: NodeListContent, /, **kwargs):
+    def __init__(self, contents: NodeListContent, /):
         super().__init__()
 
         for item in contents:
@@ -286,7 +362,7 @@ class Text(Node):
 
     content: str | Template
 
-    def __init__(self, content: str | Template, /, **kwargs: Any):
+    def __init__(self, content: str | Template, /):
         super().__init__()
         self.content = content
 
@@ -312,7 +388,7 @@ class Comment(Node):
 
     content: str | Template
 
-    def __init__(self, content: str | Template, /, **kwargs: Any):
+    def __init__(self, content: str | Template, /):
         super().__init__()
         self.content = content
 
@@ -343,7 +419,6 @@ class Element(Node):
         super().__init__()
         merged: dict[str, str | Template] = {k.lower(): v for k, v in attributes.items()} if attributes else {}
         merged.update({_convert_attribute_names(key): value for key, value in keyword_attributes.items()})
-        self._tag_name = type(self).tag
         self._style: StyleMap | None = None
         self._class_list: ClassList | None = None
         self._dataset: DatasetMap | None = None
@@ -364,7 +439,7 @@ class Element(Node):
     @property
     def tag_name(self) -> str:
         """The tag name of this element."""
-        return self._tag_name
+        return self.tag
 
     def __getitem__(self, name: str) -> str | Template:
         return self.attributes[name.lower()]
@@ -402,16 +477,18 @@ class Element(Node):
                 del self["style"]
         return self._style
 
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+    def render(
+        self,
+        *,
+        ctx: RenderContext | None = None,
+        before_close: Callable[[], Generator[str]] | None = None,
+    ) -> Generator[str]:
         if self._style:
             self["style"] = self._style.css_text
 
-        if self.attributes:
-            yield f"<{self.tag}"
-            for attr in render_attributes(self.attributes):
-                yield f" {attr}"
-        else:
-            yield f"<{self.tag}"
+        yield f"<{self.tag}"
+        for attr in render_attributes(self.attributes):
+            yield f" {attr}"
 
         if self.void:
             yield " />"
@@ -422,40 +499,32 @@ class Element(Node):
                     yield from ctx.render_node(child)
                 else:
                     yield from child.render()
+            if before_close is not None:
+                yield from before_close()
             yield f"</{self.tag}>"
 
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def arender(
+        self,
+        *,
+        ctx: RenderContext | None = None,
+        before_close: Callable[[], AsyncGenerator[str]] | None = None,
+    ) -> AsyncGenerator[str]:
         if self._style:
             self["style"] = self._style.css_text
 
-        if self.attributes:
-            yield f"<{self.tag}"
-            for attr in render_attributes(self.attributes):
-                yield f" {attr}"
-        else:
-            yield f"<{self.tag}"
+        yield f"<{self.tag}"
+        for attr in render_attributes(self.attributes):
+            yield f" {attr}"
 
         if self.void:
             yield " />"
         else:
             yield ">"
-
-            results: list[list[str]] = [[] for _ in self.children]
-
-            async def collect(i: int, child: TreeNode) -> None:
-                if ctx is not None:
-                    results[i] = [chunk async for chunk in ctx.arender_node(child)]
-                else:
-                    results[i] = [chunk async for chunk in child.arender()]
-
-            async with anyio.create_task_group() as tg:
-                for i, child in enumerate(self.children):
-                    tg.start_soon(collect, i, child)
-
-            for chunks in results:
-                for chunk in chunks:
+            async for chunk in _arender_children(self.children, ctx):
+                yield chunk
+            if before_close is not None:
+                async for chunk in before_close():
                     yield chunk
-
             yield f"</{self.tag}>"
 
 
@@ -506,7 +575,7 @@ class Lazy(Node):
 
     fn: Callable[[], NodeContent]
 
-    def __init__(self, fn: Callable[[], NodeContent], /, **kwargs: Any):
+    def __init__(self, fn: Callable[[], NodeContent], /):
         super().__init__()
         self.fn = fn
 
@@ -544,7 +613,7 @@ class Async(Node):
 
     fn: Callable[[], Awaitable[NodeContent]]
 
-    def __init__(self, fn: Callable[[], Awaitable[NodeContent]], /, **kwargs: Any):
+    def __init__(self, fn: Callable[[], Awaitable[NodeContent]], /):
         super().__init__()
         self.fn = fn
 

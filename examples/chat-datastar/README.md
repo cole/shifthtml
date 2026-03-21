@@ -1,6 +1,6 @@
 # Chat with Datastar
 
-A real-time multi-tab chat client built with ShiftHTML, Sanic, and Datastar.
+A real-time multi-tab chat client built with ShiftHTML, Litestar, and Datastar.
 
 ## Setup
 
@@ -15,4 +15,4 @@ The landing page shows two chat clients side by side in iframes. Each gets a uni
 - **Real-time updates**: A long-lived SSE connection (`/feed`) polls for new messages and streams them to all connected clients via `patch_elements`
 - **Form submit**: Enter key and button click both submit via a `<form>` with Datastar's `data-on:submit.prevent`
 
-ShiftHTML components generate all HTML — both the initial page and the SSE fragments. Datastar attributes are produced by `datastar-py`'s `attribute_generator`.
+ShiftHTML components generate all HTML. Datastar attributes are produced by `datastar-py`'s `attribute_generator`.

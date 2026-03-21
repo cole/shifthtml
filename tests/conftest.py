@@ -1,14 +1,13 @@
 import pytest
 
-from shifthtml import Element, Fragment
-from shifthtml.plugin import _registry
+from shifthtml import Element, Fragment, clear_registry
 
 
 @pytest.fixture(autouse=True)
 def _clean_plugin_registry():
-    _registry.clear()
+    clear_registry()
     yield
-    _registry.clear()
+    clear_registry()
 
 
 def root(fragment: Fragment) -> Element:

@@ -10,7 +10,7 @@ A simple todo list application demonstrating Shift with Flask, HTMX, and SQLite.
 
 ## How it works
 
-The app uses HTMX to make AJAX requests without writing JavaScript:
+The app uses HTMX to make XHR requests without writing JavaScript:
 
 - `hx-post` adds new todos
 - `hx-put` toggles todo completion status

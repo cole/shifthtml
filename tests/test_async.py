@@ -100,10 +100,10 @@ async def test_async_with_deferred():
     assert result == (
         "<div>"
         "<p>before</p>"
-        '<template shadowrootmode="open"><slot name="slot-1">Loading...</slot></template>'
+        '<div id="p:slot-1">Loading...</div>'
         "<p>after</p>"
+        '<script>document.getElementById("p:slot-1").outerHTML=`<div><span>loaded<\\/span><\\/div>`</script>'
         "</div>"
-        '<div slot="slot-1"><span>loaded</span></div>'
     )
 
 

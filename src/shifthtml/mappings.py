@@ -112,26 +112,17 @@ class ClassList:
 
     def toggle(self, token: str, force: bool | None = None) -> bool:
         current = self._tokens()
-        if force is not None:
-            if force:
-                if token not in current:
-                    current.append(token)
-                self._save(current)
-                return True
-            else:
-                if token in current:
-                    current.remove(token)
-                self._save(current)
-                return False
-
-        if token in current:
-            current.remove(token)
-            self._save(current)
-            return False
+        present = token in current
+        if force is None:
+            force = not present
+        if force:
+            if not present:
+                current.append(token)
         else:
-            current.append(token)
-            self._save(current)
-            return True
+            if present:
+                current.remove(token)
+        self._save(current)
+        return force
 
     def replace(self, old: str, new: str) -> bool:
         current = self._tokens()

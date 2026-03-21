@@ -10,9 +10,6 @@ def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
         return ascii(value)
     if conversion == "r":
         return repr(value)
-    if conversion == "s":
-        return str(value)
-
     return str(value)
 
 

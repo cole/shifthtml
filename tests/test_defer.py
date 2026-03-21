@@ -24,8 +24,8 @@ def test_render_deferred_paragraph():
     )
 
     assert (
-        str(tag)
-        == '<div><p>Paragraph 1</p><template shadowrootmode="open"><slot name="para-2">Loading...</slot></template><p>Paragraph 3</p></div><p slot="para-2">Paragraph 2</p>'
+        str(tag) == '<div><p>Paragraph 1</p><div id="p:para-2">Loading...</div><p>Paragraph 3</p>'
+        '<script>document.getElementById("p:para-2").outerHTML=`<p>Paragraph 2<\\/p>`</script></div>'
     )
 
 
@@ -43,8 +43,15 @@ def test_render_deferred_list_and_nested_items():
             footer >> "Footer content",
         ),
     )
-    # TODO: needs to handle deferred before body & preserve template context
     assert (
-        str(tag)
-        == '<div><header><h1>Deferred streaming</h1></header><main><template shadowrootmode="open"><slot name="list">Loading...</slot></template></main><footer>Footer content</footer></div><ul slot="list"><li><template shadowrootmode="open"><slot name="item-0">Loading...</slot></template></li><li><template shadowrootmode="open"><slot name="item-1">Loading...</slot></template></li><li><template shadowrootmode="open"><slot name="item-2">Loading...</slot></template></li></ul><span slot="item-0">Item 0</span><span slot="item-1">Item 1</span><span slot="item-2">Item 2</span>'
+        str(tag) == "<div><header><h1>Deferred streaming</h1></header>"
+        '<main><div id="p:list">Loading...</div></main>'
+        "<footer>Footer content</footer>"
+        '<script>document.getElementById("p:list").outerHTML=`<ul><li><div id="p:item-0">Loading...<\\/div><\\/li>'
+        '<li><div id="p:item-1">Loading...<\\/div><\\/li>'
+        '<li><div id="p:item-2">Loading...<\\/div><\\/li><\\/ul>`</script>'
+        '<script>document.getElementById("p:item-0").outerHTML=`<span>Item 0<\\/span>`</script>'
+        '<script>document.getElementById("p:item-1").outerHTML=`<span>Item 1<\\/span>`</script>'
+        '<script>document.getElementById("p:item-2").outerHTML=`<span>Item 2<\\/span>`</script>'
+        "</div>"
     )

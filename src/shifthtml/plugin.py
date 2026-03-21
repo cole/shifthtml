@@ -5,6 +5,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    import anyio
+
     from .tree import TreeNode
 
 
@@ -40,10 +42,15 @@ def registered_plugins() -> tuple[Plugin, ...]:
     return tuple(_registry.values())
 
 
+def clear_registry() -> None:
+    _registry.clear()
+
+
 @dataclass
 class RenderContext:
     plugins: tuple[Plugin, ...]
     state: dict[Any, Any] = field(default_factory=dict)
+    cancel_scope: anyio.CancelScope | None = None
 
     # -- sync --
 

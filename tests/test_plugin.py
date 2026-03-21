@@ -116,7 +116,7 @@ def test_post_render():
 
     register(FooterPlugin())
     result = str(shift(div >> "hello"))
-    assert result == "<div>hello</div><!-- footer -->"
+    assert result == "<div>hello<!-- footer --></div>"
 
 
 def test_post_render_node():
@@ -184,8 +184,8 @@ async def test_async_defer():
     assert result == (
         "<div>"
         "<p>before</p>"
-        '<template shadowrootmode="open"><slot name="slot-1">Loading...</slot></template>'
+        '<div id="p:slot-1">Loading...</div>'
         "<p>after</p>"
+        '<script>document.getElementById("p:slot-1").outerHTML=`<div><span>loaded<\\/span><\\/div>`</script>'
         "</div>"
-        '<div slot="slot-1"><span>loaded</span></div>'
     )
