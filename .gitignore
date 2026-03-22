@@ -12,3 +12,4 @@ wheels/
 TODO
 
 **/*.db
+**/*.sqlite3
