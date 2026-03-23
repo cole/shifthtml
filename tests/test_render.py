@@ -231,3 +231,26 @@ def test_comment_clone():
 def test_comment_no_children():
     with pytest.raises(ValueError, match="Cannot add children"):
         Comment("x").append_child(Comment("y"))
+
+
+def test_text_content_escapes_html():
+    tag = shift(div >> "<script>alert(1)</script>")
+    assert str(tag) == "<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>"
+
+
+def test_attribute_value_escapes_html():
+    tag = shift(div(id='"><script>alert(1)</script>'))
+    assert "<script>" not in str(tag)
+    assert "&lt;script&gt;" in str(tag)
+
+
+def test_template_interpolation_escapes_html():
+    user_input = "<img onerror=alert(1)>"
+    tag = shift(div >> t"{user_input}")
+    assert str(tag) == "<div>&lt;img onerror=alert(1)&gt;</div>"
+
+
+def test_template_attribute_escapes_html():
+    evil = '"><script>alert(1)</script>'
+    tag = shift(div(id=t"{evil}"))
+    assert "<script>" not in str(tag)

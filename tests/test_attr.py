@@ -99,3 +99,25 @@ def test_contains_non_string_returns_false():
     el = div(id="test")
     f = shift(el)
     assert (42 in root(f)) is False
+
+
+def test_attribute_template_value():
+    val = "dynamic"
+    el = div(id=t"{val}")
+    f = shift(el)
+    assert str(f) == '<div id="dynamic"></div>'
+
+
+def test_attribute_empty_string():
+    el = div(id="")
+    f = shift(el)
+    assert str(f) == '<div id=""></div>'
+
+
+def test_boolean_attributes():
+    el = div()
+    f = shift(el >> "x")
+    root(f)["hidden"] = True
+    assert str(f) == "<div hidden>x</div>"
+    root(f)["hidden"] = False
+    assert str(f) == "<div>x</div>"
