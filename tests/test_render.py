@@ -3,6 +3,7 @@ import pytest
 from shifthtml import (
     aside,
     body,
+    button,
     div,
     h1,
     head,
@@ -182,3 +183,18 @@ def test_attribute_template_escapes_quotes():
     val = '"quoted"'
     tag = shift(div(title=t"say {val}"))
     assert str(tag) == '<div title="say &quot;quoted&quot;"></div>'
+
+
+def test_render_boolean_attribute_true():
+    tag = shift(button(disabled=True) >> "Click")
+    assert str(tag) == "<button disabled>Click</button>"
+
+
+def test_render_boolean_attribute_false():
+    tag = shift(button(disabled=False) >> "Click")
+    assert str(tag) == "<button>Click</button>"
+
+
+def test_render_attribute_none_omitted():
+    tag = shift(div(id=None) >> "hi")
+    assert str(tag) == "<div>hi</div>"

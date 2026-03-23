@@ -51,13 +51,12 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
 
 def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
     for key, value in attributes.items():
-        if value is None:
-            rendered_value = ""
-        elif value is True:
-            rendered_value = "true"
-        elif value is False:
-            rendered_value = "false"
-        elif isinstance(value, set | list | tuple):
+        if value is None or value is False:
+            continue
+        if value is True:
+            yield key
+            continue
+        if isinstance(value, set | list | tuple):
             rendered_value = " ".join(
                 "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
             )
