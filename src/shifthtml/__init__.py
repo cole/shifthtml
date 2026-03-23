@@ -1,5 +1,6 @@
 from .element import (
     Async,
+    Comment,
     Deferred,
     Element,
     Fragment,
@@ -126,6 +127,7 @@ from .tags import (
 
 __all__ = (
     "Async",
+    "Comment",
     "Deferred",
     "Lazy",
     "Element",
@@ -249,6 +251,7 @@ __all__ = (
     "Plugin",
     "RenderContext",
     "register",
+    "registered_plugins",
     "clear_registry",
 )
 

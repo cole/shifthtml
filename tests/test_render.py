@@ -1,6 +1,7 @@
 import pytest
 
 from shifthtml import (
+    Comment,
     aside,
     body,
     button,
@@ -198,3 +199,35 @@ def test_render_boolean_attribute_false():
 def test_render_attribute_none_omitted():
     tag = shift(div(id=None) >> "hi")
     assert str(tag) == "<div>hi</div>"
+
+
+def test_comment_render():
+    result = "".join(Comment("hello").render())
+    assert result == "<!--hello-->"
+
+
+def test_comment_in_tree():
+    tag = shift(div() >> Comment("note"))
+    assert str(tag) == "<div><!--note--></div>"
+
+
+def test_comment_escapes_double_dash():
+    result = "".join(Comment("bad-->stuff").render())
+    assert result == "<!--bad- ->stuff-->"
+
+
+def test_comment_escapes_double_dash_middle():
+    result = "".join(Comment("a--b").render())
+    assert result == "<!--a- -b-->"
+
+
+def test_comment_clone():
+    c = Comment("x")
+    clone = c.clone_node()
+    assert isinstance(clone, Comment)
+    assert clone is not c
+
+
+def test_comment_no_children():
+    with pytest.raises(ValueError, match="Cannot add children"):
+        Comment("x").append_child(Comment("y"))

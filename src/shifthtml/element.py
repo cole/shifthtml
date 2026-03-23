@@ -402,11 +402,15 @@ class Comment(Node):
     def append_child(self, child):
         raise ValueError("Cannot add children to a Comment node")
 
+    def _escape_content(self) -> str:
+        content = str(self.content)
+        return content.replace("--", "- -")
+
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        yield f"<!--{self.content}-->"
+        yield f"<!--{self._escape_content()}-->"
 
     async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        yield f"<!--{self.content}-->"
+        yield f"<!--{self._escape_content()}-->"
 
 
 class Element(Node):
