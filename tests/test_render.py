@@ -22,13 +22,13 @@ from shifthtml import (
 
 
 def test_render_h1_string():
-    tag = h1 >> "Hello, World!"
+    tag = h1() >> "Hello, World!"
     assert str(tag) == "<h1>Hello, World!</h1>"
 
 
 def test_render_h1_template():
     place = "World"
-    tag = h1 >> f"Hello, {place}!"
+    tag = h1() >> f"Hello, {place}!"
     assert str(tag) == "<h1>Hello, World!</h1>"
 
 
@@ -55,7 +55,7 @@ def test_render_h1_attribute_conversion():
 
 
 def test_render_ul():
-    tag = ul >> (li >> "Test", li >> "one", li >> "two")
+    tag = ul() >> (li() >> "Test", li() >> "one", li() >> "two")
     assert str(tag) == "<ul><li>Test</li><li>one</li><li>two</li></ul>"
 
 
@@ -104,12 +104,12 @@ def test_render_head_tag():
 
 
 def test_render_multiple_vars():
-    tag1 = div >> (p >> "paragraph 1", p >> "paragraph 1.5")
-    tag2 = div >> p >> "paragraph 2"
+    tag1 = div() >> (p() >> "paragraph 1", p() >> "paragraph 1.5")
+    tag2 = div() >> p() >> "paragraph 2"
 
-    main_tag = main >> (
+    main_tag = main() >> (
         tag1,
-        aside >> tag2,
+        aside() >> tag2,
         div(class_="test") >> tag2,
     )
     assert str(main_tag) == (
@@ -137,13 +137,13 @@ def test_render_h1_class_tuple():
 
 
 def test_text_does_not_escape_quotes():
-    tag = div >> 'She said "hello"'
+    tag = div() >> 'She said "hello"'
     assert str(tag) == '<div>She said "hello"</div>'
 
 
 def test_text_template_does_not_escape_quotes():
     name = '"world"'
-    tag = div >> t"hello {name}"
+    tag = div() >> t"hello {name}"
     assert str(tag) == '<div>hello "world"</div>'
 
 
@@ -206,7 +206,7 @@ def test_comment_no_children():
 
 
 def test_text_content_escapes_html():
-    tag = div >> "<script>alert(1)</script>"
+    tag = div() >> "<script>alert(1)</script>"
     assert str(tag) == "<div>&lt;script&gt;alert(1)&lt;/script&gt;</div>"
 
 
@@ -218,7 +218,7 @@ def test_attribute_value_escapes_html():
 
 def test_template_interpolation_escapes_html():
     user_input = "<img onerror=alert(1)>"
-    tag = div >> t"{user_input}"
+    tag = div() >> t"{user_input}"
     assert str(tag) == "<div>&lt;img onerror=alert(1)&gt;</div>"
 
 

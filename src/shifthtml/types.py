@@ -7,7 +7,7 @@ from .tree import TreeNode as Node
 if TYPE_CHECKING:
     from .element import Fragment
 
-type NodeAtom = type[Node] | Node | Fragment
+type NodeAtom = Node | Fragment
 type NodeListContent = Iterable[
     NodeAtom
     | str

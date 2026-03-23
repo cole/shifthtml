@@ -61,15 +61,15 @@ def page(*, request_count: int):
 
     return t.html(lang="en") >> (
         page_head(),
-        t.body >> (t.main >> sections, t.script(src="/static/theme.js")),
+        t.body() >> (t.main() >> sections, t.script(src="/static/theme.js")),
     )
 
 
 def page_head():
-    return t.head >> (
+    return t.head() >> (
         t.meta(charset="UTF-8"),
         t.meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-        t.title >> "ShiftHTML Kitchen Sink",
+        t.title() >> "ShiftHTML Kitchen Sink",
         t.link(rel="icon", href="data:,"),
         t.link(rel="stylesheet", href="/static/style.css"),
     )
@@ -77,79 +77,79 @@ def page_head():
 
 def banner(now: datetime, request_count: int):
     return t.div(class_="banner") >> (
-        t.h1 >> "ShiftHTML Kitchen Sink",
-        t.p >> f"Rendered server-side at {now:%Y-%m-%d %H:%M:%S UTC} · Request #{request_count}",
-        t.p >> (t.button(id="theme-toggle") >> "Dark Mode",),
+        t.h1() >> "ShiftHTML Kitchen Sink",
+        t.p() >> f"Rendered server-side at {now:%Y-%m-%d %H:%M:%S UTC} · Request #{request_count}",
+        t.p() >> (t.button(id="theme-toggle") >> "Dark Mode",),
     )
 
 
 def headings_section():
-    return t.section >> (
-        hgroup
+    return t.section() >> (
+        hgroup()
         >> (
-            t.h1 >> "h1 HTML5 Kitchen Sink",
-            t.h2 >> ("h2 Back in my quaint ", t.a(href="#") >> "garden"),
-            t.h3 >> ("h3 Jaunty ", t.a(href="#") >> "zinnias", " vie with flaunting phlox"),
-            t.h4 >> "h4 Five or six big jet planes zoomed quickly by the new tower.",
-            t.h5 >> "h5 Expect skilled signwriters to use many jazzy, quaint old alphabets effectively.",
-            t.h6 >> "h6 Pack my box with five dozen liquor jugs.",
+            t.h1() >> "h1 HTML5 Kitchen Sink",
+            t.h2() >> ("h2 Back in my quaint ", t.a(href="#") >> "garden"),
+            t.h3() >> ("h3 Jaunty ", t.a(href="#") >> "zinnias", " vie with flaunting phlox"),
+            t.h4() >> "h4 Five or six big jet planes zoomed quickly by the new tower.",
+            t.h5() >> "h5 Expect skilled signwriters to use many jazzy, quaint old alphabets effectively.",
+            t.h6() >> "h6 Pack my box with five dozen liquor jugs.",
         ),
     )
 
 
 def nav_and_article_section():
     nav_items = ["Home", "About", "Blog", "Projects", "Contact"]
-    nav_links = t.ul >> [t.li >> (t.a(href="#") >> item) for item in nav_items]
+    nav_links = t.ul() >> [t.li() >> (t.a(href="#") >> item) for item in nav_items]
 
-    inline_tags = t.p >> (
+    inline_tags = t.p() >> (
         "This paragraph is nested inside an article. It contains many different, sometimes useful, ",
         t.a(href="https://www.w3schools.com/tags/") >> "HTML5 tags",
         ". Of course there are classics like ",
-        t.em >> "emphasis",
+        t.em() >> "emphasis",
         ", ",
-        t.strong >> "strong",
+        t.strong() >> "strong",
         ", and ",
-        t.small >> "small",
+        t.small() >> "small",
         " but there are many others as well. Hover the following text for abbreviation tag: ",
         t.abbr(title="abbreviation") >> "abbr",
         ". You can define ",
-        t.del_ >> "deleted text",
+        t.del_() >> "deleted text",
         " which often gets replaced with ",
-        t.ins >> "inserted",
+        t.ins() >> "inserted",
         " text.",
     )
 
-    more_tags = t.p >> (
+    more_tags = t.p() >> (
         "You can also use ",
-        t.kbd >> "keyboard text",
+        t.kbd() >> "keyboard text",
         ", which sometimes is styled similarly to the ",
-        t.code >> "<code>",
+        t.code() >> "<code>",
         " or ",
-        t.samp >> "samp",
+        t.samp() >> "samp",
         " tags. Even more specifically, there is a tag just for ",
-        t.var >> "variables",
+        t.var() >> "variables",
         ". Not to be mistaken with blockquotes below, the quote tag lets you denote something as ",
-        t.q >> "quoted text",
+        t.q() >> "quoted text",
         ". Lastly don't forget the sub (H",
-        t.sub >> "2",
+        t.sub() >> "2",
         "O) and sup (E = MC",
-        t.sup >> "2",
+        t.sup() >> "2",
         ") tags.",
     )
 
-    return t.section >> (
-        t.header >> (t.nav >> (nav_links,)),
-        t.article >> (inline_tags, more_tags),
-        t.aside >> "This is an aside.",
-        t.footer >> "This is footer for this section",
+    return t.section() >> (
+        t.header() >> (t.nav() >> (nav_links,)),
+        t.article() >> (inline_tags, more_tags),
+        t.aside() >> "This is an aside.",
+        t.footer() >> "This is footer for this section",
     )
 
 
 def blockquote_section():
-    short_quote = t.blockquote >> (t.p >> "Blockquote: I quickly explained that many big jobs involve few hazards",)
+    short_quote = t.blockquote() >> (t.p() >> "Blockquote: I quickly explained that many big jobs involve few hazards",)
 
-    long_quote = t.blockquote >> (
-        t.p
+    long_quote = t.blockquote() >> (
+        t.p()
         >> (
             "This is a multi-line blockquote with a cite reference. People think focus "
             "means saying yes to the thing you've got to focus on. But that's not what it "
@@ -157,10 +157,10 @@ def blockquote_section():
             "You have to pick carefully. I'm actually as proud of the things we haven't done "
             "as the things I have done. Innovation is saying no to 1,000 things.",
         ),
-        t.cite >> "Steve Jobs \u2013 Apple Worldwide Developers' Conference, 1997",
+        t.cite() >> "Steve Jobs \u2013 Apple Worldwide Developers' Conference, 1997",
     )
 
-    return t.section >> (short_quote, long_quote)
+    return t.section() >> (short_quote, long_quote)
 
 
 def dynamic_stats_section(now: datetime, request_count: int):
@@ -180,8 +180,8 @@ def dynamic_stats_section(now: datetime, request_count: int):
         for lbl, value in cards
     ]
 
-    return t.section >> (
-        t.h2 >> "Dynamic Server Stats",
+    return t.section() >> (
+        t.h2() >> "Dynamic Server Stats",
         t.div(class_="stats-grid") >> stat_cards,
     )
 
@@ -192,13 +192,13 @@ def lazy_fortune_section():
     def pick_fortune():
         quote, author = random.choice(FORTUNES)
         return t.div(class_="fortune-box") >> (
-            t.p >> (t.mark >> "Lazy node", " \u2014 evaluated at render time"),
-            t.p >> (t.em >> f"\u201c{quote}\u201d"),
+            t.p() >> (t.mark() >> "Lazy node", " \u2014 evaluated at render time"),
+            t.p() >> (t.em() >> f"\u201c{quote}\u201d"),
             t.div(class_="attribution") >> f"\u2014 {author}",
         )
 
-    return t.section >> (
-        t.h2 >> "Lazy Fortune",
+    return t.section() >> (
+        t.h2() >> "Lazy Fortune",
         Lazy(pick_fortune),
     )
 
@@ -209,21 +209,21 @@ def deferred_section():
     def slow_content():
         sleep(0.5)
         now = datetime.now(UTC)
-        return t.div >> (
-            t.p >> (t.strong >> "Deferred content loaded!"),
-            t.p >> f"This was rendered 500ms after the initial page shell, at {now:%H:%M:%S.%f} UTC.",
-            t.p
+        return t.div() >> (
+            t.p() >> (t.strong() >> "Deferred content loaded!"),
+            t.p() >> f"This was rendered 500ms after the initial page shell, at {now:%H:%M:%S.%f} UTC.",
+            t.p()
             >> (
                 "The ",
-                t.code >> "defer()",
+                t.code() >> "defer()",
                 " plugin streams a placeholder first, then injects the real content via an inline ",
-                t.code >> "<script>",
+                t.code() >> "<script>",
                 " tag at the end of the response.",
             ),
         )
 
-    return t.section >> (
-        t.h2 >> "Deferred Content",
+    return t.section() >> (
+        t.h2() >> "Deferred Content",
         defer(
             "slow-section",
             t.div(class_="deferred-box") >> slow_content,
@@ -244,22 +244,22 @@ def table_section():
         ("Last One", 2800, "Morbi leo risus, porta ac consectetur ac, vestibulum at eros."),
     ]
 
-    head_row = t.tr >> (t.th >> "Person", t.th >> "Number", t.th >> "Third Column")
+    head_row = t.tr() >> (t.th() >> "Person", t.th() >> "Number", t.th() >> "Third Column")
     data_rows = [
-        t.tr
+        t.tr()
         >> (
-            t.td >> (t.a(href="#") >> name if i == 1 else name),
-            t.td >> str(num),
-            t.td >> desc,
+            t.td() >> (t.a(href="#") >> name if i == 1 else name),
+            t.td() >> str(num),
+            t.td() >> desc,
         )
         for i, (name, num, desc) in enumerate(rows)
     ]
 
-    return t.section >> (
-        t.table
+    return t.section() >> (
+        t.table()
         >> (
-            t.caption >> "Tables can have captions now.",
-            t.tbody >> [head_row, *data_rows],
+            t.caption() >> "Tables can have captions now.",
+            t.tbody() >> [head_row, *data_rows],
         ),
     )
 
@@ -276,72 +276,72 @@ def definition_list_section():
         ("blockquote", "Defines a section that is quoted from another source"),
     ]
 
-    return t.section >> (t.dl >> [item for term, desc in terms for item in (t.dt >> term, t.dd >> desc)],)
+    return t.section() >> (t.dl() >> [item for term, desc in terms for item in (t.dt() >> term, t.dd() >> desc)],)
 
 
 def lists_section():
-    return t.section >> (
-        t.ul
+    return t.section() >> (
+        t.ul()
         >> (
-            t.li
+            t.li()
             >> (
                 "Unordered List item one",
-                t.ul
+                t.ul()
                 >> (
-                    t.li
+                    t.li()
                     >> (
                         "Nested list item",
-                        t.ul
+                        t.ul()
                         >> (
-                            t.li >> "Level 3, item one",
-                            t.li >> "Level 3, item two",
-                            t.li >> "Level 3, item three",
-                            t.li >> "Level 3, item four",
+                            t.li() >> "Level 3, item one",
+                            t.li() >> "Level 3, item two",
+                            t.li() >> "Level 3, item three",
+                            t.li() >> "Level 3, item four",
                         ),
                     ),
-                    t.li >> "List item two",
-                    t.li >> "List item three",
-                    t.li >> "List item four",
+                    t.li() >> "List item two",
+                    t.li() >> "List item three",
+                    t.li() >> "List item four",
                 ),
             ),
-            t.li >> "List item two",
-            t.li >> "List item three",
-            t.li >> "List item four",
+            t.li() >> "List item two",
+            t.li() >> "List item three",
+            t.li() >> "List item four",
         ),
         t.hr,
-        t.ol
+        t.ol()
         >> (
-            t.li
+            t.li()
             >> (
                 "List item one",
-                t.ol
+                t.ol()
                 >> (
-                    t.li
+                    t.li()
                     >> (
                         "List item one",
-                        t.ol
+                        t.ol()
                         >> (
-                            t.li >> "List item one",
-                            t.li >> "List item two",
-                            t.li >> "List item three",
-                            t.li >> "List item four",
+                            t.li() >> "List item one",
+                            t.li() >> "List item two",
+                            t.li() >> "List item three",
+                            t.li() >> "List item four",
                         ),
                     ),
-                    t.li >> "List item two",
-                    t.li >> "List item three",
-                    t.li >> "List item four",
+                    t.li() >> "List item two",
+                    t.li() >> "List item three",
+                    t.li() >> "List item four",
                 ),
             ),
-            t.li >> "List item two",
-            t.li >> "List item three",
-            t.li >> "List item four",
+            t.li() >> "List item two",
+            t.li() >> "List item three",
+            t.li() >> "List item four",
         ),
     )
 
 
 def address_section():
-    return t.section >> (
-        t.address
+    return t.section() >> (
+        t.address()
         >> (
             "1 Infinite Loop",
             t.br,
@@ -353,8 +353,8 @@ def address_section():
 
 
 def pre_section():
-    return t.section >> (
-        t.pre
+    return t.section() >> (
+        t.pre()
         >> (
             "pre {\n"
             "  display: block;\n"
@@ -372,14 +372,14 @@ def pre_section():
 
 
 def figure_section():
-    return t.section >> (
-        t.figure
+    return t.section() >> (
+        t.figure()
         >> (
             t.img(
                 src="https://picsum.photos/960/400",
                 alt="A random photo from picsum.photos",
             ),
-            t.figcaption
+            t.figcaption()
             >> (
                 "Fig 1. A random image from ",
                 t.a(href="https://picsum.photos/") >> "picsum.photos",
@@ -390,24 +390,24 @@ def figure_section():
 
 
 def details_section():
-    return t.section >> (
-        t.details
+    return t.section() >> (
+        t.details()
         >> (
-            t.summary >> "Click to expand this details element",
-            t.p
+            t.summary() >> "Click to expand this details element",
+            t.p()
             >> (
                 "Here is some hidden content revealed by the ",
-                t.code >> "<details>",
+                t.code() >> "<details>",
                 " element. This is a great way to create collapsible sections without any JavaScript.",
             ),
         ),
         t.details(open=True)
         >> (
-            t.summary >> "This one starts open",
-            t.p
+            t.summary() >> "This one starts open",
+            t.p()
             >> (
                 "The ",
-                t.code >> "open",
+                t.code() >> "open",
                 " attribute makes this details element expanded by default.",
             ),
         ),
@@ -433,7 +433,7 @@ INPUT_FIELDS = [
 
 def form_section():
     text_fields = [
-        t.p
+        t.p()
         >> (
             t.label({"for": field_id}) >> lbl,
             t.input_(type=field_type, id=field_id, placeholder=placeholder),
@@ -441,36 +441,36 @@ def form_section():
         for lbl, field_type, field_id, placeholder in INPUT_FIELDS
     ]
 
-    range_field = t.p >> (
+    range_field = t.p() >> (
         t.label({"for": "example-input-range"}) >> "Range",
         t.input_(type="range", id="example-input-range", min="0", max="100", value="50"),
     )
 
-    select_field = t.p >> (
+    select_field = t.p() >> (
         t.label({"for": "example-select"}) >> "Example select",
-        t.select(id="example-select") >> [t.option >> str(i) for i in range(1, 6)],
+        t.select(id="example-select") >> [t.option() >> str(i) for i in range(1, 6)],
     )
 
-    multi_select = t.p >> (
+    multi_select = t.p() >> (
         t.label({"for": "example-select-multi"}) >> "Example multiple select",
-        t.select(id="example-select-multi", multiple=True) >> [t.option >> str(i) for i in range(1, 6)],
+        t.select(id="example-select-multi", multiple=True) >> [t.option() >> str(i) for i in range(1, 6)],
     )
 
-    textarea_field = t.p >> (
+    textarea_field = t.p() >> (
         t.label({"for": "example-textarea"}) >> "Example textarea",
         t.textarea(id="example-textarea", rows="3"),
     )
 
-    file_field = t.p >> (
+    file_field = t.p() >> (
         t.label({"for": "example-input-file"}) >> "File input",
         t.input_(type="file", id="example-input-file"),
     )
 
-    radios = t.fieldset >> (
-        t.legend >> "I am legend",
-        t.div
+    radios = t.fieldset() >> (
+        t.legend() >> "I am legend",
+        t.div()
         >> (
-            t.label
+            t.label()
             >> (
                 t.input_(
                     type="radio",
@@ -482,9 +482,9 @@ def form_section():
                 " Option one is this and that\u2014be sure to include why it's great",
             ),
         ),
-        t.div
+        t.div()
         >> (
-            t.label
+            t.label()
             >> (
                 t.input_(
                     type="radio",
@@ -495,9 +495,9 @@ def form_section():
                 " Option two can be something else and selecting it will deselect option one",
             ),
         ),
-        t.div
+        t.div()
         >> (
-            t.label
+            t.label()
             >> (
                 t.input_(
                     type="radio",
@@ -511,21 +511,21 @@ def form_section():
         ),
     )
 
-    checkboxes = t.fieldset >> (
-        t.legend >> "I am also legend",
-        t.label >> (t.input_(type="checkbox"), " Check me out"),
-        t.label >> (t.input_(type="checkbox"), " Or check me out"),
+    checkboxes = t.fieldset() >> (
+        t.legend() >> "I am also legend",
+        t.label() >> (t.input_(type="checkbox"), " Check me out"),
+        t.label() >> (t.input_(type="checkbox"), " Or check me out"),
     )
 
-    buttons = t.p >> (
+    buttons = t.p() >> (
         t.button(type="button") >> "Button",
         t.input_(type="button", value="Input Button"),
         t.input_(type="submit", value="Submit Button"),
         t.input_(type="reset", value="Reset Button"),
     )
 
-    return t.section >> (
-        t.form
+    return t.section() >> (
+        t.form()
         >> [
             *text_fields,
             range_field,

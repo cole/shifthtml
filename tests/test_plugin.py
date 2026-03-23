@@ -30,12 +30,12 @@ class WrapperPlugin:
 
 def test_custom_plugin_intercepts_render():
     register(WrapperPlugin())
-    result = "".join(render(div >> (p >> "hello")))
+    result = "".join(render(div() >> (p() >> "hello")))
     assert result == "<div>[<p>hello</p>]</div>"
 
 
 def test_no_plugins_renders_normally():
-    result = "".join(render(div >> "hello"))
+    result = "".join(render(div() >> "hello"))
     assert result == "<div>hello</div>"
 
 
@@ -62,7 +62,7 @@ def test_plugin_ordering_first_match_wins():
 
     register(FirstPlugin())
     register(SecondPlugin())
-    result = "".join(render(div >> (p >> "hello")))
+    result = "".join(render(div() >> (p() >> "hello")))
     assert result == "<div>[FIRST]</div>"
 
 
@@ -76,7 +76,7 @@ def test_plugin_pass_through():
             yield
 
     register(NoopPlugin())
-    result = "".join(render(div >> (p >> "hello", span >> "world")))
+    result = "".join(render(div() >> (p() >> "hello", span() >> "world")))
     assert result == "<div><p>hello</p><span>world</span></div>"
 
 
@@ -88,13 +88,13 @@ def test_deferred_without_plugin_raises():
 
 def test_defer_auto_registers():
     assert len(_registry) == 0
-    defer("slot-1", p >> "content")
+    defer("slot-1", p() >> "content")
     assert len(_registry) == 1
 
 
 def test_defer_registration_idempotent():
-    defer("slot-1", p >> "a")
-    defer("slot-2", p >> "b")
+    defer("slot-1", p() >> "a")
+    defer("slot-2", p() >> "b")
     assert len(_registry) == 1
 
 
@@ -115,7 +115,7 @@ def test_post_render():
             yield "<!-- footer -->"
 
     register(FooterPlugin())
-    result = "".join(render(div >> "hello"))
+    result = "".join(render(div() >> "hello"))
     assert result == "<div>hello<!-- footer --></div>"
 
 
@@ -134,7 +134,7 @@ def test_post_render_node():
             return None
 
     register(CommentAfterDivPlugin())
-    result = "".join(render(div >> (p >> "hello")))
+    result = "".join(render(div() >> (p() >> "hello")))
     assert result == "<div><p>hello</p></div><!-- after div -->"
 
 
@@ -151,7 +151,7 @@ def test_pre_render():
             yield "<!-- preamble -->"
 
     register(PreamblePlugin())
-    result = "".join(render(div >> "hello"))
+    result = "".join(render(div() >> "hello"))
     assert result == "<!-- preamble --><div>hello</div>"
 
 
@@ -161,9 +161,9 @@ async def test_async_custom_plugin():
     register(WrapperPlugin())
 
     async def get_content():
-        return p >> "async hello"
+        return p() >> "async hello"
 
-    result = "".join([chunk async for chunk in arender(div >> get_content)])
+    result = "".join([chunk async for chunk in arender(div() >> get_content)])
     assert result == "<div>[<p>async hello</p>]</div>"
 
 
@@ -171,12 +171,12 @@ async def test_async_defer():
     from shifthtml import arender
 
     async def get_content():
-        return span >> "loaded"
+        return span() >> "loaded"
 
-    page = div >> (
-        p >> "before",
-        defer("slot-1", div >> get_content, loading="Loading..."),
-        p >> "after",
+    page = div() >> (
+        p() >> "before",
+        defer("slot-1", div() >> get_content, loading="Loading..."),
+        p() >> "after",
     )
     result = "".join([chunk async for chunk in arender(page)])
     assert result == (

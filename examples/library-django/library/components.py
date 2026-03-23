@@ -25,10 +25,10 @@ from shifthtml import (
 def layout(page_title, content, *, nav_active="", message=""):
     page = html(lang="en") >> (
         page_head(page_title),
-        body
+        body()
         >> [
             topbar(nav_active),
-            main
+            main()
             >> [
                 *([alert(message)] if message else []),
                 content,
@@ -39,10 +39,10 @@ def layout(page_title, content, *, nav_active="", message=""):
 
 
 def page_head(page_title):
-    return head >> (
+    return head() >> (
         meta(charset="UTF-8"),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-        title >> f"{page_title} — Library",
+        title() >> f"{page_title} — Library",
         link(rel="stylesheet", href="/static/style.css"),
         link(rel="icon", href="data:,"),
     )
@@ -50,10 +50,10 @@ def page_head(page_title):
 
 def topbar(active=""):
     links = [("books", "/books/", "Books"), ("authors", "/authors/", "Authors")]
-    items = [li >> (a(href=url, class_="active" if key == active else "") >> lbl) for key, url, lbl in links]
+    items = [li() >> (a(href=url, class_="active" if key == active else "") >> lbl) for key, url, lbl in links]
     brand = a(href="/", class_="topbar-brand") >> "Library"
 
-    return header(class_="topbar") >> (div(class_="topbar-inner") >> (brand, nav >> (ul >> items)),)
+    return header(class_="topbar") >> (div(class_="topbar-inner") >> (brand, nav() >> (ul() >> items)),)
 
 
 def alert(message):
@@ -65,7 +65,7 @@ def alert(message):
 
 def page_header(heading, create_url, create_label):
     return div(class_="page-header") >> (
-        h1 >> heading,
+        h1() >> heading,
         a(href=create_url, class_="btn btn-primary") >> f"+ {create_label}",
     )
 
@@ -75,7 +75,7 @@ def page_header_detail(heading, edit_url, delete_url):
         a(href=edit_url, class_="btn btn-primary") >> "Edit",
         a(href=delete_url, class_="btn btn-danger") >> "Delete",
     )
-    return div(class_="page-header") >> (h1 >> heading, actions)
+    return div(class_="page-header") >> (h1() >> heading, actions)
 
 
 def search_form(action, value=""):
@@ -98,7 +98,7 @@ def detail_grid(fields):
 
 def field(label_text, input_el):
     return div(class_="form-group") >> (
-        label >> label_text,
+        label() >> label_text,
         input_el,
     )
 

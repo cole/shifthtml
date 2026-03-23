@@ -1,7 +1,7 @@
-# ⏩ Shift: an experimental HTML renderer
+# ⏩ ShiftHTML: an experimental HTML renderer
 
 ```python
-from shifthtml import button, div, h1, img, li, p, shift, span, ul
+from shifthtml import render, tags as t
 from shifthtml.defer import defer
 
 username = "Jane"
@@ -18,22 +18,25 @@ def get_view_count() -> int:
     return response.json()["count"]
 
 
-page = shift(
-    div
+page = (
+    t.div()
     >> (
-        h1 >> t"{username}'s Todos",
-        img(src=user_img, alt=username, classname="photo"),
-        ul >> [li >> todo for todo in todos],
-        div >> (
-            span(classname="username") >> username,
-            p >> "lots of long text, blah blah",
+        t.h1() >> t"{username}'s Todos",
+        t.img(src=user_img, alt=username, class_="photo"),
+        t.ul() >> [t.li() >> todo for todo in todos],
+        t.div()
+        >> (
+            t.span(class_="username") >> username,
+            t.p() >> "lots of long text, blah blah",
         ),
         defer(
             "view-count",
-            div >> t"Slow to load count: {get_view_count}",
-            loading=div >> "Loading...",
+            t.div() >> t"Slow to load count: {get_view_count}",
+            loading=t.div() >> "Loading...",
         ),
-        button(hx_post="/clicked", hx_swap="outerHTML") >> "Click me",
+        t.button(hx_post="/clicked", hx_swap="outerHTML") >> "Click me",
     )
 )
+
+html = "".join(render(page))
 ```

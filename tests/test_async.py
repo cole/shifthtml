@@ -17,28 +17,28 @@ async def test_async_callable_rendering():
     async def get_content():
         return "hello async"
 
-    page = div >> get_content
+    page = div() >> get_content
     result = await render_str(page)
     assert result == "<div>hello async</div>"
 
 
 async def test_async_callable_returning_node():
     async def get_content():
-        return p >> "async paragraph"
+        return p() >> "async paragraph"
 
-    page = div >> get_content
+    page = div() >> get_content
     result = await render_str(page)
     assert result == "<div><p>async paragraph</p></div>"
 
 
 async def test_multiple_async_siblings():
     async def sidebar():
-        return ul >> [li >> "item 1", li >> "item 2"]
+        return ul() >> [li() >> "item 1", li() >> "item 2"]
 
     async def main_content():
-        return p >> "main"
+        return p() >> "main"
 
-    page = div >> (sidebar, main_content)
+    page = div() >> (sidebar, main_content)
     result = await render_str(page)
     assert result == "<div><ul><li>item 1</li><li>item 2</li></ul><p>main</p></div>"
 
@@ -46,14 +46,14 @@ async def test_multiple_async_siblings():
 async def test_parallel_sibling_rendering():
     async def slow_a():
         await anyio.sleep(0.1)
-        return span >> "A"
+        return span() >> "A"
 
     async def slow_b():
         await anyio.sleep(0.1)
-        return span >> "B"
+        return span() >> "B"
 
     start = time.monotonic()
-    page = div >> (slow_a, slow_b)
+    page = div() >> (slow_a, slow_b)
     result = await render_str(page)
     elapsed = time.monotonic() - start
 
@@ -65,7 +65,7 @@ async def test_async_template_interpolation():
     async def get_name():
         return "World"
 
-    page = h1 >> t"Hello, {get_name}"
+    page = h1() >> t"Hello, {get_name}"
     result = await render_str(page)
     assert result == "<h1>Hello, World</h1>"
 
@@ -77,19 +77,19 @@ async def test_async_template_with_sync_and_async():
     def get_sync():
         return "sync"
 
-    page = p >> t"{get_sync} and {get_async}"
+    page = p() >> t"{get_sync} and {get_async}"
     result = await render_str(page)
     assert result == "<p>sync and async</p>"
 
 
 async def test_async_with_deferred():
     async def get_content():
-        return span >> "loaded"
+        return span() >> "loaded"
 
-    page = div >> (
-        p >> "before",
-        defer("slot-1", div >> get_content, loading="Loading..."),
-        p >> "after",
+    page = div() >> (
+        p() >> "before",
+        defer("slot-1", div() >> get_content, loading="Loading..."),
+        p() >> "after",
     )
     result = "".join([chunk async for chunk in arender(page)])
     assert result == (
@@ -116,38 +116,38 @@ async def test_nested_async_callables():
         return "inner content"
 
     async def outer():
-        return div >> inner
+        return div() >> inner
 
-    page = div >> outer
+    page = div() >> outer
     result = await render_str(page)
     assert result == "<div><div>inner content</div></div>"
 
 
 async def test_mixed_sync_and_async_children():
     async def async_child():
-        return span >> "async"
+        return span() >> "async"
 
-    page = div >> (p >> "sync", async_child, p >> "also sync")
+    page = div() >> (p() >> "sync", async_child, p() >> "also sync")
     result = await render_str(page)
     assert result == "<div><p>sync</p><span>async</span><p>also sync</p></div>"
 
 
 async def test_sync_render_unaffected():
-    page = div >> (p >> "hello", span >> "world")
+    page = div() >> (p() >> "hello", span() >> "world")
     assert str(page) == "<div><p>hello</p><span>world</span></div>"
 
 
 async def test_async_callable_returning_tuple():
     async def multi():
-        return (p >> "one", p >> "two")
+        return (p() >> "one", p() >> "two")
 
-    result = await render_str(div >> multi)
+    result = await render_str(div() >> multi)
     assert result == "<div><p>one</p><p>two</p></div>"
 
 
 async def test_async_callable_returning_list():
     async def multi():
-        return [span >> "a", span >> "b"]
+        return [span() >> "a", span() >> "b"]
 
-    result = await render_str(div >> multi)
+    result = await render_str(div() >> multi)
     assert result == "<div><span>a</span><span>b</span></div>"

@@ -303,8 +303,6 @@ class Node(TreeNode):
             return contents
         if isinstance(contents, Fragment):
             return contents.root  # type: ignore[return-value]
-        if isinstance(contents, type) and issubclass(contents, TreeNode):
-            return contents()  # type: ignore[return-value]
         if callable(contents):
             if inspect.iscoroutinefunction(contents):
                 return Async(contents)

@@ -257,27 +257,27 @@ def bench_shifthtml(iterations: int, num_products: int) -> dict[str, Any]:
         nav_links = [a(href=item["url"]) >> item["name"] for item in ctx["nav_items"]]
 
         page = html(lang="en") >> (
-            head
+            head()
             >> (
                 meta(charset="UTF-8"),
                 meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-                title >> ctx["site_name"],
-                style >> f"body {{ font-family: {ctx['font_family']}; background: {ctx['bg_color']}; }}",
+                title() >> ctx["site_name"],
+                style() >> f"body {{ font-family: {ctx['font_family']}; background: {ctx['bg_color']}; }}",
             ),
-            body
+            body()
             >> (
-                header
+                header()
                 >> (
-                    h1 >> f"{ctx['category']} Products",
-                    nav >> nav_links,
+                    h1() >> f"{ctx['category']} Products",
+                    nav() >> nav_links,
                 ),
                 div(class_="filters")
                 >> (
-                    span >> f"Price: {ctx['filters']['price_range']}",
-                    span >> f"Rating: {ctx['filters']['rating']}",
+                    span() >> f"Price: {ctx['filters']['price_range']}",
+                    span() >> f"Rating: {ctx['filters']['rating']}",
                 ),
                 div(class_="products") >> products_markup,
-                footer >> f"© {ctx['year']} {ctx['site_name']}",
+                footer() >> f"© {ctx['year']} {ctx['site_name']}",
             ),
         )
         return str(page)
@@ -326,27 +326,27 @@ def bench_shifthtml_async(iterations: int, num_products: int) -> dict[str, Any]:
         nav_links = [a(href=item["url"]) >> item["name"] for item in ctx["nav_items"]]
 
         page = html(lang="en") >> (
-            head
+            head()
             >> (
                 meta(charset="UTF-8"),
                 meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-                title >> ctx["site_name"],
-                style >> f"body {{ font-family: {ctx['font_family']}; background: {ctx['bg_color']}; }}",
+                title() >> ctx["site_name"],
+                style() >> f"body {{ font-family: {ctx['font_family']}; background: {ctx['bg_color']}; }}",
             ),
-            body
+            body()
             >> (
-                header
+                header()
                 >> (
-                    h1 >> f"{ctx['category']} Products",
-                    nav >> nav_links,
+                    h1() >> f"{ctx['category']} Products",
+                    nav() >> nav_links,
                 ),
                 div(class_="filters")
                 >> (
-                    span >> f"Price: {ctx['filters']['price_range']}",
-                    span >> f"Rating: {ctx['filters']['rating']}",
+                    span() >> f"Price: {ctx['filters']['price_range']}",
+                    span() >> f"Rating: {ctx['filters']['rating']}",
                 ),
                 div(class_="products") >> products_markup,
-                footer >> f"© {ctx['year']} {ctx['site_name']}",
+                footer() >> f"© {ctx['year']} {ctx['site_name']}",
             ),
         )
         return "".join([chunk async for chunk in page.arender()])
@@ -395,7 +395,7 @@ def _shift_product_card(p: dict[str, Any]) -> object:
     return div(class_=classes) >> (
         div(class_="product-header")
         >> (
-            h2 >> p["name"],
+            h2() >> p["name"],
             span(class_="sku") >> p["sku"],
         ),
         p_tag(class_="description") >> p["description"],
@@ -407,7 +407,7 @@ def _shift_product_card(p: dict[str, Any]) -> object:
             span(class_="reviews") >> f"({p['reviews']} reviews)",
         ),
         div(class_="tags") >> tags,
-        nav(class_="breadcrumb") >> (span >> crumbs),
+        nav(class_="breadcrumb") >> (span() >> crumbs),
     )
 
 

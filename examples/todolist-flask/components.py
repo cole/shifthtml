@@ -2,10 +2,10 @@ from shifthtml import body, button, div, form, h1, head, html, input_, link, met
 
 
 def page_head():
-    return head >> (
+    return head() >> (
         meta({"charset": "UTF-8"}),
         meta({"name": "viewport", "content": "width=device-width, initial-scale=1.0"}),
-        title >> "Todo List",
+        title() >> "Todo List",
         script({"src": "https://unpkg.com/htmx.org@1.9.10"}),
         link(rel="stylesheet", href="/static/style.css"),
     )
@@ -14,9 +14,9 @@ def page_head():
 def page(todos):
     return html({"lang": "en"}) >> (
         page_head(),
-        body
+        body()
         >> (
-            h1 >> "Todo List",
+            h1() >> "Todo List",
             add_todo_form(),
             todo_list(todos),
         ),

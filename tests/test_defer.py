@@ -14,10 +14,10 @@ from shifthtml.defer import defer
 
 
 def test_render_deferred_paragraph():
-    tag = div >> (
-        p >> "Paragraph 1",
-        defer("para-2", p >> "Paragraph 2", loading="Loading..."),
-        p >> "Paragraph 3",
+    tag = div() >> (
+        p() >> "Paragraph 1",
+        defer("para-2", p() >> "Paragraph 2", loading="Loading..."),
+        p() >> "Paragraph 3",
     )
     assert "".join(render(tag)) == (
         '<div><p>Paragraph 1</p><div id="p:para-2">Loading...</div><p>Paragraph 3</p>'
@@ -26,15 +26,15 @@ def test_render_deferred_paragraph():
 
 
 def test_render_deferred_list_and_nested_items():
-    tag = div >> (
-        header >> h1 >> "Deferred streaming",
-        main
+    tag = div() >> (
+        header() >> h1() >> "Deferred streaming",
+        main()
         >> defer(
             "list",
-            ul >> (li >> defer(f"item-{x}", span >> f"Item {x}", loading="Loading...") for x in range(3)),
+            ul() >> (li() >> defer(f"item-{x}", span() >> f"Item {x}", loading="Loading...") for x in range(3)),
             loading="Loading...",
         ),
-        footer >> "Footer content",
+        footer() >> "Footer content",
     )
     assert "".join(render(tag)) == (
         "<div><header><h1>Deferred streaming</h1></header>"

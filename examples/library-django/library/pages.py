@@ -37,11 +37,11 @@ from .components import (
 
 def author_list_page(authors, *, search="", message=""):
     rows = [
-        tr
+        tr()
         >> (
-            td >> (a(href=f"/authors/{au.id}/") >> au.name),
-            td >> (str(au.born) if au.born else "—"),
-            td >> (span(class_="badge") >> str(au.book_count)),
+            td() >> (a(href=f"/authors/{au.id}/") >> au.name),
+            td() >> (str(au.born) if au.born else "—"),
+            td() >> (span(class_="badge") >> str(au.book_count)),
             td(class_="row-actions")
             >> (
                 a(href=f"/authors/{au.id}/edit/", class_="btn btn-sm") >> "Edit",
@@ -51,8 +51,8 @@ def author_list_page(authors, *, search="", message=""):
         for au in authors
     ]
 
-    head_row = tr >> (th >> "Name", th >> "Born", th >> "Books", th >> "")
-    data_table = table(class_="data-table") >> (thead >> head_row, tbody >> rows)
+    head_row = tr() >> (th() >> "Name", th() >> "Born", th() >> "Books", th() >> "")
+    data_table = table(class_="data-table") >> (thead() >> head_row, tbody() >> rows)
 
     content = div(class_="card") >> [
         page_header("Authors", "/authors/new/", "Add Author"),
@@ -65,11 +65,11 @@ def author_list_page(authors, *, search="", message=""):
 
 def author_detail_page(author, books):
     book_rows = [
-        tr
+        tr()
         >> (
-            td >> (a(href=f"/books/{b.id}/") >> b.title),
-            td >> (str(b.published) if b.published else "—"),
-            td >> (b.genre or "—"),
+            td() >> (a(href=f"/books/{b.id}/") >> b.title),
+            td() >> (str(b.published) if b.published else "—"),
+            td() >> (b.genre or "—"),
         )
         for b in books
     ]
@@ -86,15 +86,15 @@ def author_detail_page(author, books):
         info,
     )
 
-    head_row = tr >> (th >> "Title", th >> "Published", th >> "Genre")
-    book_table = table(class_="data-table") >> (thead >> head_row, tbody >> book_rows)
+    head_row = tr() >> (th() >> "Title", th() >> "Published", th() >> "Genre")
+    book_table = table(class_="data-table") >> (thead() >> head_row, tbody() >> book_rows)
 
     books_card = section(class_="card") >> [
-        h2 >> f"Books ({len(book_rows)})",
+        h2() >> f"Books ({len(book_rows)})",
         *([book_table] if book_rows else [empty("No books by this author.")]),
     ]
 
-    content = div >> [author_card, books_card]
+    content = div() >> [author_card, books_card]
     return layout(author.name, content, nav_active="authors")
 
 
@@ -117,7 +117,7 @@ def author_form_page(author=None):
     )
 
     content = div(class_="card") >> (
-        h1 >> page_title,
+        h1() >> page_title,
         form(action=action, method="POST") >> (name_field, born_field, bio_field, form_actions("/authors/")),
     )
 
@@ -129,12 +129,12 @@ def author_form_page(author=None):
 
 def book_list_page(books, *, search="", message=""):
     rows = [
-        tr
+        tr()
         >> (
-            td >> (a(href=f"/books/{b.id}/") >> b.title),
-            td >> (a(href=f"/authors/{b.author_id}/") >> b.author.name),
-            td >> (str(b.published) if b.published else "—"),
-            td >> (b.genre or "—"),
+            td() >> (a(href=f"/books/{b.id}/") >> b.title),
+            td() >> (a(href=f"/authors/{b.author_id}/") >> b.author.name),
+            td() >> (str(b.published) if b.published else "—"),
+            td() >> (b.genre or "—"),
             td(class_="row-actions")
             >> (
                 a(href=f"/books/{b.id}/edit/", class_="btn btn-sm") >> "Edit",
@@ -144,8 +144,8 @@ def book_list_page(books, *, search="", message=""):
         for b in books
     ]
 
-    head_row = tr >> (th >> "Title", th >> "Author", th >> "Published", th >> "Genre", th >> "")
-    data_table = table(class_="data-table") >> (thead >> head_row, tbody >> rows)
+    head_row = tr() >> (th() >> "Title", th() >> "Author", th() >> "Published", th() >> "Genre", th() >> "")
+    data_table = table(class_="data-table") >> (thead() >> head_row, tbody() >> rows)
 
     content = div(class_="card") >> [
         page_header("Books", "/books/new/", "Add Book"),
@@ -205,7 +205,7 @@ def book_form_page(authors, book=None):
     summary_field = field("Summary", textarea(name="summary", rows="4") >> (book.summary if editing else ""))
 
     content = div(class_="card") >> (
-        h1 >> page_title,
+        h1() >> page_title,
         form(action=action, method="POST")
         >> (
             title_field,
@@ -225,9 +225,9 @@ def book_form_page(authors, book=None):
 
 
 def delete_page(model_name, obj_name, action, cancel_url):
-    confirmation = p >> (
+    confirmation = p() >> (
         "Are you sure you want to delete ",
-        strong >> obj_name,
+        strong() >> obj_name,
         "? This cannot be undone.",
     )
     actions = div(class_="form-actions") >> (
@@ -236,7 +236,7 @@ def delete_page(model_name, obj_name, action, cancel_url):
     )
 
     content = div(class_="card delete-confirm") >> (
-        h1 >> f"Delete {model_name}",
+        h1() >> f"Delete {model_name}",
         confirmation,
         form(action=action, method="POST") >> actions,
     )

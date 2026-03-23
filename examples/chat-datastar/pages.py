@@ -24,13 +24,13 @@ DATASTAR_CDN = "https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-RC.7/
 
 
 def landing_page() -> html:
-    page_head = head >> (
+    page_head = head() >> (
         meta({"charset": "UTF-8"}),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-        title >> "ShiftHTML Chat",
+        title() >> "ShiftHTML Chat",
         link(rel="stylesheet", href="/static/landing.css"),
     )
-    page_body = body >> (
+    page_body = body() >> (
         iframe(src="/chat", class_="chat-frame"),
         iframe(src="/chat", class_="chat-frame"),
     )
@@ -47,18 +47,18 @@ def chat_page(msgs: list[Message], username: str) -> html:
         """Simulates a slow async fetch."""
         await asyncio.sleep(0.5)
         now = datetime.now()
-        return div(class_="server-status") >> (span >> f"Server time: {now:%H:%M:%S}",)
+        return div(class_="server-status") >> (span() >> f"Server time: {now:%H:%M:%S}",)
 
-    page_head = head >> (
+    page_head = head() >> (
         meta({"charset": "UTF-8"}),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-        title >> "ShiftHTML Chat",
+        title() >> "ShiftHTML Chat",
         script(type="module", src=DATASTAR_CDN),
         link(rel="stylesheet", href="/static/style.css"),
     )
 
     chat_header = div(class_="chat-header") >> (
-        h1 >> "ShiftHTML Chat",
+        h1() >> "ShiftHTML Chat",
         span(class_="username") >> f"Chatting as {username}",
     )
 

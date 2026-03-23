@@ -4,7 +4,7 @@ from shifthtml import Element, body, div, h1, li, p, span
 
 
 def test_clone_node_shallow():
-    f = div(id="original") >> p >> "child"
+    f = div(id="original") >> p() >> "child"
     clone = root(f).clone_node()
     assert isinstance(clone, Element)
     assert clone is not root(f)
@@ -13,7 +13,7 @@ def test_clone_node_shallow():
 
 
 def test_clone_node_deep():
-    f = div(id="original") >> p >> span >> "text"
+    f = div(id="original") >> p() >> span() >> "text"
     clone = root(f).clone_node(deep=True)
     assert isinstance(clone, Element)
     assert clone is not root(f)
@@ -23,7 +23,7 @@ def test_clone_node_deep():
 
 
 def test_clone_node_no_parent():
-    f = div(id="test") >> p >> "child"
+    f = div(id="test") >> p() >> "child"
     clone = root(f).clone_node(deep=True)
     assert clone.parent_node is None
 
@@ -45,12 +45,12 @@ def test_clone_node_template_reuse():
 
 
 def test_fragment_append_fragment_with_tuple():
-    inner = div(id="inner") >> (h1 >> "title", span >> "content")
-    result = body >> inner
+    inner = div(id="inner") >> (h1() >> "title", span() >> "content")
+    result = body() >> inner
     assert str(result) == '<body><div id="inner"><h1>title</h1><span>content</span></div></body>'
 
 
 def test_deep_clone_with_flattened_children():
-    f = div >> (span >> "a", span >> "b")
+    f = div() >> (span() >> "a", span() >> "b")
     clone = root(f).clone_node(deep=True)
     assert str(clone) == "<div><span>a</span><span>b</span></div>"

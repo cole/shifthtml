@@ -41,16 +41,16 @@ LOREM_2 = (
 
 
 def page():
-    page_head = head >> (
+    page_head = head() >> (
         meta(charset="UTF-8"),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-        title >> "Defer Stream Demo",
+        title() >> "Defer Stream Demo",
         link(rel="stylesheet", href="/static/style.css"),
     )
 
-    page_body = body >> (
+    page_body = body() >> (
         script(src="/static/slot-filler.js"),
-        header(class_="page-header") >> h1 >> "Defer Stream Demo",
+        header(class_="page-header") >> h1() >> "Defer Stream Demo",
         div(id="content")
         >> defer(
             "body-content",
@@ -65,17 +65,17 @@ def page():
 def columns():
     col1 = div(class_="col") >> defer(
         "col-1",
-        div >> col1_content,
+        div() >> col1_content,
         loading="Loading column 1...",
     )
     col2 = div(class_="col") >> defer(
         "col-2",
-        div >> col2_content,
+        div() >> col2_content,
         loading="Loading column 2...",
     )
     col3 = div(class_="col list-col") >> defer(
         "col-3",
-        div >> col3_content,
+        div() >> col3_content,
         loading="Loading list...",
     )
 
@@ -85,24 +85,24 @@ def columns():
 def col1_content():
     sleep(2)
     return (
-        h2 >> "Column 1",
-        p >> LOREM_1,
+        h2() >> "Column 1",
+        p() >> LOREM_1,
     )
 
 
 def col2_content():
     sleep(5)
     return (
-        h2 >> "Column 2",
-        p >> LOREM_2,
+        h2() >> "Column 2",
+        p() >> LOREM_2,
     )
 
 
 def col3_content():
-    items = [li >> defer(f"item-{i}", span >> make_item(i), loading="...") for i in range(100)]
+    items = [li() >> defer(f"item-{i}", span() >> make_item(i), loading="...") for i in range(100)]
     return (
-        h2 >> "100 Items",
-        ol >> items,
+        h2() >> "100 Items",
+        ol() >> items,
     )
 
 

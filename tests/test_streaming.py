@@ -15,9 +15,9 @@ async def test_early_siblings_flush_before_slow_siblings():
 
     async def slow():
         await anyio.sleep(0.2)
-        return span >> "slow"
+        return span() >> "slow"
 
-    page = div >> (p >> "fast", slow)
+    page = div() >> (p() >> "fast", slow)
 
     async for chunk in arender(page, min_chunk_size=None):
         now = time.monotonic() - start
@@ -35,9 +35,9 @@ async def test_early_siblings_flush_before_slow_siblings():
 async def test_flush_preserves_document_order():
     async def slow():
         await anyio.sleep(0.1)
-        return span >> "middle"
+        return span() >> "middle"
 
-    page = div >> (p >> "first", slow, p >> "last")
+    page = div() >> (p() >> "first", slow, p() >> "last")
     chunks: list[str] = []
     async for chunk in arender(page):
         chunks.append(chunk)
@@ -53,11 +53,11 @@ async def test_cancel_scope_stops_deferred_rendering():
         nonlocal render_count
         render_count += 1
         await anyio.sleep(0.05)
-        return span >> f"result-{render_count}"
+        return span() >> f"result-{render_count}"
 
-    page = div >> (
-        defer("a", div >> track_render),
-        defer("b", div >> track_render),
+    page = div() >> (
+        defer("a", div() >> track_render),
+        defer("b", div() >> track_render),
     )
 
     scope = anyio.CancelScope()
@@ -74,7 +74,7 @@ async def test_cancel_scope_stops_deferred_rendering():
 
 
 async def test_default_batching_coalesces_small_chunks():
-    page = div >> (p >> "hello", p >> "world")
+    page = div() >> (p() >> "hello", p() >> "world")
 
     chunks: list[str] = []
     async for chunk in arender(page):
@@ -85,7 +85,7 @@ async def test_default_batching_coalesces_small_chunks():
 
 
 async def test_batching_splits_at_threshold():
-    page = div >> [p >> f"paragraph-{i}" for i in range(50)]
+    page = div() >> [p() >> f"paragraph-{i}" for i in range(50)]
 
     chunks: list[str] = []
     async for chunk in arender(page, min_chunk_size=64):
@@ -100,7 +100,7 @@ async def test_batching_splits_at_threshold():
 
 
 async def test_unbuffered_with_zero_min_chunk_size():
-    page = div >> (p >> "a", p >> "b")
+    page = div() >> (p() >> "a", p() >> "b")
 
     chunks: list[str] = []
     async for chunk in arender(page, min_chunk_size=None):
