@@ -452,7 +452,7 @@ class Element(Node):
 
     def __contains__(self, name: object) -> bool:
         if not isinstance(name, str):
-            return NotImplemented
+            return False
         return name.lower() in self.attributes
 
     @property

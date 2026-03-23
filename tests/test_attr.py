@@ -93,3 +93,9 @@ def test_keyword_attribute_names_lowercased():
     el = div(data_TestId="foo")
     f = shift(el)
     assert root(f)["data-testid"] == "foo"
+
+
+def test_contains_non_string_returns_false():
+    el = div(id="test")
+    f = shift(el)
+    assert (42 in root(f)) is False
