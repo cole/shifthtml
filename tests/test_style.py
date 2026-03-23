@@ -130,3 +130,14 @@ def test_element_style_not_materialized_without_access():
     el = div(id="test")
     fragment = shift(el)
     assert str(fragment) == '<div id="test"></div>'
+
+
+def test_render_twice_consistent():
+    el = div()
+    fragment = shift(el)
+    root = element_root(fragment)
+    root.style.color = "red"
+    first = str(fragment)
+    second = str(fragment)
+    assert first == second
+    assert "style" not in root.attributes

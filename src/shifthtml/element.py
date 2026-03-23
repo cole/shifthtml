@@ -482,17 +482,19 @@ class Element(Node):
                 del self["style"]
         return self._style
 
+    def _render_attrs(self) -> dict[str, str | Template]:
+        if self._style:
+            return {**self.attributes, "style": self._style.css_text}
+        return self.attributes
+
     def render(
         self,
         *,
         ctx: RenderContext | None = None,
         before_close: Callable[[], Generator[str]] | None = None,
     ) -> Generator[str]:
-        if self._style:
-            self["style"] = self._style.css_text
-
         yield f"<{self.tag}"
-        for attr in render_attributes(self.attributes):
+        for attr in render_attributes(self._render_attrs()):
             yield f" {attr}"
 
         if self.void:
@@ -514,11 +516,8 @@ class Element(Node):
         ctx: RenderContext | None = None,
         before_close: Callable[[], AsyncGenerator[str]] | None = None,
     ) -> AsyncGenerator[str]:
-        if self._style:
-            self["style"] = self._style.css_text
-
         yield f"<{self.tag}"
-        for attr in render_attributes(self.attributes):
+        for attr in render_attributes(self._render_attrs()):
             yield f" {attr}"
 
         if self.void:
