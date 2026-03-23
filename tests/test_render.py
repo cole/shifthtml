@@ -160,3 +160,25 @@ def test_render_h1_classname_tuple():
     tag = shift(h1(classname=("bighead", "heading", "page1")) >> "Hello, World!")
 
     assert str(tag) == '<h1 class="bighead heading page1">Hello, World!</h1>'
+
+
+def test_text_does_not_escape_quotes():
+    tag = shift(div >> 'She said "hello"')
+    assert str(tag) == '<div>She said "hello"</div>'
+
+
+def test_text_template_does_not_escape_quotes():
+    name = '"world"'
+    tag = shift(div >> t"hello {name}")
+    assert str(tag) == '<div>hello "world"</div>'
+
+
+def test_attribute_value_escapes_quotes():
+    tag = shift(div(title='He said "hi"'))
+    assert str(tag) == '<div title="He said &quot;hi&quot;"></div>'
+
+
+def test_attribute_template_escapes_quotes():
+    val = '"quoted"'
+    tag = shift(div(title=t"say {val}"))
+    assert str(tag) == '<div title="say &quot;quoted&quot;"></div>'

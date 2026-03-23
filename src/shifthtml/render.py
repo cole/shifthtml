@@ -13,51 +13,38 @@ def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
     return str(value)
 
 
-def render_template(template: Template, quote: bool = False) -> Generator[str]:
-    for item in template:
-        match item:
-            case str() as s:
-                yield s
-            case Interpolation(value, _, conversion, format_spec):
-                if callable(value):
-                    value = value()
-                value = _convert(value, conversion)
-                value = format(value, format_spec)
-                value = escape(value, quote=quote)
-
-                yield value
-
-
-def render_string(value: str | Template, quote: bool = True) -> Generator[str]:
+def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
     if isinstance(value, Template):
-        yield from render_template(template=value, quote=quote)
+        for item in value:
+            match item:
+                case str() as s:
+                    yield s
+                case Interpolation(v, _, conversion, format_spec):
+                    if callable(v):
+                        v = v()
+                    v = _convert(v, conversion)
+                    v = format(v, format_spec)
+                    yield escape(v, quote=quote)
     else:
         yield escape(value, quote=quote)
 
 
-async def arender_template(template: Template, quote: bool = False) -> AsyncGenerator[str]:
-    for item in template:
-        match item:
-            case str() as s:
-                yield s
-            case Interpolation(value, _, conversion, format_spec):
-                if callable(value):
-                    result = value()
-                    if inspect.isawaitable(result):
-                        value = await result
-                    else:
-                        value = result
-                value = _convert(value, conversion)
-                value = format(value, format_spec)
-                value = escape(value, quote=quote)
-
-                yield value
-
-
-async def arender_string(value: str | Template, quote: bool = True) -> AsyncGenerator[str]:
+async def arender_string(value: str | Template, quote: bool = False) -> AsyncGenerator[str]:
     if isinstance(value, Template):
-        async for chunk in arender_template(template=value, quote=quote):
-            yield chunk
+        for item in value:
+            match item:
+                case str() as s:
+                    yield s
+                case Interpolation(v, _, conversion, format_spec):
+                    if callable(v):
+                        result = v()
+                        if inspect.isawaitable(result):
+                            v = await result
+                        else:
+                            v = result
+                    v = _convert(v, conversion)
+                    v = format(v, format_spec)
+                    yield escape(v, quote=quote)
     else:
         yield escape(value, quote=quote)
 
