@@ -6,18 +6,19 @@ product-listing page with configurable product count.
 ## Setup
 
 ```bash
-uv add --dev jinja2 minijinja tdom
+cd bench
+uv sync
 ```
 
 ## Run
 
 ```bash
 # all engines
-python bench/benchmark.py
+uv run python benchmark.py
 
 # single engine
-python bench/benchmark.py --engine shifthtml
+uv run python benchmark.py --engine shifthtml
 
 # options
-python bench/benchmark.py --iterations 200 --num-products 100 --output results.json
+uv run python benchmark.py --iterations 200 --num-products 100 --output results.json
 ```
