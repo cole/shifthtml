@@ -64,3 +64,11 @@ def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
             rendered_value = "".join(render_string(value if isinstance(value, Template) else str(value), quote=True))
 
         yield f'{key}="{rendered_value}"'
+
+
+def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
+    parts = [f"<{tag}"]
+    for attr in render_attributes(attributes):
+        parts.append(f" {attr}")
+    parts.append(" />" if void else ">")
+    return "".join(parts)

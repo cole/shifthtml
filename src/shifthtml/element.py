@@ -10,7 +10,7 @@ import anyio
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .plugin import Plugin, RenderContext
-from .render import arender_string, render_attributes, render_string
+from .render import arender_string, render_open_tag, render_string
 from .tree import TreeNode
 from .types import NodeContent, NodeListContent
 
@@ -493,14 +493,11 @@ class Element(Node):
         ctx: RenderContext | None = None,
         before_close: Callable[[], Generator[str]] | None = None,
     ) -> Generator[str]:
-        yield f"<{self.tag}"
-        for attr in render_attributes(self._render_attrs()):
-            yield f" {attr}"
-
+        attrs = self._render_attrs()
         if self.void:
-            yield " />"
+            yield render_open_tag(self.tag, attrs, void=True)
         else:
-            yield ">"
+            yield render_open_tag(self.tag, attrs)
             for child in self.children:
                 if ctx is not None:
                     yield from ctx.render_node(child)
@@ -516,14 +513,11 @@ class Element(Node):
         ctx: RenderContext | None = None,
         before_close: Callable[[], AsyncGenerator[str]] | None = None,
     ) -> AsyncGenerator[str]:
-        yield f"<{self.tag}"
-        for attr in render_attributes(self._render_attrs()):
-            yield f" {attr}"
-
+        attrs = self._render_attrs()
         if self.void:
-            yield " />"
+            yield render_open_tag(self.tag, attrs, void=True)
         else:
-            yield ">"
+            yield render_open_tag(self.tag, attrs)
             async for chunk in _arender_children(self.children, ctx):
                 yield chunk
             if before_close is not None:

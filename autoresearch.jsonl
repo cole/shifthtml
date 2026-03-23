@@ -1,1 +1,2 @@
 {"type":"config","name":"Optimize shifthtml sync render benchmark","metricName":"sync_mean_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":1,"commit":"12cc9fc","metric":3.924513,"metrics":{"async_mean_ms":22.71789,"sync_median_ms":3.946708,"sync_stdev_ms":0.463706,"output_length":38247},"status":"keep","description":"Baseline: autoresearch setup with sync+async benchmarks","timestamp":1774234947195,"segment":0}
