@@ -40,23 +40,12 @@ def _convert_attribute_names(name: str) -> str:
 
 
 async def _arender_children(children: list[TreeNode], ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-    if len(children) <= 1:
-        for child in children:
-            if ctx is not None:
-                async for chunk in ctx.arender_node(child):
-                    yield chunk
-            else:
-                async for chunk in child.arender():
-                    yield chunk
-        return
-
-    # Use parallel rendering only when siblings include async callables
-    if any(isinstance(child, Async | Lazy) for child in children):
+    # Use parallel rendering only when multiple siblings include async callables
+    if len(children) > 1 and any(isinstance(child, Async | Lazy) for child in children):
         async for chunk in _arender_children_parallel(children, ctx):
             yield chunk
         return
 
-    # Sequential rendering — avoids task group overhead for sync-only content
     for child in children:
         if ctx is not None:
             async for chunk in ctx.arender_node(child):
