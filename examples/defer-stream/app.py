@@ -12,7 +12,7 @@ from pathlib import Path
 from components import page
 from flask import Flask, Response, send_from_directory
 
-from shifthtml import shift
+from shifthtml import render
 
 app = Flask(__name__)
 
@@ -26,7 +26,7 @@ def static_files(filename):
 
 @app.route("/")
 def index():
-    return Response(shift(page()).render(), content_type="text/html")
+    return Response(render(page()), content_type="text/html")
 
 
 if __name__ == "__main__":

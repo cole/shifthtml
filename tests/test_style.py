@@ -1,6 +1,4 @@
-from conftest import root as element_root
-
-from shifthtml import div, shift
+from shifthtml import div
 from shifthtml.mappings import StyleMap
 
 
@@ -110,34 +108,27 @@ def test_get_missing_property():
 
 def test_element_style_property():
     el = div()
-    fragment = shift(el)
-    root = element_root(fragment)
-    root.style.color = "red"
-    root.style.font_size = "16px"
-    assert str(fragment) == '<div style="color: red; font-size: 16px"></div>'
+    el.style.color = "red"
+    el.style.font_size = "16px"
+    assert str(el) == '<div style="color: red; font-size: 16px"></div>'
 
 
 def test_element_style_from_existing_attribute():
     el = div(style="color: red")
-    fragment = shift(el)
-    root = element_root(fragment)
-    assert root.style["color"] == "red"
-    root.style.font_size = "16px"
-    assert str(fragment) == '<div style="color: red; font-size: 16px"></div>'
+    assert el.style["color"] == "red"
+    el.style.font_size = "16px"
+    assert str(el) == '<div style="color: red; font-size: 16px"></div>'
 
 
 def test_element_style_not_materialized_without_access():
     el = div(id="test")
-    fragment = shift(el)
-    assert str(fragment) == '<div id="test"></div>'
+    assert str(el) == '<div id="test"></div>'
 
 
 def test_render_twice_consistent():
     el = div()
-    fragment = shift(el)
-    root = element_root(fragment)
-    root.style.color = "red"
-    first = str(fragment)
-    second = str(fragment)
+    el.style.color = "red"
+    first = str(el)
+    second = str(el)
     assert first == second
-    assert "style" not in root.attributes
+    assert "style" not in el.attributes

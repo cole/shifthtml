@@ -3,14 +3,14 @@ import time
 import anyio
 import pytest
 
-from shifthtml import Async, Fragment, div, h1, li, p, shift, span, ul
+from shifthtml import Async, arender, div, h1, li, p, span, ul
 from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
 
 
-async def arender(page: Fragment) -> str:
-    return "".join([chunk async for chunk in shift(page).arender()])
+async def render_str(page) -> str:
+    return "".join([chunk async for chunk in arender(page)])
 
 
 async def test_async_callable_rendering():
@@ -18,7 +18,7 @@ async def test_async_callable_rendering():
         return "hello async"
 
     page = div >> get_content
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<div>hello async</div>"
 
 
@@ -27,7 +27,7 @@ async def test_async_callable_returning_node():
         return p >> "async paragraph"
 
     page = div >> get_content
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<div><p>async paragraph</p></div>"
 
 
@@ -39,13 +39,11 @@ async def test_multiple_async_siblings():
         return p >> "main"
 
     page = div >> (sidebar, main_content)
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<div><ul><li>item 1</li><li>item 2</li></ul><p>main</p></div>"
 
 
 async def test_parallel_sibling_rendering():
-    """Verify siblings render concurrently by timing."""
-
     async def slow_a():
         await anyio.sleep(0.1)
         return span >> "A"
@@ -56,7 +54,7 @@ async def test_parallel_sibling_rendering():
 
     start = time.monotonic()
     page = div >> (slow_a, slow_b)
-    result = await arender(page)
+    result = await render_str(page)
     elapsed = time.monotonic() - start
 
     assert result == "<div><span>A</span><span>B</span></div>"
@@ -68,7 +66,7 @@ async def test_async_template_interpolation():
         return "World"
 
     page = h1 >> t"Hello, {get_name}"
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<h1>Hello, World</h1>"
 
 
@@ -80,7 +78,7 @@ async def test_async_template_with_sync_and_async():
         return "sync"
 
     page = p >> t"{get_sync} and {get_async}"
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<p>sync and async</p>"
 
 
@@ -88,15 +86,12 @@ async def test_async_with_deferred():
     async def get_content():
         return span >> "loaded"
 
-    page = shift(
-        div
-        >> (
-            p >> "before",
-            defer("slot-1", div >> get_content, loading="Loading..."),
-            p >> "after",
-        )
+    page = div >> (
+        p >> "before",
+        defer("slot-1", div >> get_content, loading="Loading..."),
+        p >> "after",
     )
-    result = "".join([chunk async for chunk in page.arender()])
+    result = "".join([chunk async for chunk in arender(page)])
     assert result == (
         "<div>"
         "<p>before</p>"
@@ -124,7 +119,7 @@ async def test_nested_async_callables():
         return div >> inner
 
     page = div >> outer
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<div><div>inner content</div></div>"
 
 
@@ -133,22 +128,20 @@ async def test_mixed_sync_and_async_children():
         return span >> "async"
 
     page = div >> (p >> "sync", async_child, p >> "also sync")
-    result = await arender(page)
+    result = await render_str(page)
     assert result == "<div><p>sync</p><span>async</span><p>also sync</p></div>"
 
 
 async def test_sync_render_unaffected():
-    """Sync rendering still works for non-async trees."""
     page = div >> (p >> "hello", span >> "world")
-    result = str(shift(page))
-    assert result == "<div><p>hello</p><span>world</span></div>"
+    assert str(page) == "<div><p>hello</p><span>world</span></div>"
 
 
 async def test_async_callable_returning_tuple():
     async def multi():
         return (p >> "one", p >> "two")
 
-    result = await arender(div >> multi)
+    result = await render_str(div >> multi)
     assert result == "<div><p>one</p><p>two</p></div>"
 
 
@@ -156,5 +149,5 @@ async def test_async_callable_returning_list():
     async def multi():
         return [span >> "a", span >> "b"]
 
-    result = await arender(div >> multi)
+    result = await render_str(div >> multi)
     assert result == "<div><span>a</span><span>b</span></div>"

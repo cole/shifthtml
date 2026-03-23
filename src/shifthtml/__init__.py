@@ -1,3 +1,6 @@
+from collections.abc import AsyncGenerator, Generator
+from typing import TYPE_CHECKING
+
 from .element import (
     Async,
     Comment,
@@ -123,6 +126,9 @@ from .tags import (
     wbr,
 )
 
+if TYPE_CHECKING:
+    import anyio
+
 __all__ = (
     "Async",
     "Comment",
@@ -132,6 +138,8 @@ __all__ = (
     "Fragment",
     "Node",
     "VoidElement",
+    "render",
+    "arender",
     "html",
     "head",
     "body",
@@ -243,7 +251,6 @@ __all__ = (
     "summary",
     "slot",
     "template",
-    "shift",
     "Plugin",
     "RenderContext",
     "register",
@@ -252,7 +259,26 @@ __all__ = (
 )
 
 
-def shift(html: Node | Fragment) -> Fragment:
+def _to_fragment(html: Node | Fragment, plugins: tuple[Plugin, ...] | None) -> Fragment:
     frag = html if isinstance(html, Fragment) else Fragment(html, html)
-    frag.plugins = registered_plugins()
+    frag.plugins = plugins if plugins is not None else registered_plugins()
     return frag
+
+
+def render(
+    html: Node | Fragment,
+    *,
+    plugins: tuple[Plugin, ...] | None = None,
+) -> Generator[str]:
+    yield from _to_fragment(html, plugins).render()
+
+
+async def arender(
+    html: Node | Fragment,
+    *,
+    plugins: tuple[Plugin, ...] | None = None,
+    min_chunk_size: int | None = 4096,
+    cancel_scope: anyio.CancelScope | None = None,
+) -> AsyncGenerator[str]:
+    async for chunk in _to_fragment(html, plugins).arender(min_chunk_size=min_chunk_size, cancel_scope=cancel_scope):
+        yield chunk

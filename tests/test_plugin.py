@@ -2,7 +2,7 @@ from collections.abc import Generator
 
 import pytest
 
-from shifthtml import Element, Fragment, div, p, shift, span
+from shifthtml import Element, Fragment, div, p, render, span
 from shifthtml.defer import defer
 from shifthtml.element import Deferred
 from shifthtml.plugin import _registry, register
@@ -30,12 +30,12 @@ class WrapperPlugin:
 
 def test_custom_plugin_intercepts_render():
     register(WrapperPlugin())
-    result = str(shift(div >> (p >> "hello")))
+    result = "".join(render(div >> (p >> "hello")))
     assert result == "<div>[<p>hello</p>]</div>"
 
 
 def test_no_plugins_renders_normally():
-    result = str(shift(div >> "hello"))
+    result = "".join(render(div >> "hello"))
     assert result == "<div>hello</div>"
 
 
@@ -62,7 +62,7 @@ def test_plugin_ordering_first_match_wins():
 
     register(FirstPlugin())
     register(SecondPlugin())
-    result = str(shift(div >> (p >> "hello")))
+    result = "".join(render(div >> (p >> "hello")))
     assert result == "<div>[FIRST]</div>"
 
 
@@ -76,7 +76,7 @@ def test_plugin_pass_through():
             yield
 
     register(NoopPlugin())
-    result = str(shift(div >> (p >> "hello", span >> "world")))
+    result = "".join(render(div >> (p >> "hello", span >> "world")))
     assert result == "<div><p>hello</p><span>world</span></div>"
 
 
@@ -102,7 +102,7 @@ def test_fragment_without_plugins():
     d = div()
     frag = Fragment(d, d)
     frag.append(p())
-    result = str(frag)
+    result = "".join(frag.render())
     assert result == "<div><p></p></div>"
 
 
@@ -115,7 +115,7 @@ def test_post_render():
             yield "<!-- footer -->"
 
     register(FooterPlugin())
-    result = str(shift(div >> "hello"))
+    result = "".join(render(div >> "hello"))
     assert result == "<div>hello<!-- footer --></div>"
 
 
@@ -134,7 +134,7 @@ def test_post_render_node():
             return None
 
     register(CommentAfterDivPlugin())
-    result = str(shift(div >> (p >> "hello")))
+    result = "".join(render(div >> (p >> "hello")))
     assert result == "<div><p>hello</p></div><!-- after div -->"
 
 
@@ -151,34 +151,34 @@ def test_pre_render():
             yield "<!-- preamble -->"
 
     register(PreamblePlugin())
-    result = str(shift(div >> "hello"))
+    result = "".join(render(div >> "hello"))
     assert result == "<!-- preamble --><div>hello</div>"
 
 
 async def test_async_custom_plugin():
+    from shifthtml import arender
+
     register(WrapperPlugin())
 
     async def get_content():
         return p >> "async hello"
 
-    page = shift(div >> get_content)
-    result = "".join([chunk async for chunk in page.arender()])
+    result = "".join([chunk async for chunk in arender(div >> get_content)])
     assert result == "<div>[<p>async hello</p>]</div>"
 
 
 async def test_async_defer():
+    from shifthtml import arender
+
     async def get_content():
         return span >> "loaded"
 
-    page = shift(
-        div
-        >> (
-            p >> "before",
-            defer("slot-1", div >> get_content, loading="Loading..."),
-            p >> "after",
-        )
+    page = div >> (
+        p >> "before",
+        defer("slot-1", div >> get_content, loading="Loading..."),
+        p >> "after",
     )
-    result = "".join([chunk async for chunk in page.arender()])
+    result = "".join([chunk async for chunk in arender(page)])
     assert result == (
         "<div>"
         "<p>before</p>"

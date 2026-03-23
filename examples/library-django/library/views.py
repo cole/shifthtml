@@ -2,14 +2,14 @@ from django.db.models import Count
 from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404, redirect
 
-from shifthtml import shift
+from shifthtml import render
 
 from . import pages
 from .models import Author, Book
 
 
 def stream(page):
-    return StreamingHttpResponse(shift(page).render(), content_type="text/html; charset=utf-8")
+    return StreamingHttpResponse(render(page), content_type="text/html; charset=utf-8")
 
 
 def index(request):

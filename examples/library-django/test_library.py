@@ -13,11 +13,11 @@ from library.pages import (
 )
 from library.views import author_list, book_list
 
-from shifthtml import shift
+from shifthtml import render
 
 
-def render(node) -> str:
-    return str(shift(node))
+def render_str(node) -> str:
+    return "".join(render(node))
 
 
 @pytest.fixture()
@@ -41,33 +41,33 @@ def pride(db, austen):
 
 @pytest.mark.django_db
 def test_author_list_empty(snapshot):
-    assert render(author_list_page([])) == snapshot
+    assert render_str(author_list_page([])) == snapshot
 
 
 @pytest.mark.django_db
 def test_author_list_with_data(snapshot, austen):
     authors = Author.objects.annotate(book_count=Count("books"))
-    assert render(author_list_page(authors)) == snapshot
+    assert render_str(author_list_page(authors)) == snapshot
 
 
 @pytest.mark.django_db
 def test_author_list_search_no_results(snapshot):
-    assert render(author_list_page([], search="missing")) == snapshot
+    assert render_str(author_list_page([], search="missing")) == snapshot
 
 
 @pytest.mark.django_db
 def test_author_detail(snapshot, austen, pride):
-    assert render(author_detail_page(austen, austen.books.all())) == snapshot
+    assert render_str(author_detail_page(austen, austen.books.all())) == snapshot
 
 
 @pytest.mark.django_db
 def test_author_form_new(snapshot):
-    assert render(author_form_page()) == snapshot
+    assert render_str(author_form_page()) == snapshot
 
 
 @pytest.mark.django_db
 def test_author_form_edit(snapshot, austen):
-    assert render(author_form_page(austen)) == snapshot
+    assert render_str(author_form_page(austen)) == snapshot
 
 
 # ---- Book pages ----
@@ -75,36 +75,36 @@ def test_author_form_edit(snapshot, austen):
 
 @pytest.mark.django_db
 def test_book_list_empty(snapshot):
-    assert render(book_list_page([])) == snapshot
+    assert render_str(book_list_page([])) == snapshot
 
 
 @pytest.mark.django_db
 def test_book_list_with_data(snapshot, pride):
     books = Book.objects.select_related("author")
-    assert render(book_list_page(books)) == snapshot
+    assert render_str(book_list_page(books)) == snapshot
 
 
 @pytest.mark.django_db
 def test_book_detail(snapshot, pride):
     book = Book.objects.select_related("author").get(pk=pride.pk)
-    assert render(book_detail_page(book)) == snapshot
+    assert render_str(book_detail_page(book)) == snapshot
 
 
 @pytest.mark.django_db
 def test_book_form_new(snapshot, austen):
-    assert render(book_form_page(Author.objects.all())) == snapshot
+    assert render_str(book_form_page(Author.objects.all())) == snapshot
 
 
 @pytest.mark.django_db
 def test_book_form_edit(snapshot, austen, pride):
-    assert render(book_form_page(Author.objects.all(), pride)) == snapshot
+    assert render_str(book_form_page(Author.objects.all(), pride)) == snapshot
 
 
 # ---- Delete page ----
 
 
 def test_delete_page(snapshot):
-    assert render(delete_page("Author", "Jane Austen", "/authors/1/delete/", "/authors/")) == snapshot
+    assert render_str(delete_page("Author", "Jane Austen", "/authors/1/delete/", "/authors/")) == snapshot
 
 
 # ---- View integration ----

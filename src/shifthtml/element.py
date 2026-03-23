@@ -144,7 +144,9 @@ class Fragment:
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
-        return "".join(self.render())
+        from . import render
+
+        return "".join(render(self))
 
     def __iter__(self) -> Iterator[TreeNode | str | Template]:
         return iter(self.root.children)
@@ -307,7 +309,7 @@ class Node(TreeNode):
             if inspect.iscoroutinefunction(contents):
                 return Async(contents)
             return Lazy(contents)  # type: ignore[arg-type]
-        raise ValueError(f"Unsupported shift type for >>: {type(contents)}")
+        raise ValueError(f"Unsupported type for >>: {type(contents)}")
 
     @overload
     def __rshift__(self, other: NodeContent) -> Fragment: ...
@@ -358,7 +360,9 @@ class Node(TreeNode):
         return "".join(parts)
 
     def __str__(self) -> str:
-        return "".join(self.render())
+        from . import render
+
+        return "".join(render(self))
 
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         for child in self.children:

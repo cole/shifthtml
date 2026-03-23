@@ -3,7 +3,7 @@ import time
 import anyio
 import pytest
 
-from shifthtml import div, p, shift, span
+from shifthtml import arender, div, p, span
 from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
@@ -19,7 +19,7 @@ async def test_early_siblings_flush_before_slow_siblings():
 
     page = div >> (p >> "fast", slow)
 
-    async for chunk in shift(page).arender(min_chunk_size=None):
+    async for chunk in arender(page, min_chunk_size=None):
         now = time.monotonic() - start
         if "fast" in chunk:
             flush_times.append(("fast", now))
@@ -39,7 +39,7 @@ async def test_flush_preserves_document_order():
 
     page = div >> (p >> "first", slow, p >> "last")
     chunks: list[str] = []
-    async for chunk in shift(page).arender():
+    async for chunk in arender(page):
         chunks.append(chunk)
 
     result = "".join(chunks)
@@ -55,17 +55,14 @@ async def test_cancel_scope_stops_deferred_rendering():
         await anyio.sleep(0.05)
         return span >> f"result-{render_count}"
 
-    page = shift(
-        div
-        >> (
-            defer("a", div >> track_render),
-            defer("b", div >> track_render),
-        )
+    page = div >> (
+        defer("a", div >> track_render),
+        defer("b", div >> track_render),
     )
 
     scope = anyio.CancelScope()
     chunks: list[str] = []
-    async for chunk in page.arender(min_chunk_size=None, cancel_scope=scope):
+    async for chunk in arender(page, min_chunk_size=None, cancel_scope=scope):
         chunks.append(chunk)
         if "result-1" in chunk:
             scope.cancel()
@@ -77,10 +74,10 @@ async def test_cancel_scope_stops_deferred_rendering():
 
 
 async def test_default_batching_coalesces_small_chunks():
-    page = shift(div >> (p >> "hello", p >> "world"))
+    page = div >> (p >> "hello", p >> "world")
 
     chunks: list[str] = []
-    async for chunk in page.arender():
+    async for chunk in arender(page):
         chunks.append(chunk)
 
     assert len(chunks) == 1
@@ -88,10 +85,10 @@ async def test_default_batching_coalesces_small_chunks():
 
 
 async def test_batching_splits_at_threshold():
-    page = shift(div >> [p >> f"paragraph-{i}" for i in range(50)])
+    page = div >> [p >> f"paragraph-{i}" for i in range(50)]
 
     chunks: list[str] = []
-    async for chunk in page.arender(min_chunk_size=64):
+    async for chunk in arender(page, min_chunk_size=64):
         chunks.append(chunk)
 
     assert len(chunks) > 1
@@ -103,10 +100,10 @@ async def test_batching_splits_at_threshold():
 
 
 async def test_unbuffered_with_zero_min_chunk_size():
-    page = shift(div >> (p >> "a", p >> "b"))
+    page = div >> (p >> "a", p >> "b")
 
     chunks: list[str] = []
-    async for chunk in page.arender(min_chunk_size=None):
+    async for chunk in arender(page, min_chunk_size=None):
         chunks.append(chunk)
 
     assert len(chunks) > 2
