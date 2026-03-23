@@ -118,15 +118,16 @@ class Fragment:
         if other is None:
             return None
 
+        new_fragment = copy.deepcopy(self)
+
         if isinstance(other, Fragment):
-            new_fragment = copy.replace(self)
-            new_fragment.append(copy.replace(other))
+            new_fragment.append(copy.deepcopy(other))
             return new_fragment
 
         node = Node.factory(other)
-        self.append(node)
+        new_fragment.append(node)
 
-        return self
+        return new_fragment
 
     def append(self, node: TreeNode | Fragment) -> None:
         """Modify the tree by appending a node to the end."""

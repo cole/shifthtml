@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from shifthtml import tree
+from shifthtml import div, shift, tree
 from shifthtml.element import Fragment
 
 
@@ -138,3 +138,12 @@ def test_fragment_append_fragment():
     tree1.append(tree2)
 
     assert "".join(tree1.render()) == "Node(1, children=[Node(2, children=[Node(3, children=[Node(4, children=[])])])])"
+
+
+def test_fragment_rshift_does_not_mutate_original():
+    d = div()
+    f = shift(d)
+    original_html = str(f)
+    f2 = f >> "text"
+    assert str(f) == original_html
+    assert "text" in str(f2)
