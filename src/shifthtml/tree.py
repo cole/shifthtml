@@ -25,6 +25,8 @@ class TreeNode(metaclass=ABCMeta):
     relationships. Adding an existing node elsewhere will raise an error.
     """
 
+    __slots__ = ("parent_node", "children")
+
     parent_node: None | TreeNode
     children: list[TreeNode]
 

@@ -75,6 +75,8 @@ class Fragment:
     Not a DOM node — a builder wrapper around a DOM tree.
     """
 
+    __slots__ = ("root", "append_pointer", "plugins")
+
     root: TreeNode
     append_pointer: TreeNode
 
@@ -240,6 +242,8 @@ class Node(TreeNode):
     and a factory method for creating nodes from various content types.
     """
 
+    __slots__ = ()
+
     @classmethod
     def factory(cls, contents: NodeContent) -> Node:
         if isinstance(contents, Node):
@@ -313,6 +317,8 @@ class Node(TreeNode):
 class NodeList(Node, Sequence[TreeNode]):
     """A list of nodes with a position in the tree."""
 
+    __slots__ = ()
+
     def __init__(self, contents: NodeListContent, /):
         super().__init__()
 
@@ -371,6 +377,8 @@ class NodeList(Node, Sequence[TreeNode]):
 class Text(Node):
     """An HTML Text Node."""
 
+    __slots__ = ("content",)
+
     content: str | Template
 
     def __init__(self, content: str | Template, /):
@@ -399,6 +407,8 @@ class Text(Node):
 
 class Comment(Node):
     """An HTML Comment Node."""
+
+    __slots__ = ("content",)
 
     content: str | Template
 
@@ -431,6 +441,8 @@ class Comment(Node):
 
 class Element(Node):
     """An HTML Element with tag, attributes, and builder support."""
+
+    __slots__ = ("attributes", "_style", "_class_list", "_dataset")
 
     tag: ClassVar[str]
     void: ClassVar[bool] = False
@@ -555,6 +567,8 @@ class Element(Node):
 class VoidElement(Element):
     """An HTML element that cannot have children (e.g., img, br, input)."""
 
+    __slots__ = ()
+
     void: ClassVar[bool] = True
 
     def append_child(self, child: object) -> NoReturn:
@@ -565,6 +579,8 @@ class VoidElement(Element):
 
 
 class Deferred(Node):
+    __slots__ = ("loading_node", "slot_name")
+
     def __init__(
         self,
         child: Node | Fragment,
@@ -596,6 +612,8 @@ class Deferred(Node):
 
 class Lazy(Node):
     """Wraps a sync callable, resolved during rendering."""
+
+    __slots__ = ("fn",)
 
     fn: Callable[[], NodeContent]
 
@@ -641,6 +659,8 @@ class Lazy(Node):
 
 class Async(Node):
     """Wraps an async callable, resolved during async rendering."""
+
+    __slots__ = ("fn",)
 
     fn: Callable[[], Awaitable[NodeContent]]
 
