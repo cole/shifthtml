@@ -15,6 +15,10 @@ if TYPE_CHECKING:
 class HTMLRootElement(Element, metaclass=TagMeta):
     tag = "html"
 
+    def render_to_buf(self, buf: list[str]) -> None:
+        buf.append("<!DOCTYPE html>")
+        super().render_to_buf(buf)
+
     def render(
         self,
         *,

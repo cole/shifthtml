@@ -15,5 +15,4 @@ class TagMeta(ABCMeta):
 
     def __rshift__(self, other: NodeContent) -> Fragment:
         instance = self()
-        fragment = Fragment(instance, instance) >> other
-        return fragment
+        return instance >> other

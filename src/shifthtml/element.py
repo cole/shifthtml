@@ -10,7 +10,7 @@ import anyio
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .plugin import Plugin, RenderContext
-from .render import arender_string, render_open_tag, render_string
+from .render import arender_string, render_open_tag, render_string, render_string_to_list
 from .tree import TreeNode
 from .types import NodeContent, NodeListContent
 
@@ -103,7 +103,11 @@ class Fragment:
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
-        return "".join(self.render())
+        if self.plugins:
+            return "".join(self.render())
+        buf: list[str] = []
+        self.root.render_to_buf(buf)
+        return "".join(buf)
 
     def __iter__(self) -> Iterator[TreeNode]:
         return iter(self.root.children)
@@ -286,7 +290,13 @@ class Node(TreeNode):
         return "".join(parts)
 
     def __str__(self) -> str:
-        return "".join(self.render())
+        buf: list[str] = []
+        self.render_to_buf(buf)
+        return "".join(buf)
+
+    def render_to_buf(self, buf: list[str]) -> None:
+        for child in self.children:
+            child.render_to_buf(buf)
 
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         for child in self.children:
@@ -376,6 +386,9 @@ class Text(Node):
     def append_child(self, child):
         raise ValueError("Cannot add children to a Text node")
 
+    def render_to_buf(self, buf: list[str]) -> None:
+        render_string_to_list(self.content, buf)
+
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         yield from render_string(self.content)
 
@@ -405,6 +418,9 @@ class Comment(Node):
     def _escape_content(self) -> str:
         content = str(self.content)
         return content.replace("--", "- -")
+
+    def render_to_buf(self, buf: list[str]) -> None:
+        buf.append(f"<!--{self._escape_content()}-->")
 
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
@@ -486,6 +502,16 @@ class Element(Node):
         if self._style:
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
+
+    def render_to_buf(self, buf: list[str]) -> None:
+        attrs = self._render_attrs()
+        if self.void:
+            buf.append(render_open_tag(self.tag, attrs, void=True))
+        else:
+            buf.append(render_open_tag(self.tag, attrs))
+            for child in self.children:
+                child.render_to_buf(buf)
+            buf.append(f"</{self.tag}>")
 
     def render(
         self,
@@ -582,6 +608,13 @@ class Lazy(Node):
 
     def __replace__(self, **changes):
         return type(self)(self.fn)
+
+    def render_to_buf(self, buf: list[str]) -> None:
+        result = self.fn()
+        if result is None:
+            return
+        node = Node.factory(result)
+        node.render_to_buf(buf)
 
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         result = self.fn()

@@ -72,3 +72,20 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
         parts.append(f" {attr}")
     parts.append(" />" if void else ">")
     return "".join(parts)
+
+
+def render_string_to_list(value: str | Template, buf: list[str], quote: bool = False) -> None:
+    """Append rendered string chunks directly to a list buffer."""
+    if isinstance(value, Template):
+        for item in value:
+            match item:
+                case str() as s:
+                    buf.append(s)
+                case Interpolation(v, _, conversion, format_spec):
+                    if callable(v):
+                        v = v()
+                    v = _convert(v, conversion)
+                    v = format(v, format_spec)
+                    buf.append(escape(v, quote=quote))
+    else:
+        buf.append(escape(value, quote=quote))

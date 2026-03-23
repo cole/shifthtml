@@ -189,6 +189,10 @@ class TreeNode(metaclass=ABCMeta):
             return copy.replace(self)
         return copy.replace(self, children=[])
 
+    def render_to_buf(self, buf: list[str]) -> None:
+        """Append rendered output to a list buffer. Override for performance."""
+        buf.extend(self.render())
+
     @abstractmethod
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         raise NotImplementedError("Subclasses must implement render")
