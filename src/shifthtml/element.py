@@ -580,16 +580,28 @@ class Element(Node):
         before_close: Callable[[], AsyncGenerator[str]] | None = None,
     ) -> AsyncGenerator[str]:
         attrs = self._render_attrs()
+        tag = self.tag
         if self.void:
-            yield render_open_tag(self.tag, attrs, void=True)
+            yield render_open_tag(tag, attrs, void=True)
         else:
-            yield render_open_tag(self.tag, attrs)
-            async for chunk in _arender_children(self.children, ctx):
-                yield chunk
-            if before_close is not None:
-                async for chunk in before_close():
+            children = self.children
+            open_tag = render_open_tag(tag, attrs)
+            if (
+                ctx is None
+                and before_close is None
+                and len(children) == 1
+                and isinstance(children[0], Text)
+                and isinstance(children[0].content, str)
+            ):
+                yield f"{open_tag}{escape(children[0].content, quote=False)}</{tag}>"
+            else:
+                yield open_tag
+                async for chunk in _arender_children(children, ctx):
                     yield chunk
-            yield f"</{self.tag}>"
+                if before_close is not None:
+                    async for chunk in before_close():
+                        yield chunk
+                yield f"</{tag}>"
 
 
 class VoidElement(Element):
