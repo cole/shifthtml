@@ -13,6 +13,13 @@ def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
     return str(value)
 
 
+def _needs_escape(value: str, quote: bool = False) -> bool:
+    """Check if a string contains characters that need HTML escaping."""
+    if "&" in value or "<" in value or ">" in value:
+        return True
+    return quote and ('"' in value or "'" in value)
+
+
 def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
     if isinstance(value, Template):
         for item in value:
@@ -24,9 +31,9 @@ def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
                         v = v()
                     v = _convert(v, conversion)
                     v = format(v, format_spec)
-                    yield escape(v, quote=quote)
+                    yield escape(v, quote=quote) if _needs_escape(v, quote) else v
     else:
-        yield escape(value, quote=quote)
+        yield escape(value, quote=quote) if _needs_escape(value, quote) else value
 
 
 async def arender_string(value: str | Template, quote: bool = False) -> AsyncGenerator[str]:
@@ -44,9 +51,9 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
                             v = result
                     v = _convert(v, conversion)
                     v = format(v, format_spec)
-                    yield escape(v, quote=quote)
+                    yield escape(v, quote=quote) if _needs_escape(v, quote) else v
     else:
-        yield escape(value, quote=quote)
+        yield escape(value, quote=quote) if _needs_escape(value, quote) else value
 
 
 def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
@@ -77,9 +84,7 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
         if value is True:
             attr_parts.append(key)
         elif isinstance(value, str):
-            if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
-                value = escape(value, quote=True)
-            attr_parts.append(f'{key}="{value}"')
+            attr_parts.append(f'{key}="{escape(value, quote=True) if _needs_escape(value, quote=True) else value}"')
         elif isinstance(value, Template):
             rendered = "".join(render_string(value, quote=True))
             attr_parts.append(f'{key}="{rendered}"')
@@ -107,6 +112,6 @@ def render_string_to_list(value: str | Template, buf: list[str], quote: bool = F
                         v = v()
                     v = _convert(v, conversion)
                     v = format(v, format_spec)
-                    buf.append(escape(v, quote=quote))
+                    buf.append(escape(v, quote=quote) if _needs_escape(v, quote) else v)
     else:
-        buf.append(escape(value, quote=quote))
+        buf.append(escape(value, quote=quote) if _needs_escape(value, quote) else value)
