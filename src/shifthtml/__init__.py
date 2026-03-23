@@ -1,6 +1,7 @@
 from collections.abc import AsyncGenerator, Generator
 from typing import TYPE_CHECKING
 
+from . import tags
 from .element import (
     Async,
     Comment,
@@ -130,6 +131,7 @@ if TYPE_CHECKING:
     import anyio
 
 __all__ = (
+    "tags",
     "Async",
     "Comment",
     "Deferred",

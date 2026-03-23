@@ -2,79 +2,8 @@ import random
 from datetime import UTC, datetime
 from time import sleep
 
-from shifthtml import (
-    Element,
-    Lazy,
-    a,
-    abbr,
-    address,
-    article,
-    aside,
-    blockquote,
-    body,
-    br,
-    button,
-    caption,
-    cite,
-    code,
-    dd,
-    del_,
-    details,
-    div,
-    dl,
-    dt,
-    em,
-    fieldset,
-    figcaption,
-    figure,
-    footer,
-    form,
-    h1,
-    h2,
-    h3,
-    h4,
-    h5,
-    h6,
-    head,
-    header,
-    hr,
-    html,
-    img,
-    input_,
-    ins,
-    kbd,
-    label,
-    legend,
-    li,
-    link,
-    main,
-    mark,
-    meta,
-    nav,
-    ol,
-    option,
-    p,
-    pre,
-    q,
-    samp,
-    script,
-    section,
-    select,
-    small,
-    strong,
-    sub,
-    summary,
-    sup,
-    table,
-    tbody,
-    td,
-    textarea,
-    th,
-    title,
-    tr,
-    ul,
-    var,
-)
+from shifthtml import Element, Lazy
+from shifthtml import tags as t
 from shifthtml.defer import defer
 from shifthtml.meta import TagMeta
 
@@ -100,127 +29,127 @@ def page(*, request_count: int):
 
     sections = (
         banner(now, request_count),
-        hr,
+        t.hr,
         headings_section(),
-        hr,
+        t.hr,
         nav_and_article_section(),
-        hr,
+        t.hr,
         blockquote_section(),
-        hr,
+        t.hr,
         dynamic_stats_section(now, request_count),
-        hr,
+        t.hr,
         lazy_fortune_section(),
-        hr,
+        t.hr,
         deferred_section(),
-        hr,
+        t.hr,
         table_section(),
-        hr,
+        t.hr,
         definition_list_section(),
-        hr,
+        t.hr,
         lists_section(),
-        hr,
+        t.hr,
         address_section(),
-        hr,
+        t.hr,
         pre_section(),
-        hr,
+        t.hr,
         figure_section(),
-        hr,
+        t.hr,
         details_section(),
-        hr,
+        t.hr,
         form_section(),
     )
 
-    return html(lang="en") >> (
+    return t.html(lang="en") >> (
         page_head(),
-        body >> (main >> sections, script(src="/static/theme.js")),
+        t.body >> (t.main >> sections, t.script(src="/static/theme.js")),
     )
 
 
 def page_head():
-    return head >> (
-        meta(charset="UTF-8"),
-        meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-        title >> "ShiftHTML Kitchen Sink",
-        link(rel="icon", href="data:,"),
-        link(rel="stylesheet", href="/static/style.css"),
+    return t.head >> (
+        t.meta(charset="UTF-8"),
+        t.meta(name="viewport", content="width=device-width, initial-scale=1.0"),
+        t.title >> "ShiftHTML Kitchen Sink",
+        t.link(rel="icon", href="data:,"),
+        t.link(rel="stylesheet", href="/static/style.css"),
     )
 
 
 def banner(now: datetime, request_count: int):
-    return div(class_="banner") >> (
-        h1 >> "ShiftHTML Kitchen Sink",
-        p >> f"Rendered server-side at {now:%Y-%m-%d %H:%M:%S UTC} · Request #{request_count}",
-        p >> (button(id="theme-toggle") >> "Dark Mode",),
+    return t.div(class_="banner") >> (
+        t.h1 >> "ShiftHTML Kitchen Sink",
+        t.p >> f"Rendered server-side at {now:%Y-%m-%d %H:%M:%S UTC} · Request #{request_count}",
+        t.p >> (t.button(id="theme-toggle") >> "Dark Mode",),
     )
 
 
 def headings_section():
-    return section >> (
+    return t.section >> (
         hgroup
         >> (
-            h1 >> "h1 HTML5 Kitchen Sink",
-            h2 >> ("h2 Back in my quaint ", a(href="#") >> "garden"),
-            h3 >> ("h3 Jaunty ", a(href="#") >> "zinnias", " vie with flaunting phlox"),
-            h4 >> "h4 Five or six big jet planes zoomed quickly by the new tower.",
-            h5 >> "h5 Expect skilled signwriters to use many jazzy, quaint old alphabets effectively.",
-            h6 >> "h6 Pack my box with five dozen liquor jugs.",
+            t.h1 >> "h1 HTML5 Kitchen Sink",
+            t.h2 >> ("h2 Back in my quaint ", t.a(href="#") >> "garden"),
+            t.h3 >> ("h3 Jaunty ", t.a(href="#") >> "zinnias", " vie with flaunting phlox"),
+            t.h4 >> "h4 Five or six big jet planes zoomed quickly by the new tower.",
+            t.h5 >> "h5 Expect skilled signwriters to use many jazzy, quaint old alphabets effectively.",
+            t.h6 >> "h6 Pack my box with five dozen liquor jugs.",
         ),
     )
 
 
 def nav_and_article_section():
     nav_items = ["Home", "About", "Blog", "Projects", "Contact"]
-    nav_links = ul >> [li >> (a(href="#") >> item) for item in nav_items]
+    nav_links = t.ul >> [t.li >> (t.a(href="#") >> item) for item in nav_items]
 
-    inline_tags = p >> (
+    inline_tags = t.p >> (
         "This paragraph is nested inside an article. It contains many different, sometimes useful, ",
-        a(href="https://www.w3schools.com/tags/") >> "HTML5 tags",
+        t.a(href="https://www.w3schools.com/tags/") >> "HTML5 tags",
         ". Of course there are classics like ",
-        em >> "emphasis",
+        t.em >> "emphasis",
         ", ",
-        strong >> "strong",
+        t.strong >> "strong",
         ", and ",
-        small >> "small",
+        t.small >> "small",
         " but there are many others as well. Hover the following text for abbreviation tag: ",
-        abbr(title="abbreviation") >> "abbr",
+        t.abbr(title="abbreviation") >> "abbr",
         ". You can define ",
-        del_ >> "deleted text",
+        t.del_ >> "deleted text",
         " which often gets replaced with ",
-        ins >> "inserted",
+        t.ins >> "inserted",
         " text.",
     )
 
-    more_tags = p >> (
+    more_tags = t.p >> (
         "You can also use ",
-        kbd >> "keyboard text",
+        t.kbd >> "keyboard text",
         ", which sometimes is styled similarly to the ",
-        code >> "<code>",
+        t.code >> "<code>",
         " or ",
-        samp >> "samp",
+        t.samp >> "samp",
         " tags. Even more specifically, there is a tag just for ",
-        var >> "variables",
+        t.var >> "variables",
         ". Not to be mistaken with blockquotes below, the quote tag lets you denote something as ",
-        q >> "quoted text",
+        t.q >> "quoted text",
         ". Lastly don't forget the sub (H",
-        sub >> "2",
+        t.sub >> "2",
         "O) and sup (E = MC",
-        sup >> "2",
+        t.sup >> "2",
         ") tags.",
     )
 
-    return section >> (
-        header >> (nav >> (nav_links,)),
-        article >> (inline_tags, more_tags),
-        aside >> "This is an aside.",
-        footer >> "This is footer for this section",
+    return t.section >> (
+        t.header >> (t.nav >> (nav_links,)),
+        t.article >> (inline_tags, more_tags),
+        t.aside >> "This is an aside.",
+        t.footer >> "This is footer for this section",
     )
 
 
 def blockquote_section():
-    short_quote = blockquote >> (p >> "Blockquote: I quickly explained that many big jobs involve few hazards",)
+    short_quote = t.blockquote >> (t.p >> "Blockquote: I quickly explained that many big jobs involve few hazards",)
 
-    long_quote = blockquote >> (
-        p
+    long_quote = t.blockquote >> (
+        t.p
         >> (
             "This is a multi-line blockquote with a cite reference. People think focus "
             "means saying yes to the thing you've got to focus on. But that's not what it "
@@ -228,10 +157,10 @@ def blockquote_section():
             "You have to pick carefully. I'm actually as proud of the things we haven't done "
             "as the things I have done. Innovation is saying no to 1,000 things.",
         ),
-        cite >> "Steve Jobs \u2013 Apple Worldwide Developers' Conference, 1997",
+        t.cite >> "Steve Jobs \u2013 Apple Worldwide Developers' Conference, 1997",
     )
 
-    return section >> (short_quote, long_quote)
+    return t.section >> (short_quote, long_quote)
 
 
 def dynamic_stats_section(now: datetime, request_count: int):
@@ -243,17 +172,17 @@ def dynamic_stats_section(now: datetime, request_count: int):
     ]
 
     stat_cards = [
-        div(class_="stat-card")
+        t.div(class_="stat-card")
         >> (
-            div(class_="value") >> value,
-            div(class_="label") >> lbl,
+            t.div(class_="value") >> value,
+            t.div(class_="label") >> lbl,
         )
         for lbl, value in cards
     ]
 
-    return section >> (
-        h2 >> "Dynamic Server Stats",
-        div(class_="stats-grid") >> stat_cards,
+    return t.section >> (
+        t.h2 >> "Dynamic Server Stats",
+        t.div(class_="stats-grid") >> stat_cards,
     )
 
 
@@ -262,14 +191,14 @@ def lazy_fortune_section():
 
     def pick_fortune():
         quote, author = random.choice(FORTUNES)
-        return div(class_="fortune-box") >> (
-            p >> (mark >> "Lazy node", " \u2014 evaluated at render time"),
-            p >> (em >> f"\u201c{quote}\u201d"),
-            div(class_="attribution") >> f"\u2014 {author}",
+        return t.div(class_="fortune-box") >> (
+            t.p >> (t.mark >> "Lazy node", " \u2014 evaluated at render time"),
+            t.p >> (t.em >> f"\u201c{quote}\u201d"),
+            t.div(class_="attribution") >> f"\u2014 {author}",
         )
 
-    return section >> (
-        h2 >> "Lazy Fortune",
+    return t.section >> (
+        t.h2 >> "Lazy Fortune",
         Lazy(pick_fortune),
     )
 
@@ -280,24 +209,24 @@ def deferred_section():
     def slow_content():
         sleep(0.5)
         now = datetime.now(UTC)
-        return div >> (
-            p >> (strong >> "Deferred content loaded!"),
-            p >> f"This was rendered 500ms after the initial page shell, at {now:%H:%M:%S.%f} UTC.",
-            p
+        return t.div >> (
+            t.p >> (t.strong >> "Deferred content loaded!"),
+            t.p >> f"This was rendered 500ms after the initial page shell, at {now:%H:%M:%S.%f} UTC.",
+            t.p
             >> (
                 "The ",
-                code >> "defer()",
+                t.code >> "defer()",
                 " plugin streams a placeholder first, then injects the real content via an inline ",
-                code >> "<script>",
+                t.code >> "<script>",
                 " tag at the end of the response.",
             ),
         )
 
-    return section >> (
-        h2 >> "Deferred Content",
+    return t.section >> (
+        t.h2 >> "Deferred Content",
         defer(
             "slow-section",
-            div(class_="deferred-box") >> slow_content,
+            t.div(class_="deferred-box") >> slow_content,
             loading="Loading deferred content\u2026",
         ),
     )
@@ -315,22 +244,22 @@ def table_section():
         ("Last One", 2800, "Morbi leo risus, porta ac consectetur ac, vestibulum at eros."),
     ]
 
-    head_row = tr >> (th >> "Person", th >> "Number", th >> "Third Column")
+    head_row = t.tr >> (t.th >> "Person", t.th >> "Number", t.th >> "Third Column")
     data_rows = [
-        tr
+        t.tr
         >> (
-            td >> (a(href="#") >> name if i == 1 else name),
-            td >> str(num),
-            td >> desc,
+            t.td >> (t.a(href="#") >> name if i == 1 else name),
+            t.td >> str(num),
+            t.td >> desc,
         )
         for i, (name, num, desc) in enumerate(rows)
     ]
 
-    return section >> (
-        table
+    return t.section >> (
+        t.table
         >> (
-            caption >> "Tables can have captions now.",
-            tbody >> [head_row, *data_rows],
+            t.caption >> "Tables can have captions now.",
+            t.tbody >> [head_row, *data_rows],
         ),
     )
 
@@ -347,85 +276,85 @@ def definition_list_section():
         ("blockquote", "Defines a section that is quoted from another source"),
     ]
 
-    return section >> (dl >> [item for term, desc in terms for item in (dt >> term, dd >> desc)],)
+    return t.section >> (t.dl >> [item for term, desc in terms for item in (t.dt >> term, t.dd >> desc)],)
 
 
 def lists_section():
-    return section >> (
-        ul
+    return t.section >> (
+        t.ul
         >> (
-            li
+            t.li
             >> (
                 "Unordered List item one",
-                ul
+                t.ul
                 >> (
-                    li
+                    t.li
                     >> (
                         "Nested list item",
-                        ul
+                        t.ul
                         >> (
-                            li >> "Level 3, item one",
-                            li >> "Level 3, item two",
-                            li >> "Level 3, item three",
-                            li >> "Level 3, item four",
+                            t.li >> "Level 3, item one",
+                            t.li >> "Level 3, item two",
+                            t.li >> "Level 3, item three",
+                            t.li >> "Level 3, item four",
                         ),
                     ),
-                    li >> "List item two",
-                    li >> "List item three",
-                    li >> "List item four",
+                    t.li >> "List item two",
+                    t.li >> "List item three",
+                    t.li >> "List item four",
                 ),
             ),
-            li >> "List item two",
-            li >> "List item three",
-            li >> "List item four",
+            t.li >> "List item two",
+            t.li >> "List item three",
+            t.li >> "List item four",
         ),
-        hr,
-        ol
+        t.hr,
+        t.ol
         >> (
-            li
+            t.li
             >> (
                 "List item one",
-                ol
+                t.ol
                 >> (
-                    li
+                    t.li
                     >> (
                         "List item one",
-                        ol
+                        t.ol
                         >> (
-                            li >> "List item one",
-                            li >> "List item two",
-                            li >> "List item three",
-                            li >> "List item four",
+                            t.li >> "List item one",
+                            t.li >> "List item two",
+                            t.li >> "List item three",
+                            t.li >> "List item four",
                         ),
                     ),
-                    li >> "List item two",
-                    li >> "List item three",
-                    li >> "List item four",
+                    t.li >> "List item two",
+                    t.li >> "List item three",
+                    t.li >> "List item four",
                 ),
             ),
-            li >> "List item two",
-            li >> "List item three",
-            li >> "List item four",
+            t.li >> "List item two",
+            t.li >> "List item three",
+            t.li >> "List item four",
         ),
     )
 
 
 def address_section():
-    return section >> (
-        address
+    return t.section >> (
+        t.address
         >> (
             "1 Infinite Loop",
-            br,
+            t.br,
             "Cupertino, CA 95014",
-            br,
+            t.br,
             "United States",
         ),
     )
 
 
 def pre_section():
-    return section >> (
-        pre
+    return t.section >> (
+        t.pre
         >> (
             "pre {\n"
             "  display: block;\n"
@@ -443,17 +372,17 @@ def pre_section():
 
 
 def figure_section():
-    return section >> (
-        figure
+    return t.section >> (
+        t.figure
         >> (
-            img(
+            t.img(
                 src="https://picsum.photos/960/400",
                 alt="A random photo from picsum.photos",
             ),
-            figcaption
+            t.figcaption
             >> (
                 "Fig 1. A random image from ",
-                a(href="https://picsum.photos/") >> "picsum.photos",
+                t.a(href="https://picsum.photos/") >> "picsum.photos",
                 " \u2014 refreshes each page load",
             ),
         ),
@@ -461,24 +390,24 @@ def figure_section():
 
 
 def details_section():
-    return section >> (
-        details
+    return t.section >> (
+        t.details
         >> (
-            summary >> "Click to expand this details element",
-            p
+            t.summary >> "Click to expand this details element",
+            t.p
             >> (
                 "Here is some hidden content revealed by the ",
-                code >> "<details>",
+                t.code >> "<details>",
                 " element. This is a great way to create collapsible sections without any JavaScript.",
             ),
         ),
-        details(open=True)
+        t.details(open=True)
         >> (
-            summary >> "This one starts open",
-            p
+            t.summary >> "This one starts open",
+            t.p
             >> (
                 "The ",
-                code >> "open",
+                t.code >> "open",
                 " attribute makes this details element expanded by default.",
             ),
         ),
@@ -504,46 +433,46 @@ INPUT_FIELDS = [
 
 def form_section():
     text_fields = [
-        p
+        t.p
         >> (
-            label({"for": field_id}) >> lbl,
-            input_(type=field_type, id=field_id, placeholder=placeholder),
+            t.label({"for": field_id}) >> lbl,
+            t.input_(type=field_type, id=field_id, placeholder=placeholder),
         )
         for lbl, field_type, field_id, placeholder in INPUT_FIELDS
     ]
 
-    range_field = p >> (
-        label({"for": "example-input-range"}) >> "Range",
-        input_(type="range", id="example-input-range", min="0", max="100", value="50"),
+    range_field = t.p >> (
+        t.label({"for": "example-input-range"}) >> "Range",
+        t.input_(type="range", id="example-input-range", min="0", max="100", value="50"),
     )
 
-    select_field = p >> (
-        label({"for": "example-select"}) >> "Example select",
-        select(id="example-select") >> [option >> str(i) for i in range(1, 6)],
+    select_field = t.p >> (
+        t.label({"for": "example-select"}) >> "Example select",
+        t.select(id="example-select") >> [t.option >> str(i) for i in range(1, 6)],
     )
 
-    multi_select = p >> (
-        label({"for": "example-select-multi"}) >> "Example multiple select",
-        select(id="example-select-multi", multiple=True) >> [option >> str(i) for i in range(1, 6)],
+    multi_select = t.p >> (
+        t.label({"for": "example-select-multi"}) >> "Example multiple select",
+        t.select(id="example-select-multi", multiple=True) >> [t.option >> str(i) for i in range(1, 6)],
     )
 
-    textarea_field = p >> (
-        label({"for": "example-textarea"}) >> "Example textarea",
-        textarea(id="example-textarea", rows="3"),
+    textarea_field = t.p >> (
+        t.label({"for": "example-textarea"}) >> "Example textarea",
+        t.textarea(id="example-textarea", rows="3"),
     )
 
-    file_field = p >> (
-        label({"for": "example-input-file"}) >> "File input",
-        input_(type="file", id="example-input-file"),
+    file_field = t.p >> (
+        t.label({"for": "example-input-file"}) >> "File input",
+        t.input_(type="file", id="example-input-file"),
     )
 
-    radios = fieldset >> (
-        legend >> "I am legend",
-        div
+    radios = t.fieldset >> (
+        t.legend >> "I am legend",
+        t.div
         >> (
-            label
+            t.label
             >> (
-                input_(
+                t.input_(
                     type="radio",
                     name="options-radios",
                     id="options-radios-1",
@@ -553,11 +482,11 @@ def form_section():
                 " Option one is this and that\u2014be sure to include why it's great",
             ),
         ),
-        div
+        t.div
         >> (
-            label
+            t.label
             >> (
-                input_(
+                t.input_(
                     type="radio",
                     name="options-radios",
                     id="options-radios-2",
@@ -566,11 +495,11 @@ def form_section():
                 " Option two can be something else and selecting it will deselect option one",
             ),
         ),
-        div
+        t.div
         >> (
-            label
+            t.label
             >> (
-                input_(
+                t.input_(
                     type="radio",
                     name="options-radios",
                     id="options-radios-3",
@@ -582,21 +511,21 @@ def form_section():
         ),
     )
 
-    checkboxes = fieldset >> (
-        legend >> "I am also legend",
-        label >> (input_(type="checkbox"), " Check me out"),
-        label >> (input_(type="checkbox"), " Or check me out"),
+    checkboxes = t.fieldset >> (
+        t.legend >> "I am also legend",
+        t.label >> (t.input_(type="checkbox"), " Check me out"),
+        t.label >> (t.input_(type="checkbox"), " Or check me out"),
     )
 
-    buttons = p >> (
-        button(type="button") >> "Button",
-        input_(type="button", value="Input Button"),
-        input_(type="submit", value="Submit Button"),
-        input_(type="reset", value="Reset Button"),
+    buttons = t.p >> (
+        t.button(type="button") >> "Button",
+        t.input_(type="button", value="Input Button"),
+        t.input_(type="submit", value="Submit Button"),
+        t.input_(type="reset", value="Reset Button"),
     )
 
-    return section >> (
-        form
+    return t.section >> (
+        t.form
         >> [
             *text_fields,
             range_field,
