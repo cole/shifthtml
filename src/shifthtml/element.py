@@ -454,7 +454,8 @@ class Element(Node):
     def __init__(self, attributes: dict[str, str | Template] | None = None, /, **keyword_attributes: str | Template):
         super().__init__()
         merged: dict[str, str | Template] = {k.lower(): v for k, v in attributes.items()} if attributes else {}
-        merged.update({_convert_attribute_names(key): value for key, value in keyword_attributes.items()})
+        for k, v in keyword_attributes.items():
+            merged[_convert_attribute_names(k)] = v
         self._style: StyleMap | None = None
         self._class_list: ClassList | None = None
         self._dataset: DatasetMap | None = None
