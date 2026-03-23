@@ -1,6 +1,6 @@
 from conftest import root
 
-from shifthtml import Node, div, h1, p, shift, span
+from shifthtml import div, h1, p, shift, span
 
 
 def test_text_content_simple():
@@ -31,8 +31,7 @@ def test_text_content_multiple_text_nodes():
     assert root(f).text_content == "TitleBody text"
 
 
-def test_text_content_on_text_node():
+def test_string_child_is_first_class():
     f = shift(span >> "just text")
-    text_node = f.root.first_child
-    assert isinstance(text_node, Node)
-    assert text_node.text_content == "just text"
+    assert f.root.first_child == "just text"
+    assert root(f).text_content == "just text"

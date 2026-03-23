@@ -6,8 +6,6 @@ from .element import (
     Fragment,
     Lazy,
     Node,
-    NodeList,
-    Text,
     VoidElement,
 )
 from .plugin import Plugin, RenderContext, clear_registry, register, registered_plugins
@@ -133,8 +131,6 @@ __all__ = (
     "Element",
     "Fragment",
     "Node",
-    "NodeList",
-    "Text",
     "VoidElement",
     "html",
     "head",

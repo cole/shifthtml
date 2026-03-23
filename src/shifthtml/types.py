@@ -7,11 +7,20 @@ from .tree import TreeNode as Node
 if TYPE_CHECKING:
     from .element import Fragment
 
-type NodeAtom = type[Node] | Node | Fragment | str | Template
-type NodeListContent = Iterable[NodeAtom | Callable[[], NodeAtom] | Callable[[], Awaitable[NodeAtom]] | None]
+type NodeAtom = type[Node] | Node | Fragment
+type NodeListContent = Iterable[
+    NodeAtom
+    | str
+    | Template
+    | Callable[[], NodeAtom | str | Template]
+    | Callable[[], Awaitable[NodeAtom | str | Template]]
+    | None
+]
 type NodeContent = (
     NodeAtom
+    | str
+    | Template
     | NodeListContent
-    | Callable[[], NodeAtom | NodeListContent]
-    | Callable[[], Awaitable[NodeAtom | NodeListContent]]
+    | Callable[[], NodeAtom | str | Template | NodeListContent]
+    | Callable[[], Awaitable[NodeAtom | str | Template | NodeListContent]]
 )

@@ -2,24 +2,26 @@ from collections.abc import Generator
 
 import pytest
 
-from shifthtml import Fragment, div, p, shift, span
+from shifthtml import Element, Fragment, div, p, shift, span
 from shifthtml.defer import defer
-from shifthtml.element import Deferred, Text
+from shifthtml.element import Deferred
 from shifthtml.plugin import _registry, register
 
 pytestmark = pytest.mark.anyio
 
 
-class UppercaseTextPlugin:
-    """Test plugin that uppercases all text nodes."""
+class WrapperPlugin:
+    """Test plugin that wraps <p> elements in brackets."""
 
     def pre_render_node(self, node, ctx):
-        if not isinstance(node, Text):
+        if not isinstance(node, Element) or node.tag != "p":
             return None
-        return self._render_upper(node)
+        return self._render_wrapped(node, ctx)
 
-    def _render_upper(self, node):
-        yield str(node.content).upper()
+    def _render_wrapped(self, node, ctx):
+        yield "["
+        yield from node.render(ctx=ctx)
+        yield "]"
 
     def post_render(self, ctx):
         return
@@ -27,9 +29,9 @@ class UppercaseTextPlugin:
 
 
 def test_custom_plugin_intercepts_render():
-    register(UppercaseTextPlugin())
-    result = str(shift(div >> "hello"))
-    assert result == "<div>HELLO</div>"
+    register(WrapperPlugin())
+    result = str(shift(div >> (p >> "hello")))
+    assert result == "<div>[<p>hello</p>]</div>"
 
 
 def test_no_plugins_renders_normally():
@@ -40,8 +42,8 @@ def test_no_plugins_renders_normally():
 def test_plugin_ordering_first_match_wins():
     class FirstPlugin:
         def pre_render_node(self, node, ctx):
-            if isinstance(node, Text):
-                return iter(["FIRST"])
+            if isinstance(node, Element) and node.tag == "p":
+                return iter(["[FIRST]"])
             return None
 
         def post_render(self, ctx):
@@ -50,8 +52,8 @@ def test_plugin_ordering_first_match_wins():
 
     class SecondPlugin:
         def pre_render_node(self, node, ctx):
-            if isinstance(node, Text):
-                return iter(["SECOND"])
+            if isinstance(node, Element) and node.tag == "p":
+                return iter(["[SECOND]"])
             return None
 
         def post_render(self, ctx):
@@ -60,13 +62,11 @@ def test_plugin_ordering_first_match_wins():
 
     register(FirstPlugin())
     register(SecondPlugin())
-    result = str(shift(div >> "hello"))
-    assert result == "<div>FIRST</div>"
+    result = str(shift(div >> (p >> "hello")))
+    assert result == "<div>[FIRST]</div>"
 
 
 def test_plugin_pass_through():
-    """Plugin returning None passes to default rendering."""
-
     class NoopPlugin:
         def pre_render_node(self, node, ctx):
             return None
@@ -129,8 +129,6 @@ def test_post_render_node():
             yield
 
         def post_render_node(self, node, ctx):
-            from shifthtml.element import Element
-
             if isinstance(node, Element) and node.tag == "div":
                 return iter(["<!-- after div -->"])
             return None
@@ -158,14 +156,14 @@ def test_pre_render():
 
 
 async def test_async_custom_plugin():
-    register(UppercaseTextPlugin())
+    register(WrapperPlugin())
 
-    async def get_text():
-        return "async hello"
+    async def get_content():
+        return p >> "async hello"
 
-    page = shift(div >> get_text)
+    page = shift(div >> get_content)
     result = "".join([chunk async for chunk in page.arender()])
-    assert result == "<div>ASYNC HELLO</div>"
+    assert result == "<div>[<p>async hello</p>]</div>"
 
 
 async def test_async_defer():

@@ -5,12 +5,29 @@ from string.templatelib import Template
 
 from .element import Deferred, Fragment, Node
 from .plugin import RenderContext, register
+from .render import arender_string, render_string
 from .tree import TreeNode
 
 
 def _escape_js_template(html: str) -> str:
     """Escape HTML for safe embedding inside a JS template literal."""
     return html.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${").replace("</", "<\\/")
+
+
+def _render_loading(loading: str | Template | Node, ctx: RenderContext) -> Generator[str]:
+    if isinstance(loading, str | Template):
+        yield from render_string(loading)
+    else:
+        yield from ctx.render_node(loading)
+
+
+async def _arender_loading(loading: str | Template | Node, ctx: RenderContext) -> AsyncGenerator[str]:
+    if isinstance(loading, str | Template):
+        async for chunk in arender_string(loading):
+            yield chunk
+    else:
+        async for chunk in ctx.arender_node(loading):
+            yield chunk
 
 
 class DeferPlugin:
@@ -33,8 +50,8 @@ class DeferPlugin:
 
     def _render_placeholder(self, node: Deferred, ctx: RenderContext) -> Generator[str]:
         yield f'<div id="p:{node.slot_name}">'
-        if node.loading_node is not None:
-            yield from ctx.render_node(node.loading_node)
+        if node.loading is not None:
+            yield from _render_loading(node.loading, ctx)
         yield "</div>"
 
     def post_render(self, ctx: RenderContext) -> Generator[str]:
@@ -55,8 +72,8 @@ class DeferPlugin:
 
     async def _arender_placeholder(self, node: Deferred, ctx: RenderContext) -> AsyncGenerator[str]:
         yield f'<div id="p:{node.slot_name}">'
-        if node.loading_node is not None:
-            async for chunk in ctx.arender_node(node.loading_node):
+        if node.loading is not None:
+            async for chunk in _arender_loading(node.loading, ctx):
                 yield chunk
         yield "</div>"
 

@@ -89,10 +89,12 @@ class ClassList:
 
     def _tokens(self) -> list[str]:
         raw = self._owner.attributes.get("class", "")
-        if isinstance(raw, list | tuple):
-            return list(raw)
+        if isinstance(raw, list):
+            return [str(v) for v in raw]
+        if isinstance(raw, tuple):
+            return [str(v) for v in raw]
         if isinstance(raw, set):
-            return sorted(raw)
+            return sorted(str(v) for v in raw)
         if isinstance(raw, str):
             return raw.split() if raw else []
         return str(raw).split() if raw else []

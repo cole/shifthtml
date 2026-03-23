@@ -17,7 +17,10 @@ class SimpleNode(tree.TreeNode):
     def render(self, *args, **kwargs):
         yield f"Node({self.value}, children=["
         for child in self.children:
-            yield from child.render(*args, **kwargs)
+            if isinstance(child, tree.TreeNode):
+                yield from child.render(*args, **kwargs)
+            else:
+                yield str(child)
         yield "])"
 
     async def arender(self, *args, **kwargs):
@@ -89,9 +92,15 @@ def test_node_child_of_self():
         node1.append_child(node1)
 
 
+def test_node_accepts_string_children():
+    node = SimpleNode("parent")
+    node.append_child("text child")
+    assert node.children == ["text child"]
+
+
 def test_node_add_unknown_type():
-    with pytest.raises(ValueError, match="Node can only contain other nodes. Unexpected type 'str'"):
-        SimpleNode("test").append_child("NotANode")  # type: ignore[invalid-argument-type]
+    with pytest.raises(ValueError, match="Expected a TreeNode, str, or Template"):
+        SimpleNode("test").append_child(42)  # type: ignore[invalid-argument-type]
 
 
 def test_fragment_append_node():

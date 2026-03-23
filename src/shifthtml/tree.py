@@ -7,10 +7,13 @@ from __future__ import annotations
 import copy
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncGenerator, Generator, Iterator
+from string.templatelib import Template
 from typing import TYPE_CHECKING, Self
 
 if TYPE_CHECKING:
     from .plugin import RenderContext
+
+type ChildNode = TreeNode | str | Template
 
 
 class TreeNode(metaclass=ABCMeta):
@@ -23,12 +26,15 @@ class TreeNode(metaclass=ABCMeta):
     TreeNodes are initially "floating" without parent or children.
     They are added to a tree via `append_child`, which sets up parent/child
     relationships. Adding an existing node elsewhere will raise an error.
+
+    Children can be TreeNode instances, plain strings, or Template objects.
+    Strings and Templates are terminal — immutable, no parent tracking.
     """
 
     __slots__ = ("parent_node", "children")
 
     parent_node: None | TreeNode
-    children: list[TreeNode]
+    children: list[ChildNode]
 
     def __init__(self):
         self.parent_node = None
@@ -40,66 +46,81 @@ class TreeNode(metaclass=ABCMeta):
 
         if new_children:
             for child in new_children:
-                new_obj.append_child(copy.replace(child))
+                if isinstance(child, TreeNode):
+                    new_obj.append_child(copy.replace(child))
+                else:
+                    new_obj.children.append(child)
 
         return new_obj
 
-    def __iter__(self) -> Iterator[TreeNode]:
+    def __iter__(self) -> Iterator[ChildNode]:
         """Iterate over direct children of this node."""
         return iter(self.children)
 
-    def walk(self) -> Iterator[TreeNode]:
+    def walk(self) -> Iterator[ChildNode]:
         """Depth-first traversal of this node and all descendants."""
         yield self
         for child in self.children:
-            yield from child.walk()
+            if isinstance(child, TreeNode):
+                yield from child.walk()
+            else:
+                yield child
 
     def _validate_new_child(self, child: TreeNode) -> None:
         if child is self:
             raise ValueError("Can't make a node a child of itself")
         if not isinstance(child, TreeNode):
-            raise ValueError(f"TreeNode can only contain other nodes. Unexpected type {child.__class__.__name__!r}")
+            raise ValueError(f"Expected a TreeNode, got {child.__class__.__name__!r}")
         if child.parent_node is not None:
             raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
 
-    def append_child(self, child: TreeNode) -> None:
+    def append_child(self, child: ChildNode) -> None:
         """Add a child node to this node."""
+        if isinstance(child, str | Template):
+            self.children.append(child)
+            return
         if child is self:
             raise ValueError("Can't make a node a child of itself")
         if not isinstance(child, TreeNode):
-            raise ValueError(f"TreeNode can only contain other nodes. Unexpected type {child.__class__.__name__!r}")
+            raise ValueError(f"Expected a TreeNode, str, or Template. Got {child.__class__.__name__!r}")
         if child.parent_node is not None:
             raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
         child.parent_node = self
         self.children.append(child)
 
-    def remove_child(self, child: TreeNode) -> None:
+    def remove_child(self, child: ChildNode) -> None:
         """Remove a child node from this node."""
         if child not in self.children:
             raise ValueError(f"TreeNode {child!r} is not a child of this node {self!r}")
 
         self.children.remove(child)
-        child.parent_node = None
+        if isinstance(child, TreeNode):
+            child.parent_node = None
 
-    def insert_before(self, new_child: TreeNode, reference: TreeNode) -> None:
+    def insert_before(self, new_child: ChildNode, reference: ChildNode) -> None:
         """Insert new_child before reference in this node's children."""
-        self._validate_new_child(new_child)
+        if isinstance(new_child, TreeNode):
+            self._validate_new_child(new_child)
         if reference not in self.children:
             raise ValueError(f"Reference node {reference!r} is not a child of this node")
 
         idx = self.children.index(reference)
-        new_child.parent_node = self
+        if isinstance(new_child, TreeNode):
+            new_child.parent_node = self
         self.children.insert(idx, new_child)
 
-    def replace_child(self, new_child: TreeNode, old_child: TreeNode) -> TreeNode:
+    def replace_child(self, new_child: ChildNode, old_child: ChildNode) -> ChildNode:
         """Replace old_child with new_child. Returns old_child."""
-        self._validate_new_child(new_child)
+        if isinstance(new_child, TreeNode):
+            self._validate_new_child(new_child)
         if old_child not in self.children:
             raise ValueError(f"TreeNode {old_child!r} is not a child of this node")
 
         idx = self.children.index(old_child)
-        old_child.parent_node = None
-        new_child.parent_node = self
+        if isinstance(old_child, TreeNode):
+            old_child.parent_node = None
+        if isinstance(new_child, TreeNode):
+            new_child.parent_node = self
         self.children[idx] = new_child
         return old_child
 
@@ -148,19 +169,19 @@ class TreeNode(metaclass=ABCMeta):
         """Insert nodes at the beginning of this node's children."""
         self._insert_nodes(self, 0, nodes)
 
-    def contains(self, node: TreeNode) -> bool:
+    def contains(self, node: ChildNode) -> bool:
         """Check if node is a descendant of this node."""
         return any(descendant is node for descendant in self.walk())
 
     @property
-    def first_child(self) -> TreeNode | None:
+    def first_child(self) -> ChildNode | None:
         """The first child of this node, or None if it has no children."""
         if self.children:
             return self.children[0]
         return None
 
     @property
-    def last_child(self) -> TreeNode | None:
+    def last_child(self) -> ChildNode | None:
         """The last child of this node, or None if it has no children."""
         if self.children:
             return self.children[-1]
@@ -175,7 +196,8 @@ class TreeNode(metaclass=ABCMeta):
         siblings = self.parent_node.children
         index = siblings.index(self)
         if index + 1 < len(siblings):
-            return siblings[index + 1]
+            sibling = siblings[index + 1]
+            return sibling if isinstance(sibling, TreeNode) else None
         return None
 
     @property
@@ -187,7 +209,8 @@ class TreeNode(metaclass=ABCMeta):
         siblings = self.parent_node.children
         index = siblings.index(self)
         if index - 1 >= 0:
-            return siblings[index - 1]
+            sibling = siblings[index - 1]
+            return sibling if isinstance(sibling, TreeNode) else None
         return None
 
     def clone_node(self, deep: bool = False) -> Self:
@@ -195,10 +218,6 @@ class TreeNode(metaclass=ABCMeta):
         if deep:
             return copy.replace(self)
         return copy.replace(self, children=[])
-
-    def render_to_buf(self, buf: list[str]) -> None:
-        """Append rendered output to a list buffer. Override for performance."""
-        buf.extend(self.render())
 
     @abstractmethod
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:

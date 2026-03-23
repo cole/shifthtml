@@ -74,44 +74,8 @@ def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
 
 
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
-    suffix = " />" if void else ">"
-    if not attributes:
-        return f"<{tag}{suffix}"
-    attr_parts: list[str] = []
-    for key, value in attributes.items():
-        if value is None or value is False:
-            continue
-        if value is True:
-            attr_parts.append(key)
-        elif isinstance(value, str):
-            attr_parts.append(f'{key}="{escape(value, quote=True) if _needs_escape(value, quote=True) else value}"')
-        elif isinstance(value, Template):
-            rendered = "".join(render_string(value, quote=True))
-            attr_parts.append(f'{key}="{rendered}"')
-        elif isinstance(value, set | list | tuple):
-            rendered = " ".join(
-                "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
-            )
-            attr_parts.append(f'{key}="{rendered}"')
-        else:
-            attr_parts.append(f'{key}="{escape(str(value), quote=True)}"')
-    if not attr_parts:
-        return f"<{tag}{suffix}"
-    return f"<{tag} {' '.join(attr_parts)}{suffix}"
-
-
-def render_string_to_list(value: str | Template, buf: list[str], quote: bool = False) -> None:
-    """Append rendered string chunks directly to a list buffer."""
-    if isinstance(value, Template):
-        for item in value:
-            match item:
-                case str() as s:
-                    buf.append(s)
-                case Interpolation(v, _, conversion, format_spec):
-                    if callable(v):
-                        v = v()
-                    v = _convert(v, conversion)
-                    v = format(v, format_spec)
-                    buf.append(escape(v, quote=quote) if _needs_escape(v, quote) else v)
-    else:
-        buf.append(escape(value, quote=quote) if _needs_escape(value, quote) else value)
+    parts = [f"<{tag}"]
+    for attr in render_attributes(attributes):
+        parts.append(f" {attr}")
+    parts.append(" />" if void else ">")
+    return "".join(parts)

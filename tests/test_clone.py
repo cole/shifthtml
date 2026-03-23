@@ -44,15 +44,13 @@ def test_clone_node_template_reuse():
     assert result == '<li class="item">Item 0</li><li class="item">Item 1</li><li class="item">Item 2</li>'
 
 
-def test_fragment_append_fragment_with_nodelist():
-    """Appending a Fragment containing a NodeList (from a tuple) to another Fragment should work."""
+def test_fragment_append_fragment_with_tuple():
     inner = div(id="inner") >> (h1 >> "title", span >> "content")
     result = body >> inner
     assert str(shift(result)) == '<body><div id="inner"><h1>title</h1><span>content</span></div></body>'
 
 
-def test_deep_clone_with_nodelist():
-    """Deep cloning a tree that contains a NodeList should work."""
+def test_deep_clone_with_flattened_children():
     f = shift(div >> (span >> "a", span >> "b"))
     clone = root(f).clone_node(deep=True)
     assert str(shift(clone)) == "<div><span>a</span><span>b</span></div>"
