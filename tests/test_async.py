@@ -3,14 +3,14 @@ import time
 import anyio
 import pytest
 
-from shifthtml import Async, arender, div, h1, li, p, span, ul
+from shifthtml import Async, astream, div, h1, li, p, span, ul
 from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
 
 
 async def render_str(page) -> str:
-    return "".join([chunk async for chunk in arender(page)])
+    return "".join([chunk async for chunk in astream(page)])
 
 
 async def test_async_callable_rendering():
@@ -91,7 +91,7 @@ async def test_async_with_deferred():
         defer("slot-1", div() >> get_content, loading="Loading..."),
         p() >> "after",
     )
-    result = "".join([chunk async for chunk in arender(page)])
+    result = "".join([chunk async for chunk in astream(page)])
     assert result == (
         "<div>"
         "<p>before</p>"
@@ -108,7 +108,7 @@ async def test_async_node_sync_render_raises():
 
     node = Async(get_content)
     with pytest.raises(TypeError, match="Async nodes require async rendering"):
-        "".join(node.render())
+        "".join(node.render_html())
 
 
 async def test_nested_async_callables():

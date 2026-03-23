@@ -349,7 +349,9 @@ def bench_shifthtml_async(iterations: int, num_products: int) -> dict[str, Any]:
                 footer() >> f"© {ctx['year']} {ctx['site_name']}",
             ),
         )
-        return "".join([chunk async for chunk in page.arender()])
+        from shifthtml import astream
+
+        return "".join([chunk async for chunk in astream(page)])
 
     async def run() -> dict[str, Any]:
         # warmup

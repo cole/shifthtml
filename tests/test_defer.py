@@ -19,7 +19,7 @@ def test_render_deferred_paragraph():
         defer("para-2", p() >> "Paragraph 2", loading="Loading..."),
         p() >> "Paragraph 3",
     )
-    assert "".join(render(tag)) == (
+    assert render(tag) == (
         '<div><p>Paragraph 1</p><div id="p:para-2">Loading...</div><p>Paragraph 3</p>'
         '<script>document.getElementById("p:para-2").outerHTML=`<p>Paragraph 2<\\/p>`</script></div>'
     )
@@ -36,7 +36,7 @@ def test_render_deferred_list_and_nested_items():
         ),
         footer() >> "Footer content",
     )
-    assert "".join(render(tag)) == (
+    assert render(tag) == (
         "<div><header><h1>Deferred streaming</h1></header>"
         '<main><div id="p:list">Loading...</div></main>'
         "<footer>Footer content</footer>"

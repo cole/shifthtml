@@ -15,23 +15,23 @@ if TYPE_CHECKING:
 class HTMLRootElement(Element, metaclass=TagMeta):
     tag = "html"
 
-    def render(
+    def render_html(
         self,
         *,
         ctx: RenderContext | None = None,
         before_close: Callable[[], Generator[str]] | None = None,
     ) -> Generator[str]:
         yield "<!DOCTYPE html>"
-        yield from super().render(ctx=ctx, before_close=before_close)
+        yield from super().render_html(ctx=ctx, before_close=before_close)
 
-    async def arender(
+    async def arender_html(
         self,
         *,
         ctx: RenderContext | None = None,
         before_close: Callable[[], AsyncGenerator[str]] | None = None,
     ) -> AsyncGenerator[str]:
         yield "<!DOCTYPE html>"
-        async for chunk in super().arender(ctx=ctx, before_close=before_close):
+        async for chunk in super().arender_html(ctx=ctx, before_close=before_close):
             yield chunk
 
 

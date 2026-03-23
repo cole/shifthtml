@@ -40,7 +40,7 @@ def landing_page() -> html:
 
 def chat_page(msgs: list[Message], username: str) -> html:
     async def load_messages():
-        """Async component resolved during arender()."""
+        """Async component resolved during astream()."""
         return message_list(msgs)
 
     async def server_status():

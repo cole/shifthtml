@@ -174,7 +174,7 @@ def test_render_attribute_none_omitted():
 
 
 def test_comment_render():
-    result = "".join(Comment("hello").render())
+    result = "".join(Comment("hello").render_html())
     assert result == "<!--hello-->"
 
 
@@ -184,12 +184,12 @@ def test_comment_in_tree():
 
 
 def test_comment_escapes_double_dash():
-    result = "".join(Comment("bad-->stuff").render())
+    result = "".join(Comment("bad-->stuff").render_html())
     assert result == "<!--bad- ->stuff-->"
 
 
 def test_comment_escapes_double_dash_middle():
-    result = "".join(Comment("a--b").render())
+    result = "".join(Comment("a--b").render_html())
     assert result == "<!--a- -b-->"
 
 

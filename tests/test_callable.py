@@ -40,12 +40,12 @@ def test_render_single_callable_nested_return():
 
 def test_lazy_node_renders_callable_result():
     node = Lazy(lambda: p() >> "lazy content")
-    assert "".join(node.render()) == "<p>lazy content</p>"
+    assert "".join(node.render_html()) == "<p>lazy content</p>"
 
 
 def test_lazy_node_none_renders_empty():
     node = Lazy(lambda: None)
-    assert "".join(node.render()) == ""
+    assert "".join(node.render_html()) == ""
 
 
 def test_callable_returning_tuple():

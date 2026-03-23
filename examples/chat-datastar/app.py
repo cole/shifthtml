@@ -20,21 +20,21 @@ from litestar.response import Stream
 from litestar.static_files import create_static_files_router
 from pages import chat_page, landing_page
 
-from shifthtml import arender, render
+from shifthtml import astream, render
 
 messages: list[Message] = []
 
 
 @get("/")
 async def index() -> Stream:
-    return Stream(arender(landing_page()), media_type="text/html")
+    return Stream(astream(landing_page()), media_type="text/html")
 
 
 @get("/chat")
 async def chat() -> Stream:
     username = f"User-{uuid.uuid4().hex[:6]}"
     page = chat_page(messages, username)
-    return Stream(arender(page), media_type="text/html")
+    return Stream(astream(page), media_type="text/html")
 
 
 @post("/send")
@@ -57,7 +57,7 @@ async def feed(request: Request) -> DatastarResponse:
             await asyncio.sleep(0.1)
             if len(messages) > seen:
                 seen = len(messages)
-                rendered = "".join(render(message_list(messages)))
+                rendered = render(message_list(messages))
                 yield SSE.patch_elements(rendered, selector="#messages")
                 yield SSE.execute_script(
                     "document.getElementById('messages')"

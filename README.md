@@ -1,7 +1,7 @@
 # ⏩ ShiftHTML: an experimental HTML renderer
 
 ```python
-from shifthtml import render, tags as t
+from shifthtml import render, stream, tags as t
 from shifthtml.defer import defer
 
 username = "Jane"
@@ -38,5 +38,7 @@ page = (
     )
 )
 
-html = "".join(render(page))
+html = render(page)                  # → str
+for chunk in stream(page):           # → Generator[str]
+    response.write(chunk)
 ```

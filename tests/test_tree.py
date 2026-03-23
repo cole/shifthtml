@@ -14,17 +14,17 @@ class SimpleNode(tree.TreeNode):
     def __replace__(self, /, **changes):
         return SimpleNode(self.value)
 
-    def render(self, *args, **kwargs):
+    def render_html(self, *args, **kwargs):
         yield f"Node({self.value}, children=["
         for child in self.children:
             if isinstance(child, tree.TreeNode):
-                yield from child.render(*args, **kwargs)
+                yield from child.render_html(*args, **kwargs)
             else:
                 yield str(child)
         yield "])"
 
-    async def arender(self, *args, **kwargs):
-        for chunk in self.render(*args, **kwargs):
+    async def arender_html(self, *args, **kwargs):
+        for chunk in self.render_html(*args, **kwargs):
             yield chunk
 
 
@@ -128,10 +128,10 @@ def test_fragment_append_node():
     assert isinstance(tree4.root, SimpleNode) and tree4.root.value == node1.value
     assert isinstance(tree4.append_pointer, SimpleNode) and tree4.append_pointer.value == node4.value
 
-    assert "".join(tree.render()) == "Node(1, children=[])"
-    assert "".join(tree2.render()) == "Node(1, children=[Node(2, children=[])])"
-    assert "".join(tree3.render()) == "Node(1, children=[Node(2, children=[Node(3, children=[])])])"
-    assert "".join(tree4.render()) == "Node(1, children=[Node(2, children=[Node(4, children=[])])])"
+    assert str(tree) == "Node(1, children=[])"
+    assert str(tree2) == "Node(1, children=[Node(2, children=[])])"
+    assert str(tree3) == "Node(1, children=[Node(2, children=[Node(3, children=[])])])"
+    assert str(tree4) == "Node(1, children=[Node(2, children=[Node(4, children=[])])])"
 
 
 def test_fragment_append_fragment():
@@ -146,7 +146,7 @@ def test_fragment_append_fragment():
 
     tree1.append(tree2)
 
-    assert "".join(tree1.render()) == "Node(1, children=[Node(2, children=[Node(3, children=[Node(4, children=[])])])])"
+    assert str(tree1) == "Node(1, children=[Node(2, children=[Node(3, children=[Node(4, children=[])])])])"
 
 
 def test_fragment_rshift_mutates_in_place():

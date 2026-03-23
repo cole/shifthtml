@@ -62,7 +62,7 @@ class RenderContext:
                 yield from self._post_render_node(node)
                 return
 
-        yield from node.render(ctx=self)
+        yield from node.render_html(ctx=self)
         yield from self._post_render_node(node)
 
     def _post_render_node(self, node: TreeNode) -> Generator[str]:
@@ -101,7 +101,7 @@ class RenderContext:
                     yield chunk
                 return
 
-        async for chunk in node.arender(ctx=self):
+        async for chunk in node.arender_html(ctx=self):
             yield chunk
         async for chunk in self._apost_render_node(node):
             yield chunk

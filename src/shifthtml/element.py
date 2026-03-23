@@ -3,14 +3,13 @@ from __future__ import annotations
 import copy
 import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
+from contextvars import ContextVar
 from string.templatelib import Template
 from typing import ClassVar, NoReturn, overload
 
-import anyio
-
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
-from .plugin import Plugin, RenderContext
-from .render import arender_string, render_open_tag, render_string
+from .plugin import RenderContext
+from .render import render_open_tag
 from .tree import TreeNode
 from .types import NodeContent
 
@@ -68,57 +67,13 @@ def _convert_attribute_names(name: str) -> str:
     return _snake_to_kebab(name)
 
 
-async def _arender_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-    # Use parallel rendering only when multiple siblings include async callables
-    if len(children) > 1 and any(isinstance(child, Async | Lazy) for child in children):
-        async for chunk in _arender_children_parallel(children, ctx):
-            yield chunk
-        return
-
-    for child in children:
-        if isinstance(child, str | Template):
-            async for chunk in arender_string(child):
-                yield chunk
-        elif ctx is not None:
-            async for chunk in ctx.arender_node(child):
-                yield chunk
-        else:
-            async for chunk in child.arender():
-                yield chunk
-
-
-async def _arender_children_parallel(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-    """Parallel variant for trees containing Async/Lazy sibling nodes."""
-    results: list[list[str]] = [[] for _ in children]
-    ready: list[anyio.Event] = [anyio.Event() for _ in children]
-
-    async def collect(i: int, child: object) -> None:
-        if isinstance(child, str | Template):
-            results[i] = [chunk async for chunk in arender_string(child)]
-        elif isinstance(child, TreeNode):
-            if ctx is not None:
-                results[i] = [chunk async for chunk in ctx.arender_node(child)]
-            else:
-                results[i] = [chunk async for chunk in child.arender()]
-        ready[i].set()
-
-    async with anyio.create_task_group() as tg:
-        for i, child in enumerate(children):
-            tg.start_soon(collect, i, child)
-
-        for i in range(len(children)):
-            await ready[i].wait()
-            for chunk in results[i]:
-                yield chunk
-
-
 class Fragment:
     """
-    A document fragment that can contain nodes and other fragments.
-    Not a DOM node — a builder wrapper around a DOM tree.
+    A document fragment — a builder wrapper around a DOM tree.
+    Owns no rendering logic; use render()/stream()/astream() from the rendering module.
     """
 
-    __slots__ = ("root", "append_pointer", "plugins")
+    __slots__ = ("root", "append_pointer")
 
     root: TreeNode
     append_pointer: TreeNode
@@ -126,20 +81,15 @@ class Fragment:
     def __init__(self, root: TreeNode, append_pointer: TreeNode, /):
         self.root = root
         self.append_pointer = append_pointer
-        self.plugins: tuple[Plugin, ...] = ()
 
     def __copy__(self) -> Fragment:
-        frag = Fragment(self.root, self.append_pointer)
-        frag.plugins = self.plugins
-        return frag
+        return Fragment(self.root, self.append_pointer)
 
     def __deepcopy__(self, memo=None) -> Fragment:
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
         if new_pointer is None:
             raise ValueError("Pointer target not found in the tree")
-        frag = Fragment(new_root, new_pointer)
-        frag.plugins = self.plugins
-        return frag
+        return Fragment(new_root, new_pointer)
 
     def __replace__(self, /, **changes):
         return copy.deepcopy(self)
@@ -148,9 +98,9 @@ class Fragment:
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
-        from . import render
+        from .rendering import render
 
-        return "".join(render(self))
+        return render(self)
 
     def __iter__(self) -> Iterator[TreeNode | str | Template]:
         return iter(self.root.children)
@@ -203,97 +153,12 @@ class Fragment:
         self.append_pointer.append_child(node)
         self.append_pointer = node
 
-    def render(self) -> Generator[str]:
-        if self.plugins:
-            ctx = RenderContext(plugins=self.plugins)
-            yield from ctx.pre_render_all()
-            yield from self._render_root(ctx)
-        else:
-            yield from self.root.render()
-
-    def _render_root(self, ctx: RenderContext) -> Generator[str]:
-        root = self.root
-        for plugin in ctx.plugins:
-            result = plugin.pre_render_node(root, ctx)
-            if result is not None:
-                yield from result
-                yield from ctx._post_render_node(root)
-                yield from ctx.post_render_all()
-                return
-
-        if isinstance(root, Element) and not root.void:
-            yield from root.render(ctx=ctx, before_close=ctx.post_render_all)
-        else:
-            yield from root.render(ctx=ctx)
-            yield from ctx.post_render_all()
-        yield from ctx._post_render_node(root)
-
-    async def arender(
-        self, *, min_chunk_size: int | None = 4096, cancel_scope: anyio.CancelScope | None = None
-    ) -> AsyncGenerator[str]:
-        if min_chunk_size is None:
-            async for chunk in self._arender_unbuffered(cancel_scope=cancel_scope):
-                yield chunk
-            return
-
-        buf: list[str] = []
-        buf_size = 0
-        async for chunk in self._arender_unbuffered(cancel_scope=cancel_scope):
-            buf.append(chunk)
-            buf_size += len(chunk)
-            if buf_size >= min_chunk_size:
-                yield "".join(buf)
-                buf.clear()
-                buf_size = 0
-        if buf:
-            yield "".join(buf)
-
-    async def _arender_unbuffered(self, *, cancel_scope: anyio.CancelScope | None = None) -> AsyncGenerator[str]:
-        if self.plugins:
-            ctx = RenderContext(plugins=self.plugins, cancel_scope=cancel_scope)
-            async for chunk in ctx.apre_render_all():
-                yield chunk
-            async for chunk in self._arender_root(ctx):
-                yield chunk
-        else:
-            async for chunk in self.root.arender():
-                yield chunk
-
-    async def _arender_root(self, ctx: RenderContext) -> AsyncGenerator[str]:
-        root = self.root
-        for plugin in ctx.plugins:
-            ahook = getattr(plugin, "apre_render_node", None)
-            result = ahook(root, ctx) if ahook is not None else plugin.pre_render_node(root, ctx)
-            if result is not None:
-                if isinstance(result, AsyncGenerator):
-                    async for chunk in result:
-                        yield chunk
-                else:
-                    for chunk in result:
-                        yield chunk
-                async for chunk in ctx._apost_render_node(root):
-                    yield chunk
-                async for chunk in ctx.apost_render_all():
-                    yield chunk
-                return
-
-        if isinstance(root, Element) and not root.void:
-            async for chunk in root.arender(ctx=ctx, before_close=ctx.apost_render_all):
-                yield chunk
-        else:
-            async for chunk in root.arender(ctx=ctx):
-                yield chunk
-            async for chunk in ctx.apost_render_all():
-                yield chunk
-        async for chunk in ctx._apost_render_node(root):
-            yield chunk
-
 
 class Node(TreeNode):
     """
     A node in the document tree with builder support.
 
-    Extends the abstract Node with the >> operator for building HTML trees,
+    Extends TreeNode with the >> operator for building HTML trees,
     and a factory method for creating nodes from various content types.
     """
 
@@ -363,21 +228,19 @@ class Node(TreeNode):
         return "".join(parts)
 
     def __str__(self) -> str:
-        from . import render
+        from .rendering import render
 
-        return "".join(render(self))
+        return render(self)
 
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        for child in self.children:
-            if isinstance(child, str | Template):
-                yield from render_string(child)
-            elif ctx is not None:
-                yield from ctx.render_node(child)
-            else:
-                yield from child.render()
+    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+        from .rendering import stream_children
 
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in _arender_children(self.children, ctx):
+        yield from stream_children(self.children, ctx)
+
+    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        from .rendering import astream_children
+
+        async for chunk in astream_children(self.children, ctx):
             yield chunk
 
 
@@ -405,10 +268,10 @@ class Comment(Node):
         content = str(self.content)
         return content.replace("--", "- -")
 
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
 
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         yield f"<!--{self._escape_content()}-->"
 
 
@@ -492,40 +355,38 @@ class Element(Node):
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
 
-    def render(
+    def render_html(
         self,
         *,
         ctx: RenderContext | None = None,
         before_close: Callable[[], Generator[str]] | None = None,
     ) -> Generator[str]:
+        from .rendering import stream_children
+
         attrs = self._render_attrs()
         if self.void:
             yield render_open_tag(self.tag, attrs, void=True)
         else:
             yield render_open_tag(self.tag, attrs)
-            for child in self.children:
-                if isinstance(child, str | Template):
-                    yield from render_string(child)
-                elif ctx is not None:
-                    yield from ctx.render_node(child)
-                else:
-                    yield from child.render()
+            yield from stream_children(self.children, ctx)
             if before_close is not None:
                 yield from before_close()
             yield f"</{self.tag}>"
 
-    async def arender(
+    async def arender_html(
         self,
         *,
         ctx: RenderContext | None = None,
         before_close: Callable[[], AsyncGenerator[str]] | None = None,
     ) -> AsyncGenerator[str]:
+        from .rendering import astream_children
+
         attrs = self._render_attrs()
         if self.void:
             yield render_open_tag(self.tag, attrs, void=True)
         else:
             yield render_open_tag(self.tag, attrs)
-            async for chunk in _arender_children(self.children, ctx):
+            async for chunk in astream_children(self.children, ctx):
                 yield chunk
             if before_close is not None:
                 async for chunk in before_close():
@@ -576,52 +437,12 @@ class Deferred(Node):
         assert isinstance(child, TreeNode)
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Deferred nodes require DeferPlugin")
 
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         raise TypeError("Deferred nodes require DeferPlugin")
         yield  # pragma: no cover
-
-
-def _render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
-    """Render the return value of a Lazy/Async callable."""
-    if result is None:
-        return
-    if isinstance(result, str | Template):
-        yield from render_string(result)
-        return
-    if isinstance(result, tuple | list):
-        for item in result:
-            yield from _render_result(item, ctx)
-        return
-    node = Node.factory(result)
-    if ctx is not None:
-        yield from ctx.render_node(node)
-    else:
-        yield from node.render()
-
-
-async def _arender_result(result: object, ctx: RenderContext | None) -> AsyncGenerator[str]:
-    """Async render the return value of a Lazy/Async callable."""
-    if result is None:
-        return
-    if isinstance(result, str | Template):
-        async for chunk in arender_string(result):
-            yield chunk
-        return
-    if isinstance(result, tuple | list):
-        for item in result:
-            async for chunk in _arender_result(item, ctx):
-                yield chunk
-        return
-    node = Node.factory(result)
-    if ctx is not None:
-        async for chunk in ctx.arender_node(node):
-            yield chunk
-    else:
-        async for chunk in node.arender():
-            yield chunk
 
 
 class Lazy(Node):
@@ -641,11 +462,15 @@ class Lazy(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn)
 
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        yield from _render_result(self.fn(), ctx)
+    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+        from .rendering import render_result
 
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in _arender_result(self.fn(), ctx):
+        yield from render_result(self.fn(), ctx)
+
+    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        from .rendering import arender_result
+
+        async for chunk in arender_result(self.fn(), ctx):
             yield chunk
 
 
@@ -666,9 +491,58 @@ class Async(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn)
 
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
+    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Async nodes require async rendering")
 
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in _arender_result(await self.fn(), ctx):
+    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        from .rendering import arender_result
+
+        async for chunk in arender_result(await self.fn(), ctx):
             yield chunk
+
+
+_MISSING = object()
+
+_render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
+
+
+class Var:
+    """A named variable for use in preserved trees.
+
+    Callable — works in t-string interpolations (evaluated at render time)
+    and auto-wraps as Lazy when used as a child node via >>.
+
+    Values are passed via render()/stream()/astream() ``vars`` parameter.
+    """
+
+    __slots__ = ("name", "default")
+
+    def __init__(self, name: str, *, default: object = _MISSING):
+        self.name = name
+        self.default = default
+
+    def __call__(self) -> object:
+        vars = _render_vars.get()
+        if vars and self.name in vars:
+            return vars[self.name]
+        if self.default is not _MISSING:
+            return self.default
+        raise LookupError(f"Var {self.name!r} not set")
+
+    def __repr__(self) -> str:
+        return f"Var({self.name!r})"
+
+
+class _VarNamespace:
+    """Attribute-access shorthand for creating Var instances: ``args.title`` → ``Var("title")``."""
+
+    __slots__ = ()
+
+    def __getattr__(self, name: str) -> Var:
+        return Var(name)
+
+    def __repr__(self) -> str:
+        return "args"
+
+
+args = _VarNamespace()

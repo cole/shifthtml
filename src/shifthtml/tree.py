@@ -8,10 +8,7 @@ import copy
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncGenerator, Generator, Iterator
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Self
-
-if TYPE_CHECKING:
-    from .plugin import RenderContext
+from typing import Self
 
 type ChildNode = TreeNode | str | Template
 
@@ -220,10 +217,10 @@ class TreeNode(metaclass=ABCMeta):
         return copy.replace(self, children=[])
 
     @abstractmethod
-    def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        raise NotImplementedError("Subclasses must implement render")
+    def render_html(self, **kwargs) -> Generator[str]:
+        raise NotImplementedError("Subclasses must implement render_html")
 
     @abstractmethod
-    async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        raise NotImplementedError("Subclasses must implement arender")
+    async def arender_html(self, **kwargs) -> AsyncGenerator[str]:
+        raise NotImplementedError("Subclasses must implement arender_html")
         yield  # pragma: no cover

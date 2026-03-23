@@ -1,0 +1,271 @@
+"""Top-level rendering API.
+
+This module owns all output concerns: plugin dispatch, context management,
+streaming, and buffering. Tree types stay focused on structure.
+
+Public API:
+    render(node)   → str               (plugin-aware)
+    stream(node)   → Generator[str]    (plugin-aware, streaming)
+    astream(node)  → AsyncGenerator[str] (plugin-aware, async streaming)
+"""
+
+from __future__ import annotations
+
+from collections.abc import AsyncGenerator, Generator
+from string.templatelib import Template
+from typing import TYPE_CHECKING
+
+import anyio
+
+from .plugin import RenderContext, registered_plugins
+from .render import arender_string, render_string
+
+if TYPE_CHECKING:
+    from .element import Fragment, Node
+    from .plugin import Plugin
+    from .tree import TreeNode
+
+
+def render(
+    html: Node | Fragment,
+    *,
+    args: dict[str, object] | None = None,
+    plugins: tuple[Plugin, ...] | None = None,
+) -> str:
+    """Render a node tree to an HTML string."""
+    return "".join(stream(html, args=args, plugins=plugins))  # stream() sets _render_vars
+
+
+def stream(
+    html: Node | Fragment,
+    *,
+    args: dict[str, object] | None = None,
+    plugins: tuple[Plugin, ...] | None = None,
+) -> Generator[str]:
+    """Render a node tree as a stream of HTML chunks."""
+    from .element import Fragment, _render_vars
+
+    _render_vars.set(args or {})
+    frag = html if isinstance(html, Fragment) else Fragment(html, html)
+    resolved_plugins = plugins if plugins is not None else registered_plugins()
+
+    if resolved_plugins:
+        ctx = RenderContext(plugins=resolved_plugins)
+        yield from ctx.pre_render_all()
+        yield from _stream_root(frag.root, ctx)
+    else:
+        yield from frag.root.render_html()
+
+
+def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
+    """Render the root node with plugin dispatch."""
+    from .element import Element
+
+    for plugin in ctx.plugins:
+        result = plugin.pre_render_node(root, ctx)
+        if result is not None:
+            yield from result
+            yield from ctx._post_render_node(root)
+            yield from ctx.post_render_all()
+            return
+
+    if isinstance(root, Element) and not root.void:
+        yield from root.render_html(ctx=ctx, before_close=ctx.post_render_all)
+    else:
+        yield from root.render_html(ctx=ctx)
+        yield from ctx.post_render_all()
+    yield from ctx._post_render_node(root)
+
+
+async def astream(
+    html: Node | Fragment,
+    *,
+    args: dict[str, object] | None = None,
+    plugins: tuple[Plugin, ...] | None = None,
+    min_chunk_size: int | None = 4096,
+    cancel_scope: anyio.CancelScope | None = None,
+) -> AsyncGenerator[str]:
+    """Render a node tree as an async stream of HTML chunks."""
+    from .element import _render_vars
+
+    _render_vars.set(args or {})
+    if min_chunk_size is None:
+        async for chunk in _astream_unbuffered(html, plugins=plugins, cancel_scope=cancel_scope):
+            yield chunk
+        return
+
+    buf: list[str] = []
+    buf_size = 0
+    async for chunk in _astream_unbuffered(html, plugins=plugins, cancel_scope=cancel_scope):
+        buf.append(chunk)
+        buf_size += len(chunk)
+        if buf_size >= min_chunk_size:
+            yield "".join(buf)
+            buf.clear()
+            buf_size = 0
+    if buf:
+        yield "".join(buf)
+
+
+async def _astream_unbuffered(
+    html: Node | Fragment,
+    *,
+    plugins: tuple[Plugin, ...] | None = None,
+    cancel_scope: anyio.CancelScope | None = None,
+) -> AsyncGenerator[str]:
+    from .element import Fragment
+
+    frag = html if isinstance(html, Fragment) else Fragment(html, html)
+    resolved_plugins = plugins if plugins is not None else registered_plugins()
+
+    if resolved_plugins:
+        ctx = RenderContext(plugins=resolved_plugins, cancel_scope=cancel_scope)
+        async for chunk in ctx.apre_render_all():
+            yield chunk
+        async for chunk in _astream_root(frag.root, ctx):
+            yield chunk
+    else:
+        async for chunk in frag.root.arender_html():
+            yield chunk
+
+
+async def _astream_root(root: TreeNode, ctx: RenderContext) -> AsyncGenerator[str]:
+    """Render the root node with async plugin dispatch."""
+    from .element import Element
+
+    for plugin in ctx.plugins:
+        ahook = getattr(plugin, "apre_render_node", None)
+        result = ahook(root, ctx) if ahook is not None else plugin.pre_render_node(root, ctx)
+        if result is not None:
+            if isinstance(result, AsyncGenerator):
+                async for chunk in result:
+                    yield chunk
+            else:
+                for chunk in result:
+                    yield chunk
+            async for chunk in ctx._apost_render_node(root):
+                yield chunk
+            async for chunk in ctx.apost_render_all():
+                yield chunk
+            return
+
+    if isinstance(root, Element) and not root.void:
+        async for chunk in root.arender_html(ctx=ctx, before_close=ctx.apost_render_all):
+            yield chunk
+    else:
+        async for chunk in root.arender_html(ctx=ctx):
+            yield chunk
+        async for chunk in ctx.apost_render_all():
+            yield chunk
+    async for chunk in ctx._apost_render_node(root):
+        yield chunk
+
+
+# -- Children helpers (used by node render_html methods) --
+
+
+def stream_children(children: list, ctx: RenderContext | None = None) -> Generator[str]:
+    """Render a list of children to HTML chunks."""
+    for child in children:
+        if isinstance(child, str | Template):
+            yield from render_string(child)
+        elif ctx is not None:
+            yield from ctx.render_node(child)
+        else:
+            yield from child.render_html()
+
+
+async def astream_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    """Render a list of children to async HTML chunks."""
+    from .element import Async, Lazy
+
+    # Use parallel rendering only when multiple siblings include async callables
+    if len(children) > 1 and any(isinstance(child, Async | Lazy) for child in children):
+        async for chunk in _astream_children_parallel(children, ctx):
+            yield chunk
+        return
+
+    for child in children:
+        if isinstance(child, str | Template):
+            async for chunk in arender_string(child):
+                yield chunk
+        elif ctx is not None:
+            async for chunk in ctx.arender_node(child):
+                yield chunk
+        else:
+            async for chunk in child.arender_html():
+                yield chunk
+
+
+async def _astream_children_parallel(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    """Parallel variant for trees containing Async/Lazy sibling nodes."""
+    from .tree import TreeNode
+
+    results: list[list[str]] = [[] for _ in children]
+    ready: list[anyio.Event] = [anyio.Event() for _ in children]
+
+    async def collect(i: int, child: object) -> None:
+        if isinstance(child, str | Template):
+            results[i] = [chunk async for chunk in arender_string(child)]
+        elif isinstance(child, TreeNode):
+            if ctx is not None:
+                results[i] = [chunk async for chunk in ctx.arender_node(child)]
+            else:
+                results[i] = [chunk async for chunk in child.arender_html()]
+        ready[i].set()
+
+    async with anyio.create_task_group() as tg:
+        for i, child in enumerate(children):
+            tg.start_soon(collect, i, child)
+
+        for i in range(len(children)):
+            await ready[i].wait()
+            for chunk in results[i]:
+                yield chunk
+
+
+# -- Callable result helpers --
+
+
+def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
+    """Render the return value of a Lazy/Async callable."""
+    from .element import Node
+
+    if result is None:
+        return
+    if isinstance(result, str | Template):
+        yield from render_string(result)
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            yield from render_result(item, ctx)
+        return
+    node = Node.factory(result)
+    if ctx is not None:
+        yield from ctx.render_node(node)
+    else:
+        yield from node.render_html()
+
+
+async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGenerator[str]:
+    """Async render the return value of a Lazy/Async callable."""
+    from .element import Node
+
+    if result is None:
+        return
+    if isinstance(result, str | Template):
+        async for chunk in arender_string(result):
+            yield chunk
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            async for chunk in arender_result(item, ctx):
+                yield chunk
+        return
+    node = Node.factory(result)
+    if ctx is not None:
+        async for chunk in ctx.arender_node(node):
+            yield chunk
+    else:
+        async for chunk in node.arender_html():
+            yield chunk
