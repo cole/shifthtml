@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator, Sequence
+from html import escape
 from string.templatelib import Template
 from typing import Any, ClassVar, NoReturn, overload
 
@@ -520,9 +521,16 @@ class Element(Node):
     def render_to_buf(self, buf: list[str]) -> None:
         attrs = self._render_attrs()
         tag = self.tag
-        buf.append(render_open_tag(tag, attrs, void=self.void))
-        if not self.void:
-            for child in self.children:
+        if self.void:
+            buf.append(render_open_tag(tag, attrs, void=True))
+            return
+        children = self.children
+        open_tag = render_open_tag(tag, attrs)
+        if len(children) == 1 and isinstance(children[0], Text) and isinstance(children[0].content, str):
+            buf.append(f"{open_tag}{escape(children[0].content, quote=False)}</{tag}>")
+        else:
+            buf.append(open_tag)
+            for child in children:
                 child.render_to_buf(buf)
             buf.append(f"</{tag}>")
 
