@@ -54,7 +54,11 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 - Guard dict.update when no keyword attrs — noise
 - Inline _render_attrs / render_open_tag in render_to_buf — noise
 
-### Key Insight
-The performance bottleneck is very flat — cost spread across many small operations
-(Element.__init__, isinstance, render_open_tag, html.escape, __rshift__, etc).
-No single hotspot dominates, making further optimization challenging.
+### Key Insights
+- The bottleneck is very flat — cost spread across many small operations.
+- Tree construction is ~74% of runtime, rendering only ~26%.
+- CPython 3.14's built-in operations (isinstance, dict ops, str methods, f-strings) are already heavily optimized.
+- Adding branches to hot paths (Element.__init__) consistently regresses.
+- Inlining functions fails to beat CPython's call optimization.
+- 57+ experiments across 3 sessions; total improvement: ~1.9% (3.925ms → 3.853ms).
+- Further pure-Python optimization is at diminishing returns.
