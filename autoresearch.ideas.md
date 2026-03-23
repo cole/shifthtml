@@ -1,15 +1,34 @@
 # Autoresearch Ideas
 
-## Status: Ceiling Reached (67 experiments, 4 sessions)
+## Status: Ceiling Reached (73 experiments, 5 sessions)
 
-Pure-Python micro-optimization is exhausted. The benchmark spends 74% on tree
-construction (object creation, dict ops, append_child) and 26% on rendering
-(render_open_tag, escape, buf.append). Both paths are dominated by CPython
-C-level builtins that can't be beaten at the Python level.
+Pure-Python optimization is thoroughly exhausted. All approaches below have been
+benchmarked and show no measurable improvement over the current ~3.85ms baseline.
 
-Key measurement challenge: ±10% variance (±0.4ms on 3.85ms) makes improvements
-below ~0.1ms undetectable.
+### Definitively Exhausted Angles
+- Micro-optimizing render paths (render_open_tag, render_to_buf)
+- Reducing isinstance overhead (type() is, hasattr, duck typing)
+- Adding branches/fast-paths to Element.__init__
+- Caching close tags (ClassVar, instance attr, module dict)
+- Inlining functions (_convert_attribute_names, _render_attrs, render_open_tag)
+- Reducing object count (NodeList flattening at construction or render time)
+- Stack-based iterative renderer
+- Pre-escaping text content at construction
+- Marker slots on Text for faster leaf detection
+- Method overrides on subclasses (MRO dispatch overhead)
+- Removing ABCMeta from TreeNode
 
-## Only Viable with Different Approaches
+### Underlying Reason
+CPython 3.14 is highly optimized for the patterns shifthtml uses:
+- `isinstance` on concrete types: ~50-65ns
+- Dict creation/update: ~100ns
+- Function call: ~35ns
+- f-string: ~20-30ns
+- `str.replace` no-op: ~15ns
+
+At ~3.85ms for 900 elements + 600 text nodes + ~860 render calls, the per-operation
+budget is ~2.5μs. Each operation is already near the CPython floor.
+
+### Only Viable with Non-Python Approaches
 - C extension for render_open_tag + element render_to_buf combo
 - Structural API redesign (lazy tree construction, template compilation)
