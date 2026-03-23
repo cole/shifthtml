@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "shifthtml",
+#     "jinja2",
+#     "minijinja",
+#     "tdom",
+# ]
+#
+# [tool.uv.sources]
+# shifthtml = { path = ".." }
+# ///
 """Benchmark comparing shifthtml, jinja2, minijinja, and tdom."""
 
 import argparse
