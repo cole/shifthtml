@@ -77,7 +77,9 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
         if value is True:
             attr_parts.append(key)
         elif isinstance(value, str):
-            attr_parts.append(f'{key}="{escape(value, quote=True)}"')
+            if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                value = escape(value, quote=True)
+            attr_parts.append(f'{key}="{value}"')
         elif isinstance(value, Template):
             rendered = "".join(render_string(value, quote=True))
             attr_parts.append(f'{key}="{rendered}"')

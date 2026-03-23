@@ -28,5 +28,28 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 - Keep changes simple and readable
 
 ## What's Been Tried
-- Baseline harness setup only; no optimizations yet.
-- Secondary metric changed to async render mean time to monitor sync/async tradeoffs.
+
+### Kept (cumulative ~1.6% improvement)
+- `render_open_tag` consolidation — single yield for opening tag
+- `render_to_buf` fast path — bypasses generators for sync `str()`
+- `__slots__` on all node classes — reduces memory and attribute access overhead
+- Inline attribute rendering in `render_open_tag` — skip generator for str attrs
+- Skip `append_child` validation in `NodeList.__init__` — factory nodes always fresh
+- Single-text-child element fast path — combine open+text+close into one `buf.append`
+
+### Discarded (no improvement or regression)
+- Fast-path escape (skip html.escape when no special chars) — marginal
+- Cache attribute name conversion — marginal
+- Reorder Node.factory dispatch — noise
+- Pre-compute close tags as ClassVar — regression
+- Share empty children list for Text/Comment — regression
+- Inline Element.__init__ (skip super) — regression
+- Single-attr fast path in render_open_tag — regression
+- NodeList flattening in Element.render_to_buf — regression
+- Optimize Element.__init__ attribute merging branches — regression
+- Stack-based iterative renderer — regression from isinstance/issubclass overhead
+
+### Key Insight
+The performance bottleneck is very flat — cost spread across many small operations
+(Element.__init__, isinstance, render_open_tag, html.escape, __rshift__, etc).
+No single hotspot dominates, making further optimization challenging.
