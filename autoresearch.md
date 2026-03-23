@@ -37,17 +37,22 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 - Skip `append_child` validation in `NodeList.__init__` — factory nodes always fresh
 - Single-text-child element fast path — combine open+text+close into one `buf.append`
 
-### Discarded (no improvement or regression)
+### Discarded (no improvement or regression, 42 experiments)
 - Fast-path escape (skip html.escape when no special chars) — marginal
-- Cache attribute name conversion — marginal
-- Reorder Node.factory dispatch — noise
-- Pre-compute close tags as ClassVar — regression
+- Cache attribute name conversion / fast-path for simple names — regression
+- Reorder Node.factory dispatch / type() identity checks — noise/regression
+- Pre-compute close tags as ClassVar or instance attr — regression (MRO/init overhead)
 - Share empty children list for Text/Comment — regression
-- Inline Element.__init__ (skip super) — regression
-- Single-attr fast path in render_open_tag — regression
-- NodeList flattening in Element.render_to_buf — regression
-- Optimize Element.__init__ attribute merging branches — regression
-- Stack-based iterative renderer — regression from isinstance/issubclass overhead
+- Inline Element.__init__ (skip super) / branch on attrs — consistently regresses
+- Single-attr fast path in render_open_tag — regression (next/iter overhead)
+- NodeList flattening in Element/Node.render_to_buf — regression (isinstance cost)
+- Stack-based iterative renderer — regression (isinstance/issubclass overhead)
+- Override render_to_buf on VoidElement — regression (MRO dispatch)
+- Remove ABCMeta from TreeNode — no improvement
+- Skip append_child validation in Fragment.append — noise
+- String concat vs list+join in render_open_tag — noise
+- Guard dict.update when no keyword attrs — noise
+- Inline _render_attrs / render_open_tag in render_to_buf — noise
 
 ### Key Insight
 The performance bottleneck is very flat — cost spread across many small operations
