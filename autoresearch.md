@@ -61,5 +61,5 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 - Adding branches to hot paths (Element.__init__) consistently regresses.
 - Inlining functions fails to beat CPython's call optimization.
 - `escape(text, quote=False)` on safe strings is as fast as a `_needs_escape` guard, since `str.replace()` on strings without the target is a no-op in CPython.
-- 73+ experiments across 5 sessions; total improvement: ~1.9% (3.925ms → 3.853ms).
+- 75+ experiments across 6 sessions; total improvement: ~1.9% (3.925ms → 3.853ms).
 - Further pure-Python optimization is at diminishing returns.
