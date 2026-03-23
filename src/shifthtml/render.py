@@ -67,11 +67,30 @@ def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
 
 
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
-    parts = [f"<{tag}"]
-    for attr in render_attributes(attributes):
-        parts.append(f" {attr}")
-    parts.append(" />" if void else ">")
-    return "".join(parts)
+    suffix = " />" if void else ">"
+    if not attributes:
+        return f"<{tag}{suffix}"
+    attr_parts: list[str] = []
+    for key, value in attributes.items():
+        if value is None or value is False:
+            continue
+        if value is True:
+            attr_parts.append(key)
+        elif isinstance(value, str):
+            attr_parts.append(f'{key}="{escape(value, quote=True)}"')
+        elif isinstance(value, Template):
+            rendered = "".join(render_string(value, quote=True))
+            attr_parts.append(f'{key}="{rendered}"')
+        elif isinstance(value, set | list | tuple):
+            rendered = " ".join(
+                "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
+            )
+            attr_parts.append(f'{key}="{rendered}"')
+        else:
+            attr_parts.append(f'{key}="{escape(str(value), quote=True)}"')
+    if not attr_parts:
+        return f"<{tag}{suffix}"
+    return f"<{tag} {' '.join(attr_parts)}{suffix}"
 
 
 def render_string_to_list(value: str | Template, buf: list[str], quote: bool = False) -> None:
