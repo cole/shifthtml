@@ -50,6 +50,24 @@ async def _arender_children(children: list[TreeNode], ctx: RenderContext | None 
                     yield chunk
         return
 
+    # Use parallel rendering only when siblings include async callables
+    if any(isinstance(child, Async | Lazy) for child in children):
+        async for chunk in _arender_children_parallel(children, ctx):
+            yield chunk
+        return
+
+    # Sequential rendering — avoids task group overhead for sync-only content
+    for child in children:
+        if ctx is not None:
+            async for chunk in ctx.arender_node(child):
+                yield chunk
+        else:
+            async for chunk in child.arender():
+                yield chunk
+
+
+async def _arender_children_parallel(children: list[TreeNode], ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    """Parallel variant for trees containing Async/Lazy sibling nodes."""
     results: list[list[str]] = [[] for _ in children]
     ready: list[anyio.Event] = [anyio.Event() for _ in children]
 
