@@ -29,13 +29,15 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 
 ## What's Been Tried
 
-### Kept (cumulative ~1.6% improvement)
+### Kept (cumulative ~1.6% sync improvement + async optimizations)
 - `render_open_tag` consolidation — single yield for opening tag
 - `render_to_buf` fast path — bypasses generators for sync `str()`
 - `__slots__` on all node classes — reduces memory and attribute access overhead
 - Inline attribute rendering in `render_open_tag` — skip generator for str attrs
 - Skip `append_child` validation in `NodeList.__init__` — factory nodes always fresh
 - Single-text-child element fast path — combine open+text+close into one `buf.append`
+- Sequential async rendering for sync-only siblings — skip anyio task group overhead
+- Leaf element fast path for async `arender` — mirrors sync `render_to_buf` optimization
 
 ### Discarded (no improvement or regression, 42 experiments)
 - Fast-path escape (skip html.escape when no special chars) — marginal
@@ -61,6 +63,7 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 - Adding branches to hot paths (Element.__init__) consistently regresses.
 - Inlining functions fails to beat CPython's call optimization.
 - `escape(text, quote=False)` on safe strings is as fast as a `_needs_escape` guard, since `str.replace()` on strings without the target is a no-op in CPython.
-- 78+ experiments across 7 sessions; total improvement: ~1.9% (3.925ms → 3.853ms).
+- 83+ experiments across 8 sessions; total sync improvement: ~1.9% (3.925ms → 3.853ms).
 - Text.render_to_buf is never called in the benchmark — leaf fast path handles all text inline.
-- Further pure-Python optimization is at diminishing returns.
+- Async path improved by skipping unnecessary anyio task groups for sync-only content.
+- Further sync optimization is at diminishing returns; async path still has room.

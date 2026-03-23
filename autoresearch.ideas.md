@@ -1,14 +1,16 @@
 # Autoresearch Ideas
 
-## Status: Ceiling Confirmed (78+ experiments, 7 sessions)
+## Status: Sync ceiling reached, async improvements found (83+ experiments, 8 sessions)
 
-Pure-Python optimization is exhausted. Key discovery from session 7:
-- `Text.render_to_buf` is called ZERO times in the benchmark — the leaf element 
-  fast path in `Element.render_to_buf` handles all text content inline
-- The repeated `from shifthtml import ...` inside `_shift_product_card` costs 
-  ~0.2ms/iter (~5% of total), but this is benchmark code we cannot change
-- Pre-sizing render buffers is slower than append due to CPython's amortized growth
+### Session 8 Breakthrough
+Skipping anyio task groups for sync-only sibling rendering in the async path.
+Direct measurement showed 43% async speedup (18.8ms → 10.7ms) for sync-only
+content. The benchmark measurement via `uv run` shows smaller gain due to
+process/import overhead dilution.
 
-The per-operation budget is ~2.5μs across ~1500 operations. Each operation is
-at the CPython C-level floor. No further gains are possible without C extensions
-or structural API changes.
+### Still Possible
+- Further async path optimizations (buffering strategy, fewer yield points)
+- Async leaf fast path could be extended to handle more patterns (e.g. Lazy nodes)
+
+### Exhausted (sync path)
+All pure-Python micro-optimizations for the sync render path are at the CPython floor.
