@@ -271,12 +271,12 @@ def bench_shifthtml(iterations: int, num_products: int) -> dict[str, Any]:
                     h1 >> f"{ctx['category']} Products",
                     nav >> nav_links,
                 ),
-                div(classname="filters")
+                div(class_="filters")
                 >> (
                     span >> f"Price: {ctx['filters']['price_range']}",
                     span >> f"Rating: {ctx['filters']['rating']}",
                 ),
-                div(classname="products") >> products_markup,
+                div(class_="products") >> products_markup,
                 footer >> f"© {ctx['year']} {ctx['site_name']}",
             ),
         )
@@ -340,12 +340,12 @@ def bench_shifthtml_async(iterations: int, num_products: int) -> dict[str, Any]:
                     h1 >> f"{ctx['category']} Products",
                     nav >> nav_links,
                 ),
-                div(classname="filters")
+                div(class_="filters")
                 >> (
                     span >> f"Price: {ctx['filters']['price_range']}",
                     span >> f"Rating: {ctx['filters']['rating']}",
                 ),
-                div(classname="products") >> products_markup,
+                div(class_="products") >> products_markup,
                 footer >> f"© {ctx['year']} {ctx['site_name']}",
             ),
         )
@@ -380,34 +380,34 @@ def _shift_product_card(p: dict[str, Any]) -> object:
 
     if p["on_sale"]:
         pricing = (
-            span(classname="original-price") >> f"${p['original_price']:.2f}",
-            span(classname="sale-price") >> f"${p['price']:.2f}",
+            span(class_="original-price") >> f"${p['original_price']:.2f}",
+            span(class_="sale-price") >> f"${p['price']:.2f}",
         )
     else:
-        pricing = (span(classname="price") >> f"${p['price']:.2f}",)
+        pricing = (span(class_="price") >> f"${p['price']:.2f}",)
 
     stock_cls = "stock" + (" out-of-stock" if p["stock"] == 0 else "")
     stock_text = f"{p['stock']} in stock" if p["stock"] > 0 else "Out of stock"
     stars = "★" * p["rating"] + "☆" * (5 - p["rating"])
-    tags = [span(classname="tag") >> tag for tag in p["tags"]]
+    tags = [span(class_="tag") >> tag for tag in p["tags"]]
     crumbs = " \u00bb ".join(p["category_path"])
 
-    return div(classname=classes) >> (
-        div(classname="product-header")
+    return div(class_=classes) >> (
+        div(class_="product-header")
         >> (
             h2 >> p["name"],
-            span(classname="sku") >> p["sku"],
+            span(class_="sku") >> p["sku"],
         ),
-        p_tag(classname="description") >> p["description"],
-        div(classname="pricing") >> pricing,
-        div(classname="meta")
+        p_tag(class_="description") >> p["description"],
+        div(class_="pricing") >> pricing,
+        div(class_="meta")
         >> (
-            span(classname=stock_cls) >> stock_text,
-            span(classname="rating") >> stars,
-            span(classname="reviews") >> f"({p['reviews']} reviews)",
+            span(class_=stock_cls) >> stock_text,
+            span(class_="rating") >> stars,
+            span(class_="reviews") >> f"({p['reviews']} reviews)",
         ),
-        div(classname="tags") >> tags,
-        nav(classname="breadcrumb") >> (span >> crumbs),
+        div(class_="tags") >> tags,
+        nav(class_="breadcrumb") >> (span >> crumbs),
     )
 
 

@@ -36,7 +36,7 @@ def test_render_h1_template():
 
 
 def test_render_h1_attributes():
-    tag = shift(h1({"style": "color: red;"}, id="hello", classname="bighead") >> "Hello, World!")
+    tag = shift(h1({"style": "color: red;"}, id="hello", class_="bighead") >> "Hello, World!")
 
     assert str(tag) == '<h1 style="color: red;" id="hello" class="bighead">Hello, World!</h1>'
 
@@ -133,7 +133,7 @@ def test_render_multiple_vars():
         >> (
             tag1,
             aside >> tag2,
-            div(classname="test") >> tag2,
+            div(class_="test") >> tag2,
         )
     )
 
@@ -144,22 +144,22 @@ def test_render_multiple_vars():
     )
 
 
-def test_render_h1_classname_list():
-    tag = shift(h1(classname=["bighead", "heading", "page1"]) >> "Hello, World!")
+def test_render_h1_class_list():
+    tag = shift(h1(class_=["bighead", "heading", "page1"]) >> "Hello, World!")
 
     assert str(tag) == '<h1 class="bighead heading page1">Hello, World!</h1>'
 
 
-def test_render_h1_classname_set():
-    tag = shift(h1(classname={"bighead", "heading", "page1"}) >> "Hello, World!")
+def test_render_h1_class_set():
+    tag = shift(h1(class_={"bighead", "heading", "page1"}) >> "Hello, World!")
 
     assert "bighead" in str(tag)
     assert "heading" in str(tag)
     assert "page1" in str(tag)
 
 
-def test_render_h1_classname_tuple():
-    tag = shift(h1(classname=("bighead", "heading", "page1")) >> "Hello, World!")
+def test_render_h1_class_tuple():
+    tag = shift(h1(class_=("bighead", "heading", "page1")) >> "Hello, World!")
 
     assert str(tag) == '<h1 class="bighead heading page1">Hello, World!</h1>'
 

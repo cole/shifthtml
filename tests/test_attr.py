@@ -5,7 +5,7 @@ from shifthtml import div, h1, shift
 
 
 def test_element_attributes_are_plain_dict():
-    tag = div(id="main", classname="container")
+    tag = div(id="main", class_="container")
     fragment = shift(tag)
     el = root(fragment)
     assert el.attributes["id"] == "main"
@@ -39,7 +39,7 @@ def test_contains():
 
 
 def test_delitem():
-    el = div(id="test", classname="box")
+    el = div(id="test", class_="box")
     fragment = shift(el)
     r = root(fragment)
     del r["id"]
@@ -48,7 +48,7 @@ def test_delitem():
 
 
 def test_attributes_render_correctly():
-    tag = shift(h1(id="hello", classname="bighead") >> "Hello")
+    tag = shift(h1(id="hello", class_="bighead") >> "Hello")
     assert str(tag) == '<h1 id="hello" class="bighead">Hello</h1>'
 
 

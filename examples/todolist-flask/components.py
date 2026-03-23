@@ -27,7 +27,7 @@ def add_todo_form():
     text_input = input_(type="text", name="title", placeholder="Add a new todo...", required=True, autocomplete="off")
     submit = button(type="submit") >> "Add"
 
-    return form(classname="add-todo", hx_post="/todos", hx_target="#todo-list", hx_swap="innerHTML") >> (
+    return form(class_="add-todo", hx_post="/todos", hx_target="#todo-list", hx_swap="innerHTML") >> (
         text_input,
         submit,
     )
@@ -35,16 +35,16 @@ def add_todo_form():
 
 def todo_list(todos):
     if not todos:
-        return div(classname="todo-list empty") >> "No todos yet. Add one above!"
+        return div(class_="todo-list empty") >> "No todos yet. Add one above!"
 
-    return div(id="todo-list", classname="todo-list") >> (todo_item(todo) for todo in todos)
+    return div(id="todo-list", class_="todo-list") >> (todo_item(todo) for todo in todos)
 
 
 def todo_item(todo):
     todo_id = todo["id"]
     is_completed = todo["completed"]
 
-    label_classes = {"todo-label", "completed"} if is_completed else {"todo-label"}
+    label_classes = "todo-label completed" if is_completed else "todo-label"
 
     checkbox_attrs = {
         "type": "checkbox",
@@ -57,7 +57,7 @@ def todo_item(todo):
         checkbox_attrs["checked"] = "checked"
 
     checkbox = input_(checkbox_attrs)
-    label_text = span(classname=label_classes) >> todo["title"]
+    label_text = span(class_=label_classes) >> todo["title"]
     delete_btn = (
         button(
             hx_delete=f"/todos/{todo_id}",
@@ -67,4 +67,4 @@ def todo_item(todo):
         >> "Delete"
     )
 
-    return div(id=f"todo-{todo_id}", classname="todo-item") >> (checkbox, label_text, delete_btn)
+    return div(id=f"todo-{todo_id}", class_="todo-item") >> (checkbox, label_text, delete_btn)

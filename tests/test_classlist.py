@@ -11,21 +11,21 @@ def test_classlist_add():
 
 
 def test_classlist_add_no_duplicates():
-    el = div(classname="foo")
+    el = div(class_="foo")
     f = shift(el)
     root(f).class_list.add("foo", "bar")
     assert str(f) == '<div class="foo bar"></div>'
 
 
 def test_classlist_remove():
-    el = div(classname="foo bar baz")
+    el = div(class_="foo bar baz")
     f = shift(el)
     root(f).class_list.remove("bar")
     assert str(f) == '<div class="foo baz"></div>'
 
 
 def test_classlist_remove_multiple():
-    el = div(classname="foo bar baz")
+    el = div(class_="foo bar baz")
     f = shift(el)
     root(f).class_list.remove("foo", "baz")
     assert str(f) == '<div class="bar"></div>'
@@ -40,7 +40,7 @@ def test_classlist_toggle_on():
 
 
 def test_classlist_toggle_off():
-    el = div(classname="active")
+    el = div(class_="active")
     f = shift(el)
     result = root(f).class_list.toggle("active")
     assert result is False
@@ -48,7 +48,7 @@ def test_classlist_toggle_off():
 
 
 def test_classlist_toggle_force_true():
-    el = div(classname="active")
+    el = div(class_="active")
     f = shift(el)
     result = root(f).class_list.toggle("active", True)
     assert result is True
@@ -64,14 +64,14 @@ def test_classlist_toggle_force_false():
 
 
 def test_classlist_contains():
-    el = div(classname="foo bar")
+    el = div(class_="foo bar")
     f = shift(el)
     assert "foo" in root(f).class_list
     assert "baz" not in root(f).class_list
 
 
 def test_classlist_replace():
-    el = div(classname="old-class other")
+    el = div(class_="old-class other")
     f = shift(el)
     result = root(f).class_list.replace("old-class", "new-class")
     assert result is True
@@ -79,39 +79,39 @@ def test_classlist_replace():
 
 
 def test_classlist_replace_missing():
-    el = div(classname="other")
+    el = div(class_="other")
     f = shift(el)
     result = root(f).class_list.replace("missing", "new")
     assert result is False
 
 
 def test_classlist_len():
-    el = div(classname="a b c")
+    el = div(class_="a b c")
     f = shift(el)
     assert len(root(f).class_list) == 3
 
 
 def test_classlist_str():
-    el = div(classname="a b c")
+    el = div(class_="a b c")
     f = shift(el)
     assert str(root(f).class_list) == "a b c"
 
 
 def test_classlist_iteration():
-    el = div(classname="a b c")
+    el = div(class_="a b c")
     f = shift(el)
     assert list(root(f).class_list) == ["a", "b", "c"]
 
 
 def test_classlist_in_operator():
-    el = div(classname="foo bar")
+    el = div(class_="foo bar")
     f = shift(el)
     assert "foo" in root(f).class_list
     assert "baz" not in root(f).class_list
 
 
 def test_classlist_from_list_attribute():
-    el = div(classname=["foo", "bar", "baz"])
+    el = div(class_=["foo", "bar", "baz"])
     f = shift(el)
     root(f).class_list.remove("bar")
     assert str(f) == '<div class="foo baz"></div>'

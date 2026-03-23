@@ -67,3 +67,43 @@ def test_lazy_node_renders_callable_result():
 def test_lazy_node_none_renders_empty():
     node = Lazy(lambda: None)
     assert "".join(node.render()) == ""
+
+
+def test_callable_returning_tuple():
+    def multi():
+        return (p >> "one", p >> "two")
+
+    tag = shift(div >> multi)
+    assert str(tag) == "<div><p>one</p><p>two</p></div>"
+
+
+def test_callable_returning_list():
+    def multi():
+        return [p >> "a", p >> "b", p >> "c"]
+
+    tag = shift(div >> multi)
+    assert str(tag) == "<div><p>a</p><p>b</p><p>c</p></div>"
+
+
+def test_callable_returning_nested_tuple():
+    def multi():
+        return (p >> "x", (p >> "y", p >> "z"))
+
+    tag = shift(div >> multi)
+    assert str(tag) == "<div><p>x</p><p>y</p><p>z</p></div>"
+
+
+def test_callable_returning_tuple_with_strings():
+    def multi():
+        return ("hello ", "world")
+
+    tag = shift(div >> multi)
+    assert str(tag) == "<div>hello world</div>"
+
+
+def test_callable_returning_empty_tuple():
+    def multi():
+        return ()
+
+    tag = shift(div >> multi)
+    assert str(tag) == "<div></div>"

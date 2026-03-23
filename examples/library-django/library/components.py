@@ -50,65 +50,65 @@ def page_head(page_title):
 
 def topbar(active=""):
     links = [("books", "/books/", "Books"), ("authors", "/authors/", "Authors")]
-    items = [li >> (a(href=url, classname="active" if key == active else "") >> lbl) for key, url, lbl in links]
-    brand = a(href="/", classname="topbar-brand") >> "Library"
+    items = [li >> (a(href=url, class_="active" if key == active else "") >> lbl) for key, url, lbl in links]
+    brand = a(href="/", class_="topbar-brand") >> "Library"
 
-    return header(classname="topbar") >> (div(classname="topbar-inner") >> (brand, nav >> (ul >> items)),)
+    return header(class_="topbar") >> (div(class_="topbar-inner") >> (brand, nav >> (ul >> items)),)
 
 
 def alert(message):
-    return div(classname="alert") >> message
+    return div(class_="alert") >> message
 
 
 # ---- Shared helpers ----
 
 
 def page_header(heading, create_url, create_label):
-    return div(classname="page-header") >> (
+    return div(class_="page-header") >> (
         h1 >> heading,
-        a(href=create_url, classname="btn btn-primary") >> f"+ {create_label}",
+        a(href=create_url, class_="btn btn-primary") >> f"+ {create_label}",
     )
 
 
 def page_header_detail(heading, edit_url, delete_url):
-    actions = div(classname="header-actions") >> (
-        a(href=edit_url, classname="btn btn-primary") >> "Edit",
-        a(href=delete_url, classname="btn btn-danger") >> "Delete",
+    actions = div(class_="header-actions") >> (
+        a(href=edit_url, class_="btn btn-primary") >> "Edit",
+        a(href=delete_url, class_="btn btn-danger") >> "Delete",
     )
-    return div(classname="page-header") >> (h1 >> heading, actions)
+    return div(class_="page-header") >> (h1 >> heading, actions)
 
 
 def search_form(action, value=""):
-    return form(action=action, method="GET", classname="search-form") >> (
+    return form(action=action, method="GET", class_="search-form") >> (
         input_(type="search", name="q", placeholder="Search…", value=value),
         button(type="submit") >> "Search",
     )
 
 
 def detail_grid(fields):
-    return div(classname="detail-grid") >> [
-        div(classname="detail-field")
+    return div(class_="detail-grid") >> [
+        div(class_="detail-field")
         >> (
-            div(classname="detail-label") >> lbl,
-            div(classname="detail-value") >> val,
+            div(class_="detail-label") >> lbl,
+            div(class_="detail-value") >> val,
         )
         for lbl, val in fields
     ]
 
 
 def field(label_text, input_el):
-    return div(classname="form-group") >> (
+    return div(class_="form-group") >> (
         label >> label_text,
         input_el,
     )
 
 
 def form_actions(cancel_url):
-    return div(classname="form-actions") >> (
-        a(href=cancel_url, classname="btn") >> "Cancel",
-        button(type="submit", classname="btn btn-primary") >> "Save",
+    return div(class_="form-actions") >> (
+        a(href=cancel_url, class_="btn") >> "Cancel",
+        button(type="submit", class_="btn btn-primary") >> "Save",
     )
 
 
 def empty(text):
-    return div(classname="empty-state") >> text
+    return div(class_="empty-state") >> text

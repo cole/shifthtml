@@ -59,7 +59,7 @@ def _flatten_into(parent: TreeNode, items: Iterable) -> None:
 
 
 def _convert_attribute_names(name: str) -> str:
-    if name == "classname":
+    if name == "class_":
         return "class"
     return _snake_to_kebab(name)
 
@@ -577,6 +577,46 @@ class Deferred(Node):
         yield  # pragma: no cover
 
 
+def _render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
+    """Render the return value of a Lazy/Async callable."""
+    if result is None:
+        return
+    if isinstance(result, str | Template):
+        yield from render_string(result)
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            yield from _render_result(item, ctx)
+        return
+    node = Node.factory(result)
+    if ctx is not None:
+        yield from ctx.render_node(node)
+    else:
+        yield from node.render()
+
+
+async def _arender_result(result: object, ctx: RenderContext | None) -> AsyncGenerator[str]:
+    """Async render the return value of a Lazy/Async callable."""
+    if result is None:
+        return
+    if isinstance(result, str | Template):
+        async for chunk in arender_string(result):
+            yield chunk
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            async for chunk in _arender_result(item, ctx):
+                yield chunk
+        return
+    node = Node.factory(result)
+    if ctx is not None:
+        async for chunk in ctx.arender_node(node):
+            yield chunk
+    else:
+        async for chunk in node.arender():
+            yield chunk
+
+
 class Lazy(Node):
     """Wraps a sync callable, resolved during rendering."""
 
@@ -595,33 +635,11 @@ class Lazy(Node):
         return type(self)(self.fn)
 
     def render(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        result = self.fn()
-        if result is None:
-            return
-        if isinstance(result, str | Template):
-            yield from render_string(result)
-            return
-        node = Node.factory(result)
-        if ctx is not None:
-            yield from ctx.render_node(node)
-        else:
-            yield from node.render()
+        yield from _render_result(self.fn(), ctx)
 
     async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        result = self.fn()
-        if result is None:
-            return
-        if isinstance(result, str | Template):
-            async for chunk in arender_string(result):
-                yield chunk
-            return
-        node = Node.factory(result)
-        if ctx is not None:
-            async for chunk in ctx.arender_node(node):
-                yield chunk
-        else:
-            async for chunk in node.arender():
-                yield chunk
+        async for chunk in _arender_result(self.fn(), ctx):
+            yield chunk
 
 
 class Async(Node):
@@ -645,15 +663,5 @@ class Async(Node):
         raise TypeError("Async nodes require async rendering")
 
     async def arender(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        result = await self.fn()
-        if isinstance(result, str | Template):
-            async for chunk in arender_string(result):
-                yield chunk
-            return
-        node = Node.factory(result)
-        if ctx is not None:
-            async for chunk in ctx.arender_node(node):
-                yield chunk
-        else:
-            async for chunk in node.arender():
-                yield chunk
+        async for chunk in _arender_result(await self.fn(), ctx):
+            yield chunk

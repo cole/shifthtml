@@ -1,0 +1,19 @@
+[project]
+name = "chat-datastar"
+version = "0.0.0"
+requires-python = ">=3.14"
+dependencies = [
+    "shifthtml",
+    "datastar-py",
+    "pytest>=8.3",
+    "pytest-asyncio>=1.0.0",
+    "syrupy>=4",
+    "freezegun>=1.2",
+]
+
+[tool.uv.sources]
+shifthtml = { path = "../.." }
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+asyncio_default_fixture_loop_scope = "function"

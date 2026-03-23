@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Example lockfiles (generated per-machine)
+examples/*/uv.lock
+
 TODO
 PLAN*.md
 

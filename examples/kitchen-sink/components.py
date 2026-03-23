@@ -147,7 +147,7 @@ def page_head():
 
 
 def banner(now: datetime, request_count: int):
-    return div(classname="banner") >> (
+    return div(class_="banner") >> (
         h1 >> "ShiftHTML Kitchen Sink",
         p >> f"Rendered server-side at {now:%Y-%m-%d %H:%M:%S UTC} · Request #{request_count}",
         p >> (button(id="theme-toggle") >> "Dark Mode",),
@@ -243,17 +243,17 @@ def dynamic_stats_section(now: datetime, request_count: int):
     ]
 
     stat_cards = [
-        div(classname="stat-card")
+        div(class_="stat-card")
         >> (
-            div(classname="value") >> value,
-            div(classname="label") >> lbl,
+            div(class_="value") >> value,
+            div(class_="label") >> lbl,
         )
         for lbl, value in cards
     ]
 
     return section >> (
         h2 >> "Dynamic Server Stats",
-        div(classname="stats-grid") >> stat_cards,
+        div(class_="stats-grid") >> stat_cards,
     )
 
 
@@ -262,10 +262,10 @@ def lazy_fortune_section():
 
     def pick_fortune():
         quote, author = random.choice(FORTUNES)
-        return div(classname="fortune-box") >> (
+        return div(class_="fortune-box") >> (
             p >> (mark >> "Lazy node", " \u2014 evaluated at render time"),
             p >> (em >> f"\u201c{quote}\u201d"),
-            div(classname="attribution") >> f"\u2014 {author}",
+            div(class_="attribution") >> f"\u2014 {author}",
         )
 
     return section >> (
@@ -297,7 +297,7 @@ def deferred_section():
         h2 >> "Deferred Content",
         defer(
             "slow-section",
-            div(classname="deferred-box") >> slow_content,
+            div(class_="deferred-box") >> slow_content,
             loading="Loading deferred content\u2026",
         ),
     )

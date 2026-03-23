@@ -50,7 +50,7 @@ def page():
 
     page_body = body >> (
         script(src="/static/slot-filler.js"),
-        header(classname="page-header") >> h1 >> "Defer Stream Demo",
+        header(class_="page-header") >> h1 >> "Defer Stream Demo",
         div(id="content")
         >> defer(
             "body-content",
@@ -63,23 +63,23 @@ def page():
 
 
 def columns():
-    col1 = div(classname="col") >> defer(
+    col1 = div(class_="col") >> defer(
         "col-1",
         div >> col1_content,
         loading="Loading column 1...",
     )
-    col2 = div(classname="col") >> defer(
+    col2 = div(class_="col") >> defer(
         "col-2",
         div >> col2_content,
         loading="Loading column 2...",
     )
-    col3 = div(classname="col list-col") >> defer(
+    col3 = div(class_="col list-col") >> defer(
         "col-3",
         div >> col3_content,
         loading="Loading list...",
     )
 
-    return section(classname="columns") >> (col1, col2, col3)
+    return section(class_="columns") >> (col1, col2, col3)
 
 
 def col1_content():

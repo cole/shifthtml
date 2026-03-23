@@ -1,0 +1,13 @@
+[project]
+name = "library-django"
+version = "0.0.0"
+requires-python = ">=3.14"
+dependencies = ["shifthtml", "django>=5.0", "pytest>=8.3", "pytest-django>=4.0", "syrupy>=4"]
+
+[tool.uv.sources]
+shifthtml = { path = "../.." }
+
+[tool.pytest.ini_options]
+testpaths = ["."]
+pythonpath = ["."]
+DJANGO_SETTINGS_MODULE = "test_settings"

@@ -1,0 +1,11 @@
+[project]
+name = "defer-stream"
+version = "0.0.0"
+requires-python = ">=3.14"
+dependencies = ["shifthtml", "pytest>=8.3", "syrupy>=4"]
+
+[tool.uv.sources]
+shifthtml = { path = "../.." }
+
+[tool.pytest.ini_options]
+testpaths = ["."]

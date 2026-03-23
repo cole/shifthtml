@@ -29,7 +29,7 @@ def test_clone_node_no_parent():
 
 
 def test_clone_node_independent():
-    f = shift(div(classname="original"))
+    f = shift(div(class_="original"))
     clone = root(f).clone_node()
     assert isinstance(clone, Element)
     clone["class"] = "clone"
@@ -38,7 +38,7 @@ def test_clone_node_independent():
 
 
 def test_clone_node_template_reuse():
-    template = li(classname="item")
+    template = li(class_="item")
     items = [shift(template.clone_node() >> f"Item {i}") for i in range(3)]
     result = "".join(str(item) for item in items)
     assert result == '<li class="item">Item 0</li><li class="item">Item 1</li><li class="item">Item 2</li>'

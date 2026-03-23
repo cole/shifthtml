@@ -18,18 +18,18 @@ class Message:
 def message_list(msgs: list[Message]) -> div:
     children: list = [message_bubble(m) for m in msgs]
     if not children:
-        children = [div(classname="empty-state") >> "No messages yet. Say hello!"]
-    return div(id="messages", classname="messages") >> children
+        children = [div(class_="empty-state") >> "No messages yet. Say hello!"]
+    return div(id="messages", class_="messages") >> children
 
 
 def message_bubble(msg: Message) -> div:
-    msg_header = div(classname="message-header") >> (
-        span(classname="message-username") >> msg.username,
-        span(classname="message-time") >> msg.timestamp.strftime("%H:%M:%S"),
+    msg_header = div(class_="message-header") >> (
+        span(class_="message-username") >> msg.username,
+        span(class_="message-time") >> msg.timestamp.strftime("%H:%M:%S"),
     )
-    msg_text = div(classname="message-text") >> msg.text
+    msg_text = div(class_="message-text") >> msg.text
 
-    return div(classname="message") >> (msg_header, msg_text)
+    return div(class_="message") >> (msg_header, msg_text)
 
 
 def chat_input() -> form:
@@ -37,11 +37,11 @@ def chat_input() -> form:
         dict(data.bind("messageInput")),
         type="text",
         placeholder="Type a message...",
-        classname="message-input",
+        class_="message-input",
     )
-    send_button = button(type="submit", classname="send-button") >> "Send"
+    send_button = button(type="submit", class_="send-button") >> "Send"
 
     return form(
         dict(data.on("submit", "@post('/send')").prevent),
-        classname="chat-input",
+        class_="chat-input",
     ) >> (text_input, send_button)

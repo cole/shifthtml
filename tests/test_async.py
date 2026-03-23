@@ -142,3 +142,19 @@ async def test_sync_render_unaffected():
     page = div >> (p >> "hello", span >> "world")
     result = str(shift(page))
     assert result == "<div><p>hello</p><span>world</span></div>"
+
+
+async def test_async_callable_returning_tuple():
+    async def multi():
+        return (p >> "one", p >> "two")
+
+    result = await arender(div >> multi)
+    assert result == "<div><p>one</p><p>two</p></div>"
+
+
+async def test_async_callable_returning_list():
+    async def multi():
+        return [span >> "a", span >> "b"]
+
+    result = await arender(div >> multi)
+    assert result == "<div><span>a</span><span>b</span></div>"

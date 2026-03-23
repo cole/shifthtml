@@ -41,20 +41,20 @@ def author_list_page(authors, *, search="", message=""):
         >> (
             td >> (a(href=f"/authors/{au.id}/") >> au.name),
             td >> (str(au.born) if au.born else "—"),
-            td >> (span(classname="badge") >> str(au.book_count)),
-            td(classname="row-actions")
+            td >> (span(class_="badge") >> str(au.book_count)),
+            td(class_="row-actions")
             >> (
-                a(href=f"/authors/{au.id}/edit/", classname="btn btn-sm") >> "Edit",
-                a(href=f"/authors/{au.id}/delete/", classname="btn btn-sm btn-danger") >> "Delete",
+                a(href=f"/authors/{au.id}/edit/", class_="btn btn-sm") >> "Edit",
+                a(href=f"/authors/{au.id}/delete/", class_="btn btn-sm btn-danger") >> "Delete",
             ),
         )
         for au in authors
     ]
 
     head_row = tr >> (th >> "Name", th >> "Born", th >> "Books", th >> "")
-    data_table = table(classname="data-table") >> (thead >> head_row, tbody >> rows)
+    data_table = table(class_="data-table") >> (thead >> head_row, tbody >> rows)
 
-    content = div(classname="card") >> [
+    content = div(class_="card") >> [
         page_header("Authors", "/authors/new/", "Add Author"),
         search_form("/authors/", search),
         *([data_table] if rows else [empty("No authors found." if search else "No authors yet.")]),
@@ -81,15 +81,15 @@ def author_detail_page(author, books):
         ]
     )
 
-    author_card = div(classname="card") >> (
+    author_card = div(class_="card") >> (
         page_header_detail(author.name, f"/authors/{author.id}/edit/", f"/authors/{author.id}/delete/"),
         info,
     )
 
     head_row = tr >> (th >> "Title", th >> "Published", th >> "Genre")
-    book_table = table(classname="data-table") >> (thead >> head_row, tbody >> book_rows)
+    book_table = table(class_="data-table") >> (thead >> head_row, tbody >> book_rows)
 
-    books_card = section(classname="card") >> [
+    books_card = section(class_="card") >> [
         h2 >> f"Books ({len(book_rows)})",
         *([book_table] if book_rows else [empty("No books by this author.")]),
     ]
@@ -116,7 +116,7 @@ def author_form_page(author=None):
         textarea(name="bio", rows="4") >> (author.bio if editing else ""),
     )
 
-    content = div(classname="card") >> (
+    content = div(class_="card") >> (
         h1 >> page_title,
         form(action=action, method="POST") >> (name_field, born_field, bio_field, form_actions("/authors/")),
     )
@@ -135,19 +135,19 @@ def book_list_page(books, *, search="", message=""):
             td >> (a(href=f"/authors/{b.author_id}/") >> b.author.name),
             td >> (str(b.published) if b.published else "—"),
             td >> (b.genre or "—"),
-            td(classname="row-actions")
+            td(class_="row-actions")
             >> (
-                a(href=f"/books/{b.id}/edit/", classname="btn btn-sm") >> "Edit",
-                a(href=f"/books/{b.id}/delete/", classname="btn btn-sm btn-danger") >> "Delete",
+                a(href=f"/books/{b.id}/edit/", class_="btn btn-sm") >> "Edit",
+                a(href=f"/books/{b.id}/delete/", class_="btn btn-sm btn-danger") >> "Delete",
             ),
         )
         for b in books
     ]
 
     head_row = tr >> (th >> "Title", th >> "Author", th >> "Published", th >> "Genre", th >> "")
-    data_table = table(classname="data-table") >> (thead >> head_row, tbody >> rows)
+    data_table = table(class_="data-table") >> (thead >> head_row, tbody >> rows)
 
-    content = div(classname="card") >> [
+    content = div(class_="card") >> [
         page_header("Books", "/books/new/", "Add Book"),
         search_form("/books/", search),
         *([data_table] if rows else [empty("No books found." if search else "No books yet.")]),
@@ -167,7 +167,7 @@ def book_detail_page(book):
         ]
     )
 
-    content = div(classname="card") >> (
+    content = div(class_="card") >> (
         page_header_detail(book.title, f"/books/{book.id}/edit/", f"/books/{book.id}/delete/"),
         info,
     )
@@ -204,7 +204,7 @@ def book_form_page(authors, book=None):
     isbn_field = field("ISBN", input_(type="text", name="isbn", value=book.isbn if editing else "", maxlength="13"))
     summary_field = field("Summary", textarea(name="summary", rows="4") >> (book.summary if editing else ""))
 
-    content = div(classname="card") >> (
+    content = div(class_="card") >> (
         h1 >> page_title,
         form(action=action, method="POST")
         >> (
@@ -230,12 +230,12 @@ def delete_page(model_name, obj_name, action, cancel_url):
         strong >> obj_name,
         "? This cannot be undone.",
     )
-    actions = div(classname="form-actions") >> (
-        a(href=cancel_url, classname="btn") >> "Cancel",
-        button(type="submit", classname="btn btn-danger") >> f"Delete {model_name}",
+    actions = div(class_="form-actions") >> (
+        a(href=cancel_url, class_="btn") >> "Cancel",
+        button(type="submit", class_="btn btn-danger") >> f"Delete {model_name}",
     )
 
-    content = div(classname="card delete-confirm") >> (
+    content = div(class_="card delete-confirm") >> (
         h1 >> f"Delete {model_name}",
         confirmation,
         form(action=action, method="POST") >> actions,
