@@ -1,0 +1,1 @@
+{"type":"config","name":"Optimize shifthtml sync render benchmark","metricName":"sync_mean_ms","metricUnit":"ms","bestDirection":"lower"}
