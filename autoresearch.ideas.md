@@ -1,34 +1,14 @@
 # Autoresearch Ideas
 
-## Status: Ceiling Reached (75+ experiments, 6 sessions)
+## Status: Ceiling Confirmed (78+ experiments, 7 sessions)
 
-Pure-Python optimization is thoroughly exhausted. All approaches below have been
-benchmarked and show no measurable improvement over the current ~3.85ms baseline.
+Pure-Python optimization is exhausted. Key discovery from session 7:
+- `Text.render_to_buf` is called ZERO times in the benchmark — the leaf element 
+  fast path in `Element.render_to_buf` handles all text content inline
+- The repeated `from shifthtml import ...` inside `_shift_product_card` costs 
+  ~0.2ms/iter (~5% of total), but this is benchmark code we cannot change
+- Pre-sizing render buffers is slower than append due to CPython's amortized growth
 
-### Definitively Exhausted Angles
-- Micro-optimizing render paths (render_open_tag, render_to_buf)
-- Reducing isinstance overhead (type() is, hasattr, duck typing)
-- Adding branches/fast-paths to Element.__init__
-- Caching close tags (ClassVar, instance attr, module dict)
-- Inlining functions (_convert_attribute_names, _render_attrs, render_open_tag)
-- Reducing object count (NodeList flattening at construction or render time)
-- Stack-based iterative renderer
-- Pre-escaping text content at construction
-- Marker slots on Text for faster leaf detection
-- Method overrides on subclasses (MRO dispatch overhead)
-- Removing ABCMeta from TreeNode
-
-### Underlying Reason
-CPython 3.14 is highly optimized for the patterns shifthtml uses:
-- `isinstance` on concrete types: ~50-65ns
-- Dict creation/update: ~100ns
-- Function call: ~35ns
-- f-string: ~20-30ns
-- `str.replace` no-op: ~15ns
-
-At ~3.85ms for 900 elements + 600 text nodes + ~860 render calls, the per-operation
-budget is ~2.5μs. Each operation is already near the CPython floor.
-
-### Only Viable with Non-Python Approaches
-- C extension for render_open_tag + element render_to_buf combo
-- Structural API redesign (lazy tree construction, template compilation)
+The per-operation budget is ~2.5μs across ~1500 operations. Each operation is
+at the CPython C-level floor. No further gains are possible without C extensions
+or structural API changes.
