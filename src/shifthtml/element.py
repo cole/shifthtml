@@ -45,9 +45,13 @@ def _flatten_into(parent: TreeNode, items: Iterable) -> None:
             children.append(item)
         elif isinstance(item, Fragment):
             root = item.root
+            if root.parent_node is not None:
+                root = root.clone_node(deep=True)
             root.parent_node = parent
             children.append(root)
         elif isinstance(item, Node):
+            if item.parent_node is not None:
+                item = item.clone_node(deep=True)
             item.parent_node = parent
             children.append(item)
         elif isinstance(item, Iterable):
@@ -161,32 +165,30 @@ class Fragment:
         if other is None:
             return None
 
-        new_fragment = copy.deepcopy(self)
-
         if isinstance(other, str | Template):
-            new_fragment.append_pointer.children.append(other)
-            return new_fragment
+            self.append_pointer.children.append(other)
+            return self
 
         if isinstance(other, tuple | list):
-            _flatten_into(new_fragment.append_pointer, other)
-            return new_fragment
+            _flatten_into(self.append_pointer, other)
+            return self
 
         if isinstance(other, Fragment):
-            new_fragment.append(copy.deepcopy(other))
-            return new_fragment
+            self.append(other)  # Fragment.append already clones via _copy_tree
+            return self
 
         if isinstance(other, Node):
-            new_fragment.append(other)
-            return new_fragment
+            self.append(other)
+            return self
 
         if isinstance(other, Iterable):
-            _flatten_into(new_fragment.append_pointer, other)
-            return new_fragment
+            _flatten_into(self.append_pointer, other)
+            return self
 
         node = Node.factory(other)
-        new_fragment.append(node)
+        self.append(node)
 
-        return new_fragment
+        return self
 
     def append(self, node: TreeNode | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
@@ -302,7 +304,10 @@ class Node(TreeNode):
         if isinstance(contents, Node):
             return contents
         if isinstance(contents, Fragment):
-            return contents.root  # type: ignore[return-value]
+            root = contents.root
+            if root.parent_node is not None:
+                return root.clone_node(deep=True)  # type: ignore[return-value]
+            return root  # type: ignore[return-value]
         if callable(contents):
             if inspect.iscoroutinefunction(contents):
                 return Async(contents)

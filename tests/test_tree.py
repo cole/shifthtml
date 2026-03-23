@@ -149,10 +149,9 @@ def test_fragment_append_fragment():
     assert "".join(tree1.render()) == "Node(1, children=[Node(2, children=[Node(3, children=[Node(4, children=[])])])])"
 
 
-def test_fragment_rshift_does_not_mutate_original():
+def test_fragment_rshift_mutates_in_place():
     d = div()
     f = Fragment(d, d)
-    original_html = "".join(f.render())
     f2 = f >> "text"
-    assert "".join(f.render()) == original_html
-    assert "text" in "".join(f2.render())
+    assert f2 is f
+    assert "text" in str(f)
