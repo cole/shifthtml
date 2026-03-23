@@ -64,7 +64,12 @@ class TreeNode(metaclass=ABCMeta):
 
     def append_child(self, child: TreeNode) -> None:
         """Add a child node to this node."""
-        self._validate_new_child(child)
+        if child is self:
+            raise ValueError("Can't make a node a child of itself")
+        if not isinstance(child, TreeNode):
+            raise ValueError(f"TreeNode can only contain other nodes. Unexpected type {child.__class__.__name__!r}")
+        if child.parent_node is not None:
+            raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
         child.parent_node = self
         self.children.append(child)
 

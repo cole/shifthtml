@@ -246,11 +246,15 @@ class Node(TreeNode):
 
     @classmethod
     def factory(cls, contents: NodeContent) -> Node:
+        if isinstance(contents, str):
+            return Text(contents)
+        if isinstance(contents, tuple | list):
+            return NodeList(contents)  # type: ignore[arg-type]  # narrowed by isinstance above
         if isinstance(contents, Node):
             return contents
         if isinstance(contents, Fragment):
             return NodeList([contents])
-        if isinstance(contents, str | Template):
+        if isinstance(contents, Template):
             return Text(contents)
         if isinstance(contents, type) and issubclass(contents, TreeNode):
             return contents()  # type: ignore[return-value]  # tag classes always produce Node subclasses
@@ -321,16 +325,14 @@ class NodeList(Node, Sequence[TreeNode]):
 
     def __init__(self, contents: NodeListContent, /):
         super().__init__()
-
+        children = self.children
         for item in contents:
             if item is None:
                 continue
 
-            if isinstance(item, Fragment):
-                self.append_child(item.root)
-            else:
-                node = Node.factory(item)
-                self.append_child(node)
+            node = item.root if isinstance(item, Fragment) else Node.factory(item)
+            node.parent_node = self
+            children.append(node)
 
     def __replace__(self, /, **changes):
         new_obj = NodeList([])
@@ -517,13 +519,12 @@ class Element(Node):
 
     def render_to_buf(self, buf: list[str]) -> None:
         attrs = self._render_attrs()
-        if self.void:
-            buf.append(render_open_tag(self.tag, attrs, void=True))
-        else:
-            buf.append(render_open_tag(self.tag, attrs))
+        tag = self.tag
+        buf.append(render_open_tag(tag, attrs, void=self.void))
+        if not self.void:
             for child in self.children:
                 child.render_to_buf(buf)
-            buf.append(f"</{self.tag}>")
+            buf.append(f"</{tag}>")
 
     def render(
         self,
