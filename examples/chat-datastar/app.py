@@ -12,12 +12,13 @@ import asyncio
 import uuid
 from pathlib import Path
 
-from components import Message, chat_page, landing_page, message_list
+from components import Message, message_list
 from datastar_py import ServerSentEventGenerator as SSE
 from datastar_py.litestar import DatastarResponse, read_signals
 from litestar import Litestar, Request, get, post
 from litestar.response import Stream
 from litestar.static_files import create_static_files_router
+from pages import chat_page, landing_page
 
 from shifthtml import shift
 

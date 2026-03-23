@@ -98,44 +98,41 @@ FORTUNES = [
 def page(*, request_count: int):
     now = datetime.now(UTC)
 
+    sections = (
+        banner(now, request_count),
+        hr,
+        headings_section(),
+        hr,
+        nav_and_article_section(),
+        hr,
+        blockquote_section(),
+        hr,
+        dynamic_stats_section(now, request_count),
+        hr,
+        lazy_fortune_section(),
+        hr,
+        deferred_section(),
+        hr,
+        table_section(),
+        hr,
+        definition_list_section(),
+        hr,
+        lists_section(),
+        hr,
+        address_section(),
+        hr,
+        pre_section(),
+        hr,
+        figure_section(),
+        hr,
+        details_section(),
+        hr,
+        form_section(),
+    )
+
     return html(lang="en") >> (
         page_head(),
-        body
-        >> (
-            main
-            >> (
-                banner(now, request_count),
-                hr,
-                headings_section(),
-                hr,
-                nav_and_article_section(),
-                hr,
-                blockquote_section(),
-                hr,
-                dynamic_stats_section(now, request_count),
-                hr,
-                lazy_fortune_section(),
-                hr,
-                deferred_section(),
-                hr,
-                table_section(),
-                hr,
-                definition_list_section(),
-                hr,
-                lists_section(),
-                hr,
-                address_section(),
-                hr,
-                pre_section(),
-                hr,
-                figure_section(),
-                hr,
-                details_section(),
-                hr,
-                form_section(),
-            ),
-            script(src="/static/theme.js"),
-        ),
+        body >> (main >> sections, script(src="/static/theme.js")),
     )
 
 
@@ -162,17 +159,8 @@ def headings_section():
         hgroup
         >> (
             h1 >> "h1 HTML5 Kitchen Sink",
-            h2
-            >> (
-                "h2 Back in my quaint ",
-                a(href="#") >> "garden",
-            ),
-            h3
-            >> (
-                "h3 Jaunty ",
-                a(href="#") >> "zinnias",
-                " vie with flaunting phlox",
-            ),
+            h2 >> ("h2 Back in my quaint ", a(href="#") >> "garden"),
+            h3 >> ("h3 Jaunty ", a(href="#") >> "zinnias", " vie with flaunting phlox"),
             h4 >> "h4 Five or six big jet planes zoomed quickly by the new tower.",
             h5 >> "h5 Expect skilled signwriters to use many jazzy, quaint old alphabets effectively.",
             h6 >> "h6 Pack my box with five dozen liquor jugs.",
@@ -182,69 +170,68 @@ def headings_section():
 
 def nav_and_article_section():
     nav_items = ["Home", "About", "Blog", "Projects", "Contact"]
+    nav_links = ul >> [li >> (a(href="#") >> item) for item in nav_items]
+
+    inline_tags = p >> (
+        "This paragraph is nested inside an article. It contains many different, sometimes useful, ",
+        a(href="https://www.w3schools.com/tags/") >> "HTML5 tags",
+        ". Of course there are classics like ",
+        em >> "emphasis",
+        ", ",
+        strong >> "strong",
+        ", and ",
+        small >> "small",
+        " but there are many others as well. Hover the following text for abbreviation tag: ",
+        abbr(title="abbreviation") >> "abbr",
+        ". You can define ",
+        del_ >> "deleted text",
+        " which often gets replaced with ",
+        ins >> "inserted",
+        " text.",
+    )
+
+    more_tags = p >> (
+        "You can also use ",
+        kbd >> "keyboard text",
+        ", which sometimes is styled similarly to the ",
+        code >> "<code>",
+        " or ",
+        samp >> "samp",
+        " tags. Even more specifically, there is a tag just for ",
+        var >> "variables",
+        ". Not to be mistaken with blockquotes below, the quote tag lets you denote something as ",
+        q >> "quoted text",
+        ". Lastly don't forget the sub (H",
+        sub >> "2",
+        "O) and sup (E = MC",
+        sup >> "2",
+        ") tags.",
+    )
 
     return section >> (
-        header >> (nav >> (ul >> [li >> (a(href="#") >> item) for item in nav_items],),),
-        article
-        >> (
-            p
-            >> (
-                "This paragraph is nested inside an article. It contains many different, sometimes useful, ",
-                a(href="https://www.w3schools.com/tags/") >> "HTML5 tags",
-                ". Of course there are classics like ",
-                em >> "emphasis",
-                ", ",
-                strong >> "strong",
-                ", and ",
-                small >> "small",
-                " but there are many others as well. Hover the following text for abbreviation tag: ",
-                abbr(title="abbreviation") >> "abbr",
-                ". You can define ",
-                del_ >> "deleted text",
-                " which often gets replaced with ",
-                ins >> "inserted",
-                " text.",
-            ),
-            p
-            >> (
-                "You can also use ",
-                kbd >> "keyboard text",
-                ", which sometimes is styled similarly to the ",
-                code >> "<code>",
-                " or ",
-                samp >> "samp",
-                " tags. Even more specifically, there is a tag just for ",
-                var >> "variables",
-                ". Not to be mistaken with blockquotes below, the quote tag lets you denote something as ",
-                q >> "quoted text",
-                ". Lastly don't forget the sub (H",
-                sub >> "2",
-                "O) and sup (E = MC",
-                sup >> "2",
-                ") tags.",
-            ),
-        ),
+        header >> (nav >> (nav_links,)),
+        article >> (inline_tags, more_tags),
         aside >> "This is an aside.",
         footer >> "This is footer for this section",
     )
 
 
 def blockquote_section():
-    return section >> (
-        blockquote >> (p >> "Blockquote: I quickly explained that many big jobs involve few hazards",),
-        blockquote
+    short_quote = blockquote >> (p >> "Blockquote: I quickly explained that many big jobs involve few hazards",)
+
+    long_quote = blockquote >> (
+        p
         >> (
-            p
-            >> (
-                "This is a multi-line blockquote with a cite reference. People think focus "
-                "means saying yes to the thing you've got to focus on. But that's not what it "
-                "means at all. It means saying no to the hundred other good ideas that there are. "
-                "You have to pick carefully. I'm actually as proud of the things we haven't done "
-                "as the things I have done. Innovation is saying no to 1,000 things.",
-            ),
-            cite >> "Steve Jobs \u2013 Apple Worldwide Developers' Conference, 1997",
+            "This is a multi-line blockquote with a cite reference. People think focus "
+            "means saying yes to the thing you've got to focus on. But that's not what it "
+            "means at all. It means saying no to the hundred other good ideas that there are. "
+            "You have to pick carefully. I'm actually as proud of the things we haven't done "
+            "as the things I have done. Innovation is saying no to 1,000 things.",
         ),
+        cite >> "Steve Jobs \u2013 Apple Worldwide Developers' Conference, 1997",
     )
+
+    return section >> (short_quote, long_quote)
 
 
 def dynamic_stats_section(now: datetime, request_count: int):
@@ -255,17 +242,18 @@ def dynamic_stats_section(now: datetime, request_count: int):
         ("Uptime", f"{now:%j} days into {now:%Y}"),
     ]
 
+    stat_cards = [
+        div(classname="stat-card")
+        >> (
+            div(classname="value") >> value,
+            div(classname="label") >> lbl,
+        )
+        for lbl, value in cards
+    ]
+
     return section >> (
         h2 >> "Dynamic Server Stats",
-        div(classname="stats-grid")
-        >> [
-            div(classname="stat-card")
-            >> (
-                div(classname="value") >> value,
-                div(classname="label") >> lbl,
-            )
-            for lbl, value in cards
-        ],
+        div(classname="stats-grid") >> stat_cards,
     )
 
 
@@ -275,11 +263,7 @@ def lazy_fortune_section():
     def pick_fortune():
         quote, author = random.choice(FORTUNES)
         return div(classname="fortune-box") >> (
-            p
-            >> (
-                mark >> "Lazy node",
-                " \u2014 evaluated at render time",
-            ),
+            p >> (mark >> "Lazy node", " \u2014 evaluated at render time"),
             p >> (em >> f"\u201c{quote}\u201d"),
             div(classname="attribution") >> f"\u2014 {author}",
         )
@@ -331,28 +315,22 @@ def table_section():
         ("Last One", 2800, "Morbi leo risus, porta ac consectetur ac, vestibulum at eros."),
     ]
 
+    head_row = tr >> (th >> "Person", th >> "Number", th >> "Third Column")
+    data_rows = [
+        tr
+        >> (
+            td >> (a(href="#") >> name if i == 1 else name),
+            td >> str(num),
+            td >> desc,
+        )
+        for i, (name, num, desc) in enumerate(rows)
+    ]
+
     return section >> (
         table
         >> (
             caption >> "Tables can have captions now.",
-            tbody
-            >> [
-                tr
-                >> (
-                    th >> "Person",
-                    th >> "Number",
-                    th >> "Third Column",
-                ),
-                *[
-                    tr
-                    >> (
-                        td >> (a(href="#") >> name if i == 1 else name),
-                        td >> str(num),
-                        td >> desc,
-                    )
-                    for i, (name, num, desc) in enumerate(rows)
-                ],
-            ],
+            tbody >> [head_row, *data_rows],
         ),
     )
 
@@ -525,99 +503,109 @@ INPUT_FIELDS = [
 
 
 def form_section():
+    text_fields = [
+        p
+        >> (
+            label({"for": field_id}) >> lbl,
+            input_(type=field_type, id=field_id, placeholder=placeholder),
+        )
+        for lbl, field_type, field_id, placeholder in INPUT_FIELDS
+    ]
+
+    range_field = p >> (
+        label({"for": "example-input-range"}) >> "Range",
+        input_(type="range", id="example-input-range", min="0", max="100", value="50"),
+    )
+
+    select_field = p >> (
+        label({"for": "example-select"}) >> "Example select",
+        select(id="example-select") >> [option >> str(i) for i in range(1, 6)],
+    )
+
+    multi_select = p >> (
+        label({"for": "example-select-multi"}) >> "Example multiple select",
+        select(id="example-select-multi", multiple=True) >> [option >> str(i) for i in range(1, 6)],
+    )
+
+    textarea_field = p >> (
+        label({"for": "example-textarea"}) >> "Example textarea",
+        textarea(id="example-textarea", rows="3"),
+    )
+
+    file_field = p >> (
+        label({"for": "example-input-file"}) >> "File input",
+        input_(type="file", id="example-input-file"),
+    )
+
+    radios = fieldset >> (
+        legend >> "I am legend",
+        div
+        >> (
+            label
+            >> (
+                input_(
+                    type="radio",
+                    name="options-radios",
+                    id="options-radios-1",
+                    value="option1",
+                    checked=True,
+                ),
+                " Option one is this and that\u2014be sure to include why it's great",
+            ),
+        ),
+        div
+        >> (
+            label
+            >> (
+                input_(
+                    type="radio",
+                    name="options-radios",
+                    id="options-radios-2",
+                    value="option2",
+                ),
+                " Option two can be something else and selecting it will deselect option one",
+            ),
+        ),
+        div
+        >> (
+            label
+            >> (
+                input_(
+                    type="radio",
+                    name="options-radios",
+                    id="options-radios-3",
+                    value="option3",
+                    disabled=True,
+                ),
+                " Option three is disabled",
+            ),
+        ),
+    )
+
+    checkboxes = fieldset >> (
+        legend >> "I am also legend",
+        label >> (input_(type="checkbox"), " Check me out"),
+        label >> (input_(type="checkbox"), " Or check me out"),
+    )
+
+    buttons = p >> (
+        button(type="button") >> "Button",
+        input_(type="button", value="Input Button"),
+        input_(type="submit", value="Submit Button"),
+        input_(type="reset", value="Reset Button"),
+    )
+
     return section >> (
         form
         >> [
-            *[
-                p
-                >> (
-                    label({"for": field_id}) >> lbl,
-                    input_(type=field_type, id=field_id, placeholder=placeholder),
-                )
-                for lbl, field_type, field_id, placeholder in INPUT_FIELDS
-            ],
-            p
-            >> (
-                label({"for": "example-input-range"}) >> "Range",
-                input_(type="range", id="example-input-range", min="0", max="100", value="50"),
-            ),
-            p
-            >> (
-                label({"for": "example-select"}) >> "Example select",
-                select(id="example-select") >> [option >> str(i) for i in range(1, 6)],
-            ),
-            p
-            >> (
-                label({"for": "example-select-multi"}) >> "Example multiple select",
-                select(id="example-select-multi", multiple=True) >> [option >> str(i) for i in range(1, 6)],
-            ),
-            p
-            >> (
-                label({"for": "example-textarea"}) >> "Example textarea",
-                textarea(id="example-textarea", rows="3"),
-            ),
-            p
-            >> (
-                label({"for": "example-input-file"}) >> "File input",
-                input_(type="file", id="example-input-file"),
-            ),
-            fieldset
-            >> (
-                legend >> "I am legend",
-                div
-                >> (
-                    label
-                    >> (
-                        input_(
-                            type="radio",
-                            name="options-radios",
-                            id="options-radios-1",
-                            value="option1",
-                            checked=True,
-                        ),
-                        " Option one is this and that\u2014be sure to include why it's great",
-                    ),
-                ),
-                div
-                >> (
-                    label
-                    >> (
-                        input_(
-                            type="radio",
-                            name="options-radios",
-                            id="options-radios-2",
-                            value="option2",
-                        ),
-                        " Option two can be something else and selecting it will deselect option one",
-                    ),
-                ),
-                div
-                >> (
-                    label
-                    >> (
-                        input_(
-                            type="radio",
-                            name="options-radios",
-                            id="options-radios-3",
-                            value="option3",
-                            disabled=True,
-                        ),
-                        " Option three is disabled",
-                    ),
-                ),
-            ),
-            fieldset
-            >> (
-                legend >> "I am also legend",
-                label >> (input_(type="checkbox"), " Check me out"),
-                label >> (input_(type="checkbox"), " Or check me out"),
-            ),
-            p
-            >> (
-                button(type="button") >> "Button",
-                input_(type="button", value="Input Button"),
-                input_(type="submit", value="Submit Button"),
-                input_(type="reset", value="Reset Button"),
-            ),
+            *text_fields,
+            range_field,
+            select_field,
+            multi_select,
+            textarea_field,
+            file_field,
+            radios,
+            checkboxes,
+            buttons,
         ],
     )

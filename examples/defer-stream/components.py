@@ -9,13 +9,13 @@ from shifthtml import (
     header,
     html,
     li,
+    link,
     meta,
     ol,
     p,
     script,
     section,
     span,
-    style,
     title,
 )
 from shifthtml.defer import defer
@@ -39,86 +39,47 @@ LOREM_2 = (
     "eos qui ratione voluptatem sequi nesciunt."
 )
 
-CSS = """\
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-    font-family: system-ui, -apple-system, sans-serif;
-    background: #f0f2f5;
-    min-height: 100vh;
-}
-.page-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 32px;
-    text-align: center;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.page-header h1 { font-size: 2rem; font-weight: 600; }
-.columns {
-    display: flex;
-    gap: 16px;
-    padding: 24px;
-    max-width: 1400px;
-    margin: 0 auto;
-}
-.col {
-    flex: 1;
-    background: white;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-}
-.col h2 { font-size: 1.25rem; margin-bottom: 16px; color: #1a1a2e; }
-.col p { line-height: 1.7; color: #4a4a4a; }
-.list-col { max-height: calc(100vh - 144px); overflow-y: auto; }
-.list-col ol { padding-left: 24px; }
-.list-col li { padding: 8px 4px; border-bottom: 1px solid #f0f0f0; color: #333; }
-.list-col li:last-child { border-bottom: none; }
-"""
 
-
-def page(slot_filler_src: str):
-    return html(lang="en") >> (
-        page_head(),
-        body >> (
-            script(src=slot_filler_src),
-            header(classname="page-header") >> h1 >> "Defer Stream Demo",
-            div(id="content") >> defer(
-                "body-content",
-                columns(),
-                loading="Loading body content...",
-            ),
-        ),
-    )
-
-
-def page_head():
-    return head >> (
+def page():
+    page_head = head >> (
         meta(charset="UTF-8"),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
         title >> "Defer Stream Demo",
-        style >> CSS,
+        link(rel="stylesheet", href="/static/style.css"),
     )
+
+    page_body = body >> (
+        script(src="/static/slot-filler.js"),
+        header(classname="page-header") >> h1 >> "Defer Stream Demo",
+        div(id="content")
+        >> defer(
+            "body-content",
+            columns(),
+            loading="Loading body content...",
+        ),
+    )
+
+    return html(lang="en") >> (page_head, page_body)
 
 
 def columns():
-    return section(classname="columns") >> (
-        div(classname="col") >> defer(
-            "col-1",
-            div >> col1_content,
-            loading="Loading column 1...",
-        ),
-        div(classname="col") >> defer(
-            "col-2",
-            div >> col2_content,
-            loading="Loading column 2...",
-        ),
-        div(classname="col list-col") >> defer(
-            "col-3",
-            div >> col3_content,
-            loading="Loading list...",
-        ),
+    col1 = div(classname="col") >> defer(
+        "col-1",
+        div >> col1_content,
+        loading="Loading column 1...",
     )
+    col2 = div(classname="col") >> defer(
+        "col-2",
+        div >> col2_content,
+        loading="Loading column 2...",
+    )
+    col3 = div(classname="col list-col") >> defer(
+        "col-3",
+        div >> col3_content,
+        loading="Loading list...",
+    )
+
+    return section(classname="columns") >> (col1, col2, col3)
 
 
 def col1_content():
@@ -138,16 +99,10 @@ def col2_content():
 
 
 def col3_content():
+    items = [li >> defer(f"item-{i}", span >> make_item(i), loading="...") for i in range(100)]
     return (
         h2 >> "100 Items",
-        ol >> [
-            li >> defer(
-                f"item-{i}",
-                span >> make_item(i),
-                loading="...",
-            )
-            for i in range(100)
-        ],
+        ol >> items,
     )
 
 

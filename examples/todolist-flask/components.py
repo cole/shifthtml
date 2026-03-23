@@ -1,0 +1,70 @@
+from shifthtml import body, button, div, form, h1, head, html, input_, link, meta, script, span, title
+
+
+def page_head():
+    return head >> (
+        meta({"charset": "UTF-8"}),
+        meta({"name": "viewport", "content": "width=device-width, initial-scale=1.0"}),
+        title >> "Todo List",
+        script({"src": "https://unpkg.com/htmx.org@1.9.10"}),
+        link(rel="stylesheet", href="/static/style.css"),
+    )
+
+
+def page(todos):
+    return html({"lang": "en"}) >> (
+        page_head(),
+        body
+        >> (
+            h1 >> "Todo List",
+            add_todo_form(),
+            todo_list(todos),
+        ),
+    )
+
+
+def add_todo_form():
+    text_input = input_(type="text", name="title", placeholder="Add a new todo...", required=True, autocomplete="off")
+    submit = button(type="submit") >> "Add"
+
+    return form(classname="add-todo", hx_post="/todos", hx_target="#todo-list", hx_swap="innerHTML") >> (
+        text_input,
+        submit,
+    )
+
+
+def todo_list(todos):
+    if not todos:
+        return div(classname="todo-list empty") >> "No todos yet. Add one above!"
+
+    return div(id="todo-list", classname="todo-list") >> (todo_item(todo) for todo in todos)
+
+
+def todo_item(todo):
+    todo_id = todo["id"]
+    is_completed = todo["completed"]
+
+    label_classes = {"todo-label", "completed"} if is_completed else {"todo-label"}
+
+    checkbox_attrs = {
+        "type": "checkbox",
+        "hx-put": f"/todos/{todo_id}/toggle",
+        "hx-target": f"#todo-{todo_id}",
+        "hx-swap": "outerHTML",
+        "autocomplete": "off",
+    }
+    if is_completed:
+        checkbox_attrs["checked"] = "checked"
+
+    checkbox = input_(checkbox_attrs)
+    label_text = span(classname=label_classes) >> todo["title"]
+    delete_btn = (
+        button(
+            hx_delete=f"/todos/{todo_id}",
+            hx_target=f"#todo-{todo_id}",
+            hx_swap="outerHTML",
+        )
+        >> "Delete"
+    )
+
+    return div(id=f"todo-{todo_id}", classname="todo-item") >> (checkbox, label_text, delete_btn)

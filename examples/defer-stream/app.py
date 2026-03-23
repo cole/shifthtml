@@ -7,45 +7,26 @@
 # shifthtml = { path = "../.." }
 # ///
 
-from base64 import b64encode
-
-from flask import Flask, Response
+from pathlib import Path
 
 from components import page
+from flask import Flask, Response, send_from_directory
+
 from shifthtml import shift
 
 app = Flask(__name__)
 
-SLOT_FILLER_JS = b"""\
-const hosts = {};
-function findHost(name) {
-    if (hosts[name]) return hosts[name];
-    for (const el of document.querySelectorAll('*')) {
-        if (el.shadowRoot) {
-            const s = el.shadowRoot.querySelector('slot[name="' + name + '"]');
-            if (s) { hosts[name] = el; return el; }
-        }
-    }
-    return null;
-}
-function fill() {
-    for (const el of [...document.body.children]) {
-        const s = el.getAttribute('slot');
-        if (!s) continue;
-        const h = findHost(s);
-        if (h && el.parentNode !== h) h.appendChild(el);
-    }
-}
-new MutationObserver(fill).observe(document.body, { childList: true });
-fill();
-"""
+STATIC_DIR = Path(__file__).parent / "static"
 
-SLOT_FILLER_SRC = f"data:text/javascript;base64,{b64encode(SLOT_FILLER_JS).decode()}"
+
+@app.route("/static/<path:filename>")
+def static_files(filename):
+    return send_from_directory(STATIC_DIR, filename)
 
 
 @app.route("/")
 def index():
-    return Response(shift(page(SLOT_FILLER_SRC)).render(), content_type="text/html")
+    return Response(shift(page()).render(), content_type="text/html")
 
 
 if __name__ == "__main__":

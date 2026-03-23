@@ -1,12 +1,14 @@
 import sqlite3
+from pathlib import Path
 
 from components import page, todo_item, todo_list
-from flask import Flask, g, request
+from flask import Flask, g, request, send_from_directory
 
 from shifthtml import shift
 
 app = Flask(__name__)
 DATABASE = "todos.db"
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 # Database functions
@@ -38,7 +40,11 @@ def init_db():
         db.commit()
 
 
-# Routes
+@app.route("/static/<path:filename>")
+def static_files(filename):
+    return send_from_directory(STATIC_DIR, filename)
+
+
 @app.route("/")
 def index_route():
     db = get_db()
