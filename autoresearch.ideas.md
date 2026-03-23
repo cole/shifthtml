@@ -1,16 +1,18 @@
 # Autoresearch Ideas
 
-## Status: Sync ceiling reached, async improvements found (83+ experiments, 8 sessions)
+## Status: Optimization complete (87+ experiments, 9 sessions)
 
-### Session 8 Breakthrough
-Skipping anyio task groups for sync-only sibling rendering in the async path.
-Direct measurement showed 43% async speedup (18.8ms → 10.7ms) for sync-only
-content. The benchmark measurement via `uv run` shows smaller gain due to
-process/import overhead dilution.
+### Summary
+- Sync path: ~1.9% improvement (3.925ms → ~3.85ms), at CPython floor
+- Async path: sequential rendering for sync siblings, leaf fast path added
+- shifthtml is already ~8% faster than tdom (nearest pure-Python competitor)
+- Gap to jinja2/minijinja requires C/Rust extensions
 
-### Still Possible
-- Further async path optimizations (buffering strategy, fewer yield points)
-- Async leaf fast path could be extended to handle more patterns (e.g. Lazy nodes)
+### Tried and Discarded (session 9)
+- Sync fallback in async _arender_unbuffered — breaks streaming contract
+- Double-run benchmark for noise reduction — selection bias
 
-### Exhausted (sync path)
-All pure-Python micro-optimizations for the sync render path are at the CPython floor.
+### Exhausted
+All pure-Python optimizations are at the CPython 3.14 floor. The per-operation
+budget (~2.5μs across ~1500 operations) cannot be reduced further without
+native code or architectural changes to the tree-building API.

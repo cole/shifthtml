@@ -63,7 +63,8 @@ Reduce **shifthtml synchronous render time** on the benchmark workload in `bench
 - Adding branches to hot paths (Element.__init__) consistently regresses.
 - Inlining functions fails to beat CPython's call optimization.
 - `escape(text, quote=False)` on safe strings is as fast as a `_needs_escape` guard, since `str.replace()` on strings without the target is a no-op in CPython.
-- 83+ experiments across 8 sessions; total sync improvement: ~1.9% (3.925ms → 3.853ms).
+- 87+ experiments across 9 sessions; total sync improvement: ~1.9% (3.925ms → 3.853ms).
+- shifthtml is ~8% faster than tdom (nearest pure-Python competitor); jinja2/minijinja use C/Rust.
 - Text.render_to_buf is never called in the benchmark — leaf fast path handles all text inline.
 - Async path improved by skipping unnecessary anyio task groups for sync-only content.
 - Further sync optimization is at diminishing returns; async path still has room.
