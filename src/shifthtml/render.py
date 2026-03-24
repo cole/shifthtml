@@ -64,17 +64,22 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
         if value is True:
             parts.append(f" {key}")
             continue
-        if isinstance(value, set | list | tuple):
+        if isinstance(value, str):
+            if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                value = escape(value, quote=True)
+            parts.append(f' {key}="{value}"')
+        elif isinstance(value, set | list | tuple):
             rendered_value = " ".join(
                 "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
             )
-        elif isinstance(value, str):
-            rendered_value = escape(value, quote=True) if _needs_escape(value, quote=True) else value
+            parts.append(f' {key}="{rendered_value}"')
         elif isinstance(value, Template):
             rendered_value = "".join(render_string(value, quote=True))
+            parts.append(f' {key}="{rendered_value}"')
         else:
             sv = str(value)
-            rendered_value = escape(sv, quote=True) if _needs_escape(sv, quote=True) else sv
-        parts.append(f' {key}="{rendered_value}"')
+            if "&" in sv or "<" in sv or ">" in sv or '"' in sv or "'" in sv:
+                sv = escape(sv, quote=True)
+            parts.append(f' {key}="{sv}"')
     parts.append(" />" if void else ">")
     return "".join(parts)
