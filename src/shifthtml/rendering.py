@@ -267,7 +267,9 @@ _html_escape = __import__("html").escape
 
 
 def _collect_string(value: str | Template, parts: list[str], quote: bool = False) -> None:
-    if isinstance(value, Template):
+    if isinstance(value, str):
+        parts.append(_html_escape(value, quote=quote) if _needs_escape(value, quote) else value)
+    else:
         for item in value:
             match item:
                 case str() as s:
@@ -280,8 +282,6 @@ def _collect_string(value: str | Template, parts: list[str], quote: bool = False
                     v = _convert(v, conversion)
                     v = format(v, format_spec)
                     parts.append(_html_escape(v, quote=quote) if _needs_escape(v, quote) else v)
-    else:
-        parts.append(_html_escape(value, quote=quote) if _needs_escape(value, quote) else value)
 
 
 def _collect_children(children: list, parts: list[str]) -> None:
