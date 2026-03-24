@@ -61,9 +61,16 @@ def _flatten_into(parent: TreeNode, items: Iterable) -> None:
             children.append(node)
 
 
+_attr_name_cache: dict[str, str] = {}
+
+
 def _convert_attribute_names(name: str) -> str:
-    name = name.rstrip("_")
-    return _snake_to_kebab(name)
+    try:
+        return _attr_name_cache[name]
+    except KeyError:
+        result = _snake_to_kebab(name.rstrip("_"))
+        _attr_name_cache[name] = result
+        return result
 
 
 class Fragment:
@@ -285,13 +292,18 @@ class Element(Node):
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         super().__init__()
-        merged: dict[str, object] = {k.lower(): v for k, v in attributes.items()} if attributes else {}
-        for k, v in keyword_attributes.items():
-            merged[_convert_attribute_names(k)] = v
+        if attributes:
+            merged: dict[str, object] = {k.lower(): v for k, v in attributes.items()}
+            for k, v in keyword_attributes.items():
+                merged[_convert_attribute_names(k)] = v
+            self.attributes = merged
+        elif keyword_attributes:
+            self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
+        else:
+            self.attributes = {}
         self._style: StyleMap | None = None
         self._class_list: ClassList | None = None
         self._dataset: DatasetMap | None = None
-        self.attributes = merged
 
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"

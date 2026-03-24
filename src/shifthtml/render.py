@@ -56,26 +56,25 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
         yield escape(value, quote=quote) if _needs_escape(value, quote) else value
 
 
-def _render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
+def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
+    parts: list[str] = [f"<{tag}"]
     for key, value in attributes.items():
         if value is None or value is False:
             continue
         if value is True:
-            yield key
+            parts.append(f" {key}")
             continue
         if isinstance(value, set | list | tuple):
             rendered_value = " ".join(
                 "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
             )
+        elif isinstance(value, str):
+            rendered_value = escape(value, quote=True) if _needs_escape(value, quote=True) else value
+        elif isinstance(value, Template):
+            rendered_value = "".join(render_string(value, quote=True))
         else:
-            rendered_value = "".join(render_string(value if isinstance(value, Template) else str(value), quote=True))
-
-        yield f'{key}="{rendered_value}"'
-
-
-def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
-    parts = [f"<{tag}"]
-    for attr in _render_attributes(attributes):
-        parts.append(f" {attr}")
+            sv = str(value)
+            rendered_value = escape(sv, quote=True) if _needs_escape(sv, quote=True) else sv
+        parts.append(f' {key}="{rendered_value}"')
     parts.append(" />" if void else ">")
     return "".join(parts)

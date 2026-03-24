@@ -5,7 +5,6 @@ Abstract base class for nodes in a tree structure, analogous to DOM nodes.
 from __future__ import annotations
 
 import copy
-from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncGenerator, Generator, Iterator
 from string.templatelib import Template
 from typing import TYPE_CHECKING, Self
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 type ChildNode = TreeNode | str | Template
 
 
-class TreeNode(metaclass=ABCMeta):
+class TreeNode:
     """
     Abstract base class for nodes in a tree structure.
 
@@ -214,11 +213,9 @@ class TreeNode(metaclass=ABCMeta):
             return copy.replace(self)
         return copy.replace(self, children=[])
 
-    @abstractmethod
     def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         raise NotImplementedError("Subclasses must implement render_html")
 
-    @abstractmethod
     async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         raise NotImplementedError("Subclasses must implement arender_html")
         yield  # pragma: no cover
