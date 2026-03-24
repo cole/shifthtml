@@ -1,2 +1,4 @@
 {"type":"config","name":"Optimizing shifthtml build + render performance","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}
 {"type":"config","name":"Optimizing shifthtml build + render (deterministic benchmark)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":10,"commit":"7a028df","metric":3.457,"metrics":{"build_ms":1.491,"render_ms":1.966},"status":"discard","description":"Re-baseline check (no changes) — 3.457, original 3.325 was lucky system noise","timestamp":1774328553533,"segment":0}
+{"type":"config","name":"Optimizing shifthtml build + render (min-based metric)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}

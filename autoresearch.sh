@@ -8,11 +8,11 @@ uv run python -c "import shifthtml" 2>&1 || { echo "METRIC build_ms=0"; echo "ME
 
 # Run build benchmark (200 iterations, 50 products, seeded)
 BUILD_OUT=$(uv run bench_build.py --iterations 200 --num-products 50 2>&1)
-BUILD_MS=$(echo "$BUILD_OUT" | grep 'shifthtml ' | head -1 | grep -oE 'median=[[:space:]]*[0-9.]+' | grep -oE '[0-9.]+')
+BUILD_MS=$(echo "$BUILD_OUT" | grep 'shifthtml ' | head -1 | grep -oE 'min=[[:space:]]*[0-9.]+' | grep -oE '[0-9.]+')
 
 # Run render benchmark (200 iterations, 50 products, seeded)
 RENDER_OUT=$(uv run bench_render.py --iterations 200 --num-products 50 2>&1)
-RENDER_MS=$(echo "$RENDER_OUT" | grep 'shifthtml ' | head -1 | grep -oE 'median=[[:space:]]*[0-9.]+' | grep -oE '[0-9.]+')
+RENDER_MS=$(echo "$RENDER_OUT" | grep 'shifthtml ' | head -1 | grep -oE 'min=[[:space:]]*[0-9.]+' | grep -oE '[0-9.]+')
 
 TOTAL_MS=$(python3 -c "print(round($BUILD_MS + $RENDER_MS, 3))")
 
