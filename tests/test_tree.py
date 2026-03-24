@@ -15,19 +15,6 @@ class SimpleNode(TreeNode):
     def __replace__(self, /, **changes):
         return SimpleNode(self.value)
 
-    def render_html(self, *args, **kwargs):
-        yield f"Node({self.value}, children=["
-        for child in self.children:
-            if isinstance(child, TreeNode):
-                yield from child.render_html(*args, **kwargs)
-            else:
-                yield str(child)
-        yield "])"
-
-    async def arender_html(self, *args, **kwargs):
-        for chunk in self.render_html(*args, **kwargs):
-            yield chunk
-
 
 def test_node_depth():
     node1 = SimpleNode("1")
@@ -129,10 +116,16 @@ def test_fragment_append_node():
     assert isinstance(tree4.root, SimpleNode) and tree4.root.value == node1.value
     assert isinstance(tree4.append_pointer, SimpleNode) and tree4.append_pointer.value == node4.value
 
-    assert str(tree) == "Node(1, children=[])"
-    assert str(tree2) == "Node(1, children=[Node(2, children=[])])"
-    assert str(tree3) == "Node(1, children=[Node(2, children=[Node(3, children=[])])])"
-    assert str(tree4) == "Node(1, children=[Node(2, children=[Node(4, children=[])])])"
+    # Verify tree structure
+    assert len(tree.root.children) == 0
+    assert len(tree2.root.children) == 1
+    assert tree2.root.children[0] is tree2.append_pointer
+    assert len(tree3.root.children) == 1
+    child3 = tree3.root.children[0]
+    assert isinstance(child3, TreeNode) and child3.children[0] is tree3.append_pointer
+    assert len(tree4.root.children) == 1
+    child4 = tree4.root.children[0]
+    assert isinstance(child4, TreeNode) and child4.children[0] is tree4.append_pointer
 
 
 def test_fragment_append_fragment():
@@ -147,7 +140,11 @@ def test_fragment_append_fragment():
 
     tree1.append(tree2)
 
-    assert str(tree1) == "Node(1, children=[Node(2, children=[Node(3, children=[Node(4, children=[])])])])"
+    # Verify: node1 -> node2 -> node3 -> node4
+    assert node1.children[0] is node2
+    c = node2.children[0]
+    assert isinstance(c, SimpleNode) and c.value == "3"
+    assert isinstance(c.children[0], SimpleNode) and c.children[0].value == "4"
 
 
 def test_fragment_rshift_mutates_in_place():

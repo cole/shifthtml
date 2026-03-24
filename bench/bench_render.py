@@ -14,12 +14,11 @@ import statistics
 import sys
 import time
 
+# Re-use the tree builders from the build benchmark.
+from bench_build import build_args_tree, build_tree
 from benchmark import make_context
 
 from shifthtml import render
-
-# Re-use the tree builders from the build benchmark.
-from bench_build import build_args_tree, build_tree
 
 
 def bench(name: str, fn, iterations: int) -> dict:

@@ -3,7 +3,7 @@ import time
 import anyio
 import pytest
 
-from shifthtml import Async, astream, div, h1, li, p, span, ul
+from shifthtml import Async, astream, div, h1, li, p, span, stream_node, ul
 from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
@@ -108,7 +108,7 @@ async def test_async_node_sync_render_raises():
 
     node = Async(get_content)
     with pytest.raises(TypeError, match="Async nodes require async rendering"):
-        "".join(node.render_html())
+        "".join(stream_node(node))
 
 
 async def test_nested_async_callables():

@@ -15,6 +15,7 @@ from shifthtml import (
     main,
     meta,
     p,
+    stream_node,
     style,
     title,
     ul,
@@ -174,7 +175,7 @@ def test_render_attribute_none_omitted():
 
 
 def test_comment_render():
-    result = "".join(Comment("hello").render_html())
+    result = "".join(stream_node(Comment("hello")))
     assert result == "<!--hello-->"
 
 
@@ -184,12 +185,12 @@ def test_comment_in_tree():
 
 
 def test_comment_escapes_double_dash():
-    result = "".join(Comment("bad-->stuff").render_html())
+    result = "".join(stream_node(Comment("bad-->stuff")))
     assert result == "<!--bad- ->stuff-->"
 
 
 def test_comment_escapes_double_dash_middle():
-    result = "".join(Comment("a--b").render_html())
+    result = "".join(stream_node(Comment("a--b")))
     assert result == "<!--a- -b-->"
 
 

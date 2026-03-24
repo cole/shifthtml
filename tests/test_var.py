@@ -16,7 +16,9 @@ def test_var_as_child_auto_lazy():
     page = div() >> content
 
     assert render(page, args={"content": p() >> "hello"}) == "<div><p>hello</p></div>"
-    assert render(page, args={"content": ul() >> [li() >> "a", li() >> "b"]}) == "<div><ul><li>a</li><li>b</li></ul></div>"
+    assert (
+        render(page, args={"content": ul() >> [li() >> "a", li() >> "b"]}) == "<div><ul><li>a</li><li>b</li></ul></div>"
+    )
 
 
 def test_var_returns_string():

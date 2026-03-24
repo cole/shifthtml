@@ -2,7 +2,7 @@ from collections.abc import Generator
 
 import pytest
 
-from shifthtml import Element, Fragment, div, p, render, span
+from shifthtml import Element, Fragment, div, p, render, span, stream_node
 from shifthtml.defer import defer
 from shifthtml.element import Deferred
 from shifthtml.plugin import _registry, register
@@ -13,14 +13,14 @@ pytestmark = pytest.mark.anyio
 class WrapperPlugin:
     """Test plugin that wraps <p> elements in brackets."""
 
-    def pre_render_node(self, node, ctx):
+    def pre_render_node(self, node, stream, ctx):
         if not isinstance(node, Element) or node.tag != "p":
             return None
-        return self._render_wrapped(node, ctx)
+        return self._render_wrapped(node, stream)
 
-    def _render_wrapped(self, node, ctx):
+    def _render_wrapped(self, node, stream):
         yield "["
-        yield from node.render_html(ctx=ctx)
+        yield from stream(node)
         yield "]"
 
     def post_render(self, ctx):
@@ -41,7 +41,7 @@ def test_no_plugins_renders_normally():
 
 def test_plugin_ordering_first_match_wins():
     class FirstPlugin:
-        def pre_render_node(self, node, ctx):
+        def pre_render_node(self, node, stream, ctx):
             if isinstance(node, Element) and node.tag == "p":
                 return iter(["[FIRST]"])
             return None
@@ -51,7 +51,7 @@ def test_plugin_ordering_first_match_wins():
             yield
 
     class SecondPlugin:
-        def pre_render_node(self, node, ctx):
+        def pre_render_node(self, node, stream, ctx):
             if isinstance(node, Element) and node.tag == "p":
                 return iter(["[SECOND]"])
             return None
@@ -68,7 +68,7 @@ def test_plugin_ordering_first_match_wins():
 
 def test_plugin_pass_through():
     class NoopPlugin:
-        def pre_render_node(self, node, ctx):
+        def pre_render_node(self, node, stream, ctx):
             return None
 
         def post_render(self, ctx):
@@ -83,7 +83,7 @@ def test_plugin_pass_through():
 def test_deferred_without_plugin_raises():
     node = Deferred(p(), slot_name="slot-1")
     with pytest.raises(TypeError, match="Deferred nodes require DeferPlugin"):
-        "".join(node.render_html())
+        "".join(stream_node(node))
 
 
 def test_defer_auto_registers():
@@ -107,7 +107,7 @@ def test_fragment_without_plugins():
 
 def test_post_render():
     class FooterPlugin:
-        def pre_render_node(self, node, ctx):
+        def pre_render_node(self, node, stream, ctx):
             return None
 
         def post_render(self, ctx) -> Generator[str]:
@@ -120,7 +120,7 @@ def test_post_render():
 
 def test_post_render_node():
     class CommentAfterDivPlugin:
-        def pre_render_node(self, node, ctx):
+        def pre_render_node(self, node, stream, ctx):
             return None
 
         def post_render(self, ctx):
@@ -139,7 +139,7 @@ def test_post_render_node():
 
 def test_pre_render():
     class PreamblePlugin:
-        def pre_render_node(self, node, ctx):
+        def pre_render_node(self, node, stream, ctx):
             return None
 
         def post_render(self, ctx):

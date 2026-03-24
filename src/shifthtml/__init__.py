@@ -12,7 +12,7 @@ from .element import (
     args,
 )
 from .plugin import Plugin, RenderContext, clear_registry, register, registered_plugins
-from .rendering import astream, render, stream
+from .rendering import astream, render, stream, stream_node
 from .tags import (
     a,
     abbr,
@@ -141,6 +141,7 @@ __all__ = (
     "VoidElement",
     "render",
     "stream",
+    "stream_node",
     "astream",
     "html",
     "head",

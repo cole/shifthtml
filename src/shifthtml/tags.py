@@ -1,41 +1,10 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Callable, Generator
-from typing import TYPE_CHECKING
-
 from .element import Element, VoidElement
 from .meta import TagMeta
 
-if TYPE_CHECKING:
-    from .plugin import RenderContext
-
 # Root
-
-
-class HTMLRootElement(Element, metaclass=TagMeta):
-    tag = "html"
-
-    def render_html(
-        self,
-        *,
-        ctx: RenderContext | None = None,
-        before_close: Callable[[], Generator[str]] | None = None,
-    ) -> Generator[str]:
-        yield "<!DOCTYPE html>"
-        yield from super().render_html(ctx=ctx, before_close=before_close)
-
-    async def arender_html(
-        self,
-        *,
-        ctx: RenderContext | None = None,
-        before_close: Callable[[], AsyncGenerator[str]] | None = None,
-    ) -> AsyncGenerator[str]:
-        yield "<!DOCTYPE html>"
-        async for chunk in super().arender_html(ctx=ctx, before_close=before_close):
-            yield chunk
-
-
-html = HTMLRootElement
+html = TagMeta("HTMLRootElement", (Element,), {"tag": "html"})
 head = TagMeta("HTMLHeadElement", (Element,), {"tag": "head"})
 body = TagMeta("HTMLBodyElement", (Element,), {"tag": "body"})
 

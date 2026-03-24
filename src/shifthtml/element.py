@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import copy
 import inspect
-from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
+from collections.abc import Awaitable, Callable, Iterable, Iterator
+from contextlib import suppress
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import ClassVar, NoReturn, overload
+from typing import Any, ClassVar, NoReturn, overload
 
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
-from .plugin import RenderContext
-from .render import render_open_tag
 from .tree import TreeNode
 from .types import NodeContent
 
@@ -104,9 +103,7 @@ class Fragment:
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
-        from .rendering import render
-
-        return render(self)
+        return _render_fn(self)
 
     def __iter__(self) -> Iterator[TreeNode | str | Template]:
         return iter(self.root.children)
@@ -234,20 +231,7 @@ class Node(TreeNode):
         return "".join(parts)
 
     def __str__(self) -> str:
-        from .rendering import render
-
-        return render(self)
-
-    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        from .rendering import stream_children
-
-        yield from stream_children(self.children, ctx)
-
-    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        from .rendering import astream_children
-
-        async for chunk in astream_children(self.children, ctx):
-            yield chunk
+        return _render_fn(self)
 
 
 class Comment(Node):
@@ -273,12 +257,6 @@ class Comment(Node):
     def _escape_content(self) -> str:
         content = str(self.content)
         return content.replace("--", "- -")
-
-    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        yield f"<!--{self._escape_content()}-->"
-
-    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        yield f"<!--{self._escape_content()}-->"
 
 
 class Element(Node):
@@ -325,10 +303,8 @@ class Element(Node):
         return self.attributes[name.lower()]
 
     def _invalidate_open_tag_cache(self) -> None:
-        try:
+        with suppress(AttributeError):
             del self._open_tag_cache
-        except AttributeError:
-            pass
 
     def __setitem__(self, name: str, value: object) -> None:
         self.attributes[name.lower()] = value
@@ -369,44 +345,6 @@ class Element(Node):
         if self._style:
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
-
-    def render_html(
-        self,
-        *,
-        ctx: RenderContext | None = None,
-        before_close: Callable[[], Generator[str]] | None = None,
-    ) -> Generator[str]:
-        from .rendering import stream_children
-
-        attrs = self._render_attrs()
-        if self.void:
-            yield render_open_tag(self.tag, attrs, void=True)
-        else:
-            yield render_open_tag(self.tag, attrs)
-            yield from stream_children(self.children, ctx)
-            if before_close is not None:
-                yield from before_close()
-            yield f"</{self.tag}>"
-
-    async def arender_html(
-        self,
-        *,
-        ctx: RenderContext | None = None,
-        before_close: Callable[[], AsyncGenerator[str]] | None = None,
-    ) -> AsyncGenerator[str]:
-        from .rendering import astream_children
-
-        attrs = self._render_attrs()
-        if self.void:
-            yield render_open_tag(self.tag, attrs, void=True)
-        else:
-            yield render_open_tag(self.tag, attrs)
-            async for chunk in astream_children(self.children, ctx):
-                yield chunk
-            if before_close is not None:
-                async for chunk in before_close():
-                    yield chunk
-            yield f"</{self.tag}>"
 
 
 class VoidElement(Element):
@@ -452,13 +390,6 @@ class Deferred(Node):
         assert isinstance(child, TreeNode)
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
-    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        raise TypeError("Deferred nodes require DeferPlugin")
-
-    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        raise TypeError("Deferred nodes require DeferPlugin")
-        yield  # pragma: no cover
-
 
 class Lazy(Node):
     """Wraps a sync callable, resolved during rendering."""
@@ -477,17 +408,6 @@ class Lazy(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn)
 
-    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        from .rendering import render_result
-
-        yield from render_result(self.fn(), ctx)
-
-    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        from .rendering import arender_result
-
-        async for chunk in arender_result(self.fn(), ctx):
-            yield chunk
-
 
 class Async(Node):
     """Wraps an async callable, resolved during async rendering."""
@@ -505,15 +425,6 @@ class Async(Node):
 
     def __replace__(self, **changes):
         return type(self)(self.fn)
-
-    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        raise TypeError("Async nodes require async rendering")
-
-    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        from .rendering import arender_result
-
-        async for chunk in arender_result(await self.fn(), ctx):
-            yield chunk
 
 
 _MISSING = object()
@@ -536,7 +447,7 @@ class Var:
         self.name = name
         self.default = default
 
-    def __call__(self) -> object:
+    def __call__(self) -> Any:
         vars = _render_vars.get()
         if vars and self.name in vars:
             return vars[self.name]
@@ -561,3 +472,10 @@ class _VarNamespace:
 
 
 args = _VarNamespace()
+
+
+def _default_render_fn(node: Node | Fragment) -> str:
+    raise RuntimeError("Rendering module not loaded")  # pragma: no cover
+
+
+_render_fn: Callable[..., str] = _default_render_fn

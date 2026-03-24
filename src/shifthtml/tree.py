@@ -5,12 +5,9 @@ Abstract base class for nodes in a tree structure, analogous to DOM nodes.
 from __future__ import annotations
 
 import copy
-from collections.abc import AsyncGenerator, Generator, Iterator
+from collections.abc import Iterator
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Self
-
-if TYPE_CHECKING:
-    from .plugin import RenderContext
+from typing import Self
 
 type ChildNode = TreeNode | str | Template
 
@@ -212,10 +209,3 @@ class TreeNode:
         if deep:
             return copy.replace(self)
         return copy.replace(self, children=[])
-
-    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
-        raise NotImplementedError("Subclasses must implement render_html")
-
-    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        raise NotImplementedError("Subclasses must implement arender_html")
-        yield  # pragma: no cover

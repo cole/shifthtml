@@ -36,7 +36,8 @@ from shifthtml import (
 
 
 def _product_card(p: dict) -> object:
-    from shifthtml import div, h2, nav, p as p_tag, span
+    from shifthtml import div, h2, nav, span
+    from shifthtml import p as p_tag
 
     classes = "product-card"
     if p["featured"]:

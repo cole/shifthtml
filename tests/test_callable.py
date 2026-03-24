@@ -3,6 +3,7 @@ from shifthtml import (
     div,
     img,
     p,
+    render,
 )
 
 
@@ -38,14 +39,14 @@ def test_render_single_callable_nested_return():
     assert str(tag) == '<div><div id="div2"><img id="photo" src="https://example.com/photo.jpg" /></div></div>'
 
 
-def test_lazy_node_renders_callable_result():
+def test_lazy_node_renders():
     node = Lazy(lambda: p() >> "lazy content")
-    assert "".join(node.render_html()) == "<p>lazy content</p>"
+    assert render(node) == "<p>lazy content</p>"
 
 
 def test_lazy_node_none_renders_empty():
     node = Lazy(lambda: None)
-    assert "".join(node.render_html()) == ""
+    assert render(node) == ""
 
 
 def test_callable_returning_tuple():
