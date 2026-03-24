@@ -12,7 +12,7 @@ Public API:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Generator
-from string.templatelib import Template
+from string.templatelib import Interpolation, Template
 
 import anyio
 
@@ -30,6 +30,15 @@ def render(
     plugins: tuple[Plugin, ...] | None = None,
 ) -> str:
     """Render a node tree to an HTML string."""
+    _render_vars.set(args or {})
+    frag = html if isinstance(html, Fragment) else Fragment(html, html)
+    resolved_plugins = plugins if plugins is not None else registered_plugins()
+
+    if not resolved_plugins:
+        parts: list[str] = []
+        _collect_node(frag.root, parts)
+        return "".join(parts)
+
     return "".join(stream(html, args=args, plugins=plugins))
 
 
@@ -248,3 +257,68 @@ async def arender_result(result: NodeContent, ctx: RenderContext | None) -> Asyn
     else:
         async for chunk in node.arender_html():
             yield chunk
+
+
+# -- Fast collect path (no generators, used by render()) --
+
+from .render import _needs_escape, render_open_tag
+
+_html_escape = __import__("html").escape
+
+
+def _collect_string(value: str | Template, parts: list[str], quote: bool = False) -> None:
+    if isinstance(value, Template):
+        for item in value:
+            match item:
+                case str() as s:
+                    parts.append(s)
+                case Interpolation(v, _, conversion, format_spec):
+                    if callable(v):
+                        v = v()
+                    from .render import _convert
+
+                    v = _convert(v, conversion)
+                    v = format(v, format_spec)
+                    parts.append(_html_escape(v, quote=quote) if _needs_escape(v, quote) else v)
+    else:
+        parts.append(_html_escape(value, quote=quote) if _needs_escape(value, quote) else value)
+
+
+def _collect_children(children: list, parts: list[str]) -> None:
+    for child in children:
+        if isinstance(child, str | Template):
+            _collect_string(child, parts)
+        else:
+            _collect_node(child, parts)
+
+
+def _collect_result(result: NodeContent, parts: list[str]) -> None:
+    if result is None:
+        return
+    if isinstance(result, str | Template):
+        _collect_string(result, parts)
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            _collect_result(item, parts)  # type: ignore[arg-type]
+        return
+    node = Node.factory(result)
+    _collect_node(node, parts)
+
+
+def _collect_node(node: TreeNode, parts: list[str]) -> None:
+    if isinstance(node, Element):
+        if node.tag == "html":
+            parts.append("<!DOCTYPE html>")
+        attrs = node._render_attrs()
+        if node.void:
+            parts.append(render_open_tag(node.tag, attrs, void=True))
+        else:
+            parts.append(render_open_tag(node.tag, attrs))
+            _collect_children(node.children, parts)
+            parts.append(f"</{node.tag}>")
+    elif isinstance(node, Lazy):
+        _collect_result(node.fn(), parts)
+    else:
+        # Fallback for Comment, bare Node, etc.
+        parts.extend(node.render_html())
