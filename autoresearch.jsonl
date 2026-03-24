@@ -1,1 +1,2 @@
 {"type":"config","name":"Optimizing shifthtml build + render performance","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}
+{"type":"config","name":"Optimizing shifthtml build + render (deterministic benchmark)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}

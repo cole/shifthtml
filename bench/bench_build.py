@@ -9,11 +9,12 @@
 """Benchmark tree-building speed (element creation + >> wiring)."""
 
 import argparse
+import random
 import statistics
 import sys
 import time
 
-from benchmark import generate_products, make_context
+from benchmark import make_context
 
 from shifthtml import (
     Lazy,
@@ -135,15 +136,15 @@ def build_args_tree() -> object:
     )
 
 
-def bench(name: str, fn, iterations: int, num_products: int) -> dict:
+def bench(name: str, fn, iterations: int) -> dict:
     # warmup
-    for _ in range(5):
-        fn(num_products)
+    for _ in range(10):
+        fn()
 
     times: list[float] = []
     for _ in range(iterations):
         t0 = time.perf_counter()
-        fn(num_products)
+        fn()
         times.append((time.perf_counter() - t0) * 1000)
 
     result = {
@@ -165,25 +166,19 @@ def bench(name: str, fn, iterations: int, num_products: int) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark shifthtml tree building")
-    parser.add_argument("--iterations", type=int, default=100)
+    parser.add_argument("--iterations", type=int, default=200)
     parser.add_argument("--num-products", type=int, default=50)
+    parser.add_argument("--seed", type=int, default=42)
     cli = parser.parse_args()
+
+    random.seed(cli.seed)
+    ctx = make_context(cli.num_products)
 
     print(f"Iterations: {cli.iterations}  |  Products: {cli.num_products}  |  Python: {sys.version.split()[0]}")
     print("-" * 90)
 
-    bench(
-        "shifthtml",
-        lambda n: build_tree(make_context(n)),
-        cli.iterations,
-        cli.num_products,
-    )
-    bench(
-        "shifthtml-args",
-        lambda _: build_args_tree(),
-        cli.iterations,
-        cli.num_products,
-    )
+    bench("shifthtml", lambda: build_tree(ctx), cli.iterations)
+    bench("shifthtml-args", lambda: build_args_tree(), cli.iterations)
 
 
 if __name__ == "__main__":

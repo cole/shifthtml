@@ -57,4 +57,22 @@ does isinstance checks, sets parent_node, appends to children list.
 - ABCMeta on TreeNode adds metaclass overhead to every subclass instantiation.
 
 ## What's Been Tried
-(nothing yet — baseline run)
+
+### Wins
+- **Cache `_convert_attribute_names`** — dict cache avoids repeated `rstrip("_")` + `_snake_to_kebab` (76K calls/build). Small but real.
+- **Optimize `Element.__init__`** — skip dict comprehension for common kwargs-only case. Use dict comp directly instead of empty dict + loop.
+- **Inline `_render_attributes` into `render_open_tag`** — eliminates generator overhead, and special-cases `isinstance(value, str)` to skip `render_string` generator for plain string attr values.
+- **Remove ABCMeta from TreeNode, TagMeta extends `type`** — avoids metaclass overhead on instantiation.
+
+### Dead ends
+- **`collect_html` fast path (list-append, no generators)** — zero improvement. Generator `yield from` is well-optimized in CPython 3.14; function call overhead is similar.
+- **Inline string handling in `stream_children`** — splitting `isinstance(child, str | Template)` into two checks is slower than the union check.
+- **Cache inline imports as module globals** — `global` + `if is None` check per call worse than Python's import cache (`sys.modules` lookup).
+- **Pre-compute tag strings via TagMeta (`_open_tag`, `_close_tag`)** — class variable lookup through MRO is slower than f-string formatting. Adding `if attrs:` branch for no-attribute fast path added overhead to the common (has-attrs) path.
+- **`str.translate()` instead of `_needs_escape` + `html.escape`** — `translate()` always runs the replacement pass even when nothing needs escaping. The current `_needs_escape` check + conditional `escape()` is faster because most text doesn't need escaping.
+
+### Profiling insights (200 iterations, 50 products)
+**Build** (~1.4ms): `__rshift__` 0.183s tottime (46%), `Element.__init__` 0.132s (20%), `_flatten_into` 0.083s (10%), `isinstance` 0.050s (6%).
+**Render** (~1.85ms): `Element.render_html` 0.448s (29%), `stream_children` 0.417s (27%), `render_open_tag` 0.226s (15%), `render_string` 0.040s, `_needs_escape` 0.033s, `importlib.parent` 0.032s (inline import overhead).
+
+The generator chain (render_html + stream_children) dominates render at ~56% but alternative dispatch mechanisms don't help because the actual per-call overhead is similar.

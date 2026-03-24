@@ -9,6 +9,7 @@
 """Benchmark rendering speed on a pre-built tree."""
 
 import argparse
+import random
 import statistics
 import sys
 import time
@@ -23,7 +24,7 @@ from bench_build import build_args_tree, build_tree
 
 def bench(name: str, fn, iterations: int) -> dict:
     # warmup
-    for _ in range(5):
+    for _ in range(10):
         fn()
 
     times: list[float] = []
@@ -53,22 +54,24 @@ def bench(name: str, fn, iterations: int) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark shifthtml rendering")
-    parser.add_argument("--iterations", type=int, default=100)
+    parser.add_argument("--iterations", type=int, default=200)
     parser.add_argument("--num-products", type=int, default=50)
+    parser.add_argument("--seed", type=int, default=42)
     cli = parser.parse_args()
+
+    random.seed(cli.seed)
+    ctx = make_context(cli.num_products)
 
     print(f"Iterations: {cli.iterations}  |  Products: {cli.num_products}  |  Python: {sys.version.split()[0]}")
     print("-" * 90)
 
     # shifthtml: build once, render many times
-    tree = build_tree(make_context(cli.num_products))
+    tree = build_tree(ctx)
     bench("shifthtml", lambda: str(tree), cli.iterations)
 
-    # shifthtml-args: template built once, rendered with fresh data each iteration
+    # shifthtml-args: template built once, rendered with same data each iteration
     args_tree = build_args_tree()
-    contexts = [make_context(cli.num_products) for _ in range(cli.iterations + 5)]
-    idx = iter(range(len(contexts)))
-    bench("shifthtml-args", lambda: render(args_tree, args=contexts[next(idx)]), cli.iterations)
+    bench("shifthtml-args", lambda: render(args_tree, args=ctx), cli.iterations)
 
 
 if __name__ == "__main__":
