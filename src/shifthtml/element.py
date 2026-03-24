@@ -62,8 +62,7 @@ def _flatten_into(parent: TreeNode, items: Iterable) -> None:
 
 
 def _convert_attribute_names(name: str) -> str:
-    if name == "class_":
-        return "class"
+    name = name.rstrip("_")
     return _snake_to_kebab(name)
 
 

@@ -1,6 +1,6 @@
 import pytest
 
-from shifthtml import div, h1
+from shifthtml import div, h1, label
 
 
 def test_element_attributes_are_plain_dict():
@@ -100,3 +100,8 @@ def test_boolean_attributes():
     assert str(el) == "<div hidden>x</div>"
     el.root["hidden"] = False
     assert str(el) == "<div>x</div>"
+
+
+def test_trailing_underscore_stripped_for_reserved_words():
+    el = label(for_="name")
+    assert str(el) == '<label for="name"></label>'

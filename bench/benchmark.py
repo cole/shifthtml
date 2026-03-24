@@ -371,6 +371,74 @@ def bench_shifthtml_async(iterations: int, num_products: int) -> dict[str, Any]:
     return asyncio.run(run())
 
 
+# ---------------------------------------------------------------------------
+# Engine: shifthtml (args — preserved tree)
+# ---------------------------------------------------------------------------
+
+
+def bench_shifthtml_args(iterations: int, num_products: int) -> dict[str, Any]:
+    from shifthtml import (
+        Lazy,
+        a,
+        args,
+        body,
+        div,
+        footer,
+        h1,
+        head,
+        header,
+        html,
+        meta,
+        nav,
+        render,
+        span,
+        style,
+        title,
+    )
+
+    # Build tree once — shell is preserved, dynamic parts use args/Lazy
+    page = html(lang="en") >> (
+        head()
+        >> (
+            meta(charset="UTF-8"),
+            meta(name="viewport", content="width=device-width, initial-scale=1.0"),
+            title() >> t"{args.site_name}",
+            style() >> t"body {{ font-family: {args.font_family}; background: {args.bg_color}; }}",
+        ),
+        body()
+        >> (
+            header()
+            >> (
+                Lazy(lambda: h1() >> f"{args.category()} Products"),
+                Lazy(lambda: nav() >> [a(href=item["url"]) >> item["name"] for item in args.nav_items()]),
+            ),
+            div(class_="filters")
+            >> Lazy(
+                lambda: (
+                    span() >> f"Price: {args.filters()['price_range']}",
+                    span() >> f"Rating: {args.filters()['rating']}",
+                )
+            ),
+            div(class_="products") >> Lazy(lambda: [_shift_product_card(p) for p in args.products()]),
+            Lazy(lambda: footer() >> f"© {args.year()} {args.site_name()}"),
+        ),
+    )
+
+    # warmup
+    ctx = make_context(num_products)
+    for _ in range(5):
+        render(page, args=ctx)
+
+    times: list[float] = []
+    for _ in range(iterations):
+        ctx = make_context(num_products)
+        t0 = time.perf_counter()
+        result = render(page, args=ctx)
+        times.append((time.perf_counter() - t0) * 1000)
+
+    return _summarise("shifthtml-args", iterations, num_products, times, len(result))
+
+
 def _shift_product_card(p: dict[str, Any]) -> object:
     from shifthtml import div, h2, nav, p as p_tag, span  # noqa: I001
 
@@ -449,6 +517,7 @@ ENGINES = {
     "minijinja": bench_minijinja,
     "tdom": bench_tdom,
     "shifthtml": bench_shifthtml,
+    "shifthtml-args": bench_shifthtml_args,
     "shifthtml-async": bench_shifthtml_async,
 }
 
