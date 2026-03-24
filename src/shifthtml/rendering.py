@@ -4,26 +4,23 @@ This module owns all output concerns: plugin dispatch, context management,
 streaming, and buffering. Tree types stay focused on structure.
 
 Public API:
-    render(node)   → str               (plugin-aware)
-    stream(node)   → Generator[str]    (plugin-aware, streaming)
-    astream(node)  → AsyncGenerator[str] (plugin-aware, async streaming)
+    render(node, *, args, plugins)   → str
+    stream(node, *, args, plugins)   → Generator[str]
+    astream(node, *, args, plugins)  → AsyncGenerator[str]
 """
 
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
-from typing import TYPE_CHECKING
 
 import anyio
 
-from .plugin import RenderContext, registered_plugins
+from .element import Async, Element, Fragment, Lazy, Node, _render_vars
+from .plugin import Plugin, RenderContext, registered_plugins
 from .render import arender_string, render_string
-
-if TYPE_CHECKING:
-    from .element import Fragment, Node
-    from .plugin import Plugin
-    from .tree import TreeNode
+from .tree import TreeNode
+from .types import NodeContent
 
 
 def render(
@@ -33,7 +30,7 @@ def render(
     plugins: tuple[Plugin, ...] | None = None,
 ) -> str:
     """Render a node tree to an HTML string."""
-    return "".join(stream(html, args=args, plugins=plugins))  # stream() sets _render_vars
+    return "".join(stream(html, args=args, plugins=plugins))
 
 
 def stream(
@@ -43,8 +40,6 @@ def stream(
     plugins: tuple[Plugin, ...] | None = None,
 ) -> Generator[str]:
     """Render a node tree as a stream of HTML chunks."""
-    from .element import Fragment, _render_vars
-
     _render_vars.set(args or {})
     frag = html if isinstance(html, Fragment) else Fragment(html, html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
@@ -59,8 +54,6 @@ def stream(
 
 def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
     """Render the root node with plugin dispatch."""
-    from .element import Element
-
     for plugin in ctx.plugins:
         result = plugin.pre_render_node(root, ctx)
         if result is not None:
@@ -86,8 +79,6 @@ async def astream(
     cancel_scope: anyio.CancelScope | None = None,
 ) -> AsyncGenerator[str]:
     """Render a node tree as an async stream of HTML chunks."""
-    from .element import _render_vars
-
     _render_vars.set(args or {})
     if min_chunk_size is None:
         async for chunk in _astream_unbuffered(html, plugins=plugins, cancel_scope=cancel_scope):
@@ -113,8 +104,6 @@ async def _astream_unbuffered(
     plugins: tuple[Plugin, ...] | None = None,
     cancel_scope: anyio.CancelScope | None = None,
 ) -> AsyncGenerator[str]:
-    from .element import Fragment
-
     frag = html if isinstance(html, Fragment) else Fragment(html, html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
@@ -131,8 +120,6 @@ async def _astream_unbuffered(
 
 async def _astream_root(root: TreeNode, ctx: RenderContext) -> AsyncGenerator[str]:
     """Render the root node with async plugin dispatch."""
-    from .element import Element
-
     for plugin in ctx.plugins:
         ahook = getattr(plugin, "apre_render_node", None)
         result = ahook(root, ctx) if ahook is not None else plugin.pre_render_node(root, ctx)
@@ -177,8 +164,6 @@ def stream_children(children: list, ctx: RenderContext | None = None) -> Generat
 
 async def astream_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
     """Render a list of children to async HTML chunks."""
-    from .element import Async, Lazy
-
     # Use parallel rendering only when multiple siblings include async callables
     if len(children) > 1 and any(isinstance(child, Async | Lazy) for child in children):
         async for chunk in _astream_children_parallel(children, ctx):
@@ -199,8 +184,6 @@ async def astream_children(children: list, ctx: RenderContext | None = None) -> 
 
 async def _astream_children_parallel(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
     """Parallel variant for trees containing Async/Lazy sibling nodes."""
-    from .tree import TreeNode
-
     results: list[list[str]] = [[] for _ in children]
     ready: list[anyio.Event] = [anyio.Event() for _ in children]
 
@@ -227,10 +210,8 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
 # -- Callable result helpers --
 
 
-def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
+def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[str]:
     """Render the return value of a Lazy/Async callable."""
-    from .element import Node
-
     if result is None:
         return
     if isinstance(result, str | Template):
@@ -238,7 +219,7 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
         return
     if isinstance(result, tuple | list):
         for item in result:
-            yield from render_result(item, ctx)
+            yield from render_result(item, ctx)  # type: ignore[arg-type]  # list items are NodeContent
         return
     node = Node.factory(result)
     if ctx is not None:
@@ -247,10 +228,8 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
         yield from node.render_html()
 
 
-async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGenerator[str]:
+async def arender_result(result: NodeContent, ctx: RenderContext | None) -> AsyncGenerator[str]:
     """Async render the return value of a Lazy/Async callable."""
-    from .element import Node
-
     if result is None:
         return
     if isinstance(result, str | Template):
@@ -259,7 +238,7 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
         return
     if isinstance(result, tuple | list):
         for item in result:
-            async for chunk in arender_result(item, ctx):
+            async for chunk in arender_result(item, ctx):  # type: ignore[arg-type]  # list items are NodeContent
                 yield chunk
         return
     node = Node.factory(result)

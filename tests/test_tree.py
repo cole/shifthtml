@@ -2,11 +2,12 @@ import copy
 
 import pytest
 
-from shifthtml import div, tree
+from shifthtml import div
 from shifthtml.element import Fragment
+from shifthtml.tree import TreeNode
 
 
-class SimpleNode(tree.TreeNode):
+class SimpleNode(TreeNode):
     def __init__(self, value: str):
         super().__init__()
         self.value = value
@@ -17,7 +18,7 @@ class SimpleNode(tree.TreeNode):
     def render_html(self, *args, **kwargs):
         yield f"Node({self.value}, children=["
         for child in self.children:
-            if isinstance(child, tree.TreeNode):
+            if isinstance(child, TreeNode):
                 yield from child.render_html(*args, **kwargs)
             else:
                 yield str(child)

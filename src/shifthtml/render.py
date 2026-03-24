@@ -56,7 +56,7 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
         yield escape(value, quote=quote) if _needs_escape(value, quote) else value
 
 
-def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
+def _render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
     for key, value in attributes.items():
         if value is None or value is False:
             continue
@@ -75,7 +75,7 @@ def render_attributes(attributes: Mapping[str, object]) -> Generator[str]:
 
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
     parts = [f"<{tag}"]
-    for attr in render_attributes(attributes):
+    for attr in _render_attributes(attributes):
         parts.append(f" {attr}")
     parts.append(" />" if void else ">")
     return "".join(parts)

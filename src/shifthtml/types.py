@@ -2,12 +2,12 @@ from collections.abc import Awaitable, Callable, Iterable
 from string.templatelib import Template
 from typing import TYPE_CHECKING
 
-from .tree import TreeNode as Node
+from .tree import TreeNode
 
 if TYPE_CHECKING:
     from .element import Fragment
 
-type NodeAtom = Node | Fragment
+type NodeAtom = TreeNode | Fragment
 type NodeListContent = Iterable[
     NodeAtom
     | str

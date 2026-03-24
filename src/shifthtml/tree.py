@@ -8,7 +8,10 @@ import copy
 from abc import ABCMeta, abstractmethod
 from collections.abc import AsyncGenerator, Generator, Iterator
 from string.templatelib import Template
-from typing import Self
+from typing import TYPE_CHECKING, Self
+
+if TYPE_CHECKING:
+    from .plugin import RenderContext
 
 type ChildNode = TreeNode | str | Template
 
@@ -67,7 +70,7 @@ class TreeNode(metaclass=ABCMeta):
         if child is self:
             raise ValueError("Can't make a node a child of itself")
         if not isinstance(child, TreeNode):
-            raise ValueError(f"Expected a TreeNode, got {child.__class__.__name__!r}")
+            raise ValueError(f"Expected a TreeNode, str, or Template. Got {child.__class__.__name__!r}")
         if child.parent_node is not None:
             raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
 
@@ -76,12 +79,7 @@ class TreeNode(metaclass=ABCMeta):
         if isinstance(child, str | Template):
             self.children.append(child)
             return
-        if child is self:
-            raise ValueError("Can't make a node a child of itself")
-        if not isinstance(child, TreeNode):
-            raise ValueError(f"Expected a TreeNode, str, or Template. Got {child.__class__.__name__!r}")
-        if child.parent_node is not None:
-            raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
+        self._validate_new_child(child)
         child.parent_node = self
         self.children.append(child)
 
@@ -217,10 +215,10 @@ class TreeNode(metaclass=ABCMeta):
         return copy.replace(self, children=[])
 
     @abstractmethod
-    def render_html(self, **kwargs) -> Generator[str]:
+    def render_html(self, *, ctx: RenderContext | None = None) -> Generator[str]:
         raise NotImplementedError("Subclasses must implement render_html")
 
     @abstractmethod
-    async def arender_html(self, **kwargs) -> AsyncGenerator[str]:
+    async def arender_html(self, *, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         raise NotImplementedError("Subclasses must implement arender_html")
         yield  # pragma: no cover

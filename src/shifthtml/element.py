@@ -308,11 +308,6 @@ class Element(Node):
                     new_obj.children.append(child)
         return new_obj
 
-    @property
-    def tag_name(self) -> str:
-        """The tag name of this element."""
-        return self.tag
-
     def __getitem__(self, name: str) -> object:
         return self.attributes[name.lower()]
 
