@@ -3,3 +3,4 @@
 {"run":10,"commit":"7a028df","metric":3.457,"metrics":{"build_ms":1.491,"render_ms":1.966},"status":"discard","description":"Re-baseline check (no changes) — 3.457, original 3.325 was lucky system noise","timestamp":1774328553533,"segment":0}
 {"type":"config","name":"Optimizing shifthtml build + render (min-based metric)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}
 {"run":1,"commit":"48e1027","metric":2.942,"metrics":{"build_ms":1.066,"render_ms":1.876},"status":"keep","description":"Baseline with min-based metric: build=1.066 render=1.876 total=2.942","timestamp":1774328601676,"segment":0}
+{"type":"config","name":"Optimizing shifthtml (fixed benchmark reinstall)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}

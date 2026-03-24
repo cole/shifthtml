@@ -3,8 +3,8 @@ set -euo pipefail
 
 cd bench
 
-# Quick syntax check
-uv run python -c "import shifthtml" 2>&1 || { echo "METRIC build_ms=0"; echo "METRIC render_ms=0"; echo "METRIC total_ms=0"; exit 1; }
+# Reinstall shifthtml from local source so benchmarks pick up changes
+uv run --reinstall-package shifthtml python -c "import shifthtml" 2>&1 || { echo "METRIC build_ms=0"; echo "METRIC render_ms=0"; echo "METRIC total_ms=0"; exit 1; }
 
 # Run build benchmark (200 iterations, 50 products, seeded)
 BUILD_OUT=$(uv run bench_build.py --iterations 200 --num-products 50 2>&1)
