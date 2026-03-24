@@ -4,3 +4,4 @@
 {"type":"config","name":"Optimizing shifthtml build + render (min-based metric)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}
 {"run":1,"commit":"48e1027","metric":2.942,"metrics":{"build_ms":1.066,"render_ms":1.876},"status":"keep","description":"Baseline with min-based metric: build=1.066 render=1.876 total=2.942","timestamp":1774328601676,"segment":0}
 {"type":"config","name":"Optimizing shifthtml (fixed benchmark reinstall)","metricName":"total_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":1,"commit":"03f90e2","metric":1.557,"metrics":{"build_ms":1.078,"render_ms":0.479},"status":"keep","description":"Baseline with fixed benchmark (--reinstall-package): build=1.078 render=0.479 total=1.557","timestamp":1774330742134,"segment":0}

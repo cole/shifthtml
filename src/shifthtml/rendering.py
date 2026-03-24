@@ -308,15 +308,21 @@ def _collect_result(result: NodeContent, parts: list[str]) -> None:
 
 def _collect_node(node: TreeNode, parts: list[str]) -> None:
     if isinstance(node, Element):
-        if node.tag == "html":
+        tag = node.tag
+        if tag == "html":
             parts.append("<!DOCTYPE html>")
-        attrs = node._render_attrs()
+        try:
+            open_tag = node._open_tag_cache
+        except AttributeError:
+            attrs = node._render_attrs()
+            open_tag = render_open_tag(tag, attrs, void=node.void)
+            node._open_tag_cache = open_tag
         if node.void:
-            parts.append(render_open_tag(node.tag, attrs, void=True))
+            parts.append(open_tag)
         else:
-            parts.append(render_open_tag(node.tag, attrs))
+            parts.append(open_tag)
             _collect_children(node.children, parts)
-            parts.append(f"</{node.tag}>")
+            parts.append(f"</{tag}>")
     elif isinstance(node, Lazy):
         _collect_result(node.fn(), parts)
     else:

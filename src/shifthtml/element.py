@@ -284,11 +284,12 @@ class Comment(Node):
 class Element(Node):
     """An HTML Element with tag, attributes, and builder support."""
 
-    __slots__ = ("attributes", "_style", "_class_list", "_dataset")
+    __slots__ = ("attributes", "_style", "_class_list", "_dataset", "_open_tag_cache")
 
     tag: ClassVar[str]
     void: ClassVar[bool] = False
     attributes: dict[str, object]
+    _open_tag_cache: str
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         super().__init__()
@@ -323,11 +324,19 @@ class Element(Node):
     def __getitem__(self, name: str) -> object:
         return self.attributes[name.lower()]
 
+    def _invalidate_open_tag_cache(self) -> None:
+        try:
+            del self._open_tag_cache
+        except AttributeError:
+            pass
+
     def __setitem__(self, name: str, value: object) -> None:
         self.attributes[name.lower()] = value
+        self._invalidate_open_tag_cache()
 
     def __delitem__(self, name: str) -> None:
         del self.attributes[name.lower()]
+        self._invalidate_open_tag_cache()
 
     def __contains__(self, name: object) -> bool:
         if not isinstance(name, str):
