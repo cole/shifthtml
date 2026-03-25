@@ -4,13 +4,12 @@ import copy
 import inspect
 from collections.abc import Awaitable, Callable, Iterable, Iterator
 from contextlib import suppress
-from contextvars import ContextVar
 from string.templatelib import Template
 from typing import Any, ClassVar, NoReturn, overload
 
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
-from .tree import TreeNode
+from .tree import TreeNode, _render_vars
 from .types import NodeContent
 
 _FLATTEN_MAX_DEPTH = 100
@@ -271,6 +270,7 @@ class Element(Node):
 
     tag: ClassVar[str]
     void: ClassVar[bool] = False
+    doctype: ClassVar[str] = ""
     attributes: dict[str, object]
     _open_tag_cache: str
 
@@ -417,8 +417,6 @@ class Async(Node):
 
 
 _MISSING = object()
-
-_render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
 
 class Var:

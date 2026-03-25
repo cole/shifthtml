@@ -1,4 +1,5 @@
 from . import tags
+from .compile import compile
 from .element import (
     Async,
     Comment,
@@ -129,6 +130,7 @@ from .tags import (
 
 __all__ = (
     "tags",
+    "compile",
     "Async",
     "Comment",
     "Lazy",

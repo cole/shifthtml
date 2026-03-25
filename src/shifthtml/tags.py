@@ -4,7 +4,7 @@ from .element import Element, VoidElement
 from .meta import TagMeta
 
 # Root
-html = TagMeta("HTMLRootElement", (Element,), {"tag": "html"})
+html = TagMeta("HTMLRootElement", (Element,), {"tag": "html", "doctype": "<!DOCTYPE html>"})
 head = TagMeta("HTMLHeadElement", (Element,), {"tag": "head"})
 body = TagMeta("HTMLBodyElement", (Element,), {"tag": "body"})
 

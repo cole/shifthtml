@@ -15,19 +15,110 @@ Node dispatch:
 
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Generator
+import inspect
+from collections.abc import AsyncGenerator, Generator, Mapping
+from html import escape
 from string.templatelib import Interpolation, Template
+from typing import Literal
 
 import anyio
 
 import shifthtml.element as _element_mod
 
-from .element import Async, Comment, Element, Fragment, Lazy, Node, _render_vars
+from .element import Async, Comment, Element, Fragment, Lazy, Node
 from .errors import RenderLimitExceeded
 from .plugin import Plugin, RenderContext, registered_plugins
-from .render import _needs_escape, arender_string, render_open_tag, render_string
-from .tree import TreeNode
+from .tree import TreeNode, _render_vars
 from .types import NodeContent
+
+# -- Low-level string / tag helpers --
+
+
+def _convert(value: object, conversion: Literal["a", "r", "s"] | None) -> str:
+    if conversion == "a":
+        return ascii(value)
+    if conversion == "r":
+        return repr(value)
+    return str(value)
+
+
+def _needs_escape(value: str, quote: bool = False) -> bool:
+    """Check if a string contains characters that need HTML escaping."""
+    if "&" in value or "<" in value or ">" in value:
+        return True
+    return quote and ('"' in value or "'" in value)
+
+
+def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
+    if isinstance(value, Template):
+        for item in value:
+            match item:
+                case str() as s:
+                    yield s
+                case Interpolation(v, _, conversion, format_spec):
+                    if callable(v):
+                        v = v()
+                    if isinstance(v, Node | Fragment):
+                        yield render(v, args=_render_vars.get())
+                    else:
+                        v = _convert(v, conversion)
+                        v = format(v, format_spec)
+                        yield escape(v, quote=quote) if _needs_escape(v, quote) else v
+    else:
+        yield escape(value, quote=quote) if _needs_escape(value, quote) else value
+
+
+async def arender_string(value: str | Template, quote: bool = False) -> AsyncGenerator[str]:
+    if isinstance(value, Template):
+        for item in value:
+            match item:
+                case str() as s:
+                    yield s
+                case Interpolation(v, _, conversion, format_spec):
+                    if callable(v):
+                        result = v()
+                        if inspect.isawaitable(result):
+                            v = await result
+                        else:
+                            v = result
+                    if isinstance(v, Node | Fragment):
+                        yield render(v, args=_render_vars.get())
+                    else:
+                        v = _convert(v, conversion)
+                        v = format(v, format_spec)
+                        yield escape(v, quote=quote) if _needs_escape(v, quote) else v
+    else:
+        yield escape(value, quote=quote) if _needs_escape(value, quote) else value
+
+
+def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
+    parts: list[str] = [f"<{tag}"]
+    for key, value in attributes.items():
+        if value is None or value is False:
+            continue
+        if value is True:
+            parts.append(f" {key}")
+            continue
+        if isinstance(value, str):
+            if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                value = escape(value, quote=True)
+            parts.append(f' {key}="{value}"')
+        elif isinstance(value, set | list | tuple):
+            rendered_value = " ".join(
+                "".join(render_string(v if isinstance(v, Template) else str(v), quote=True)) for v in value if v
+            )
+            parts.append(f' {key}="{rendered_value}"')
+        elif isinstance(value, Template):
+            rendered_value = "".join(render_string(value, quote=True))
+            parts.append(f' {key}="{rendered_value}"')
+        else:
+            sv = str(value)
+            if "&" in sv or "<" in sv or ">" in sv or '"' in sv or "'" in sv:
+                sv = escape(sv, quote=True)
+            parts.append(f' {key}="{sv}"')
+    parts.append(" />" if void else ">")
+    return "".join(parts)
+
 
 _DEFAULT_MAX_DEPTH = 100
 
@@ -42,8 +133,8 @@ def stream_node(node: TreeNode, ctx: RenderContext | None = None) -> Generator[s
         if node.void:
             yield render_open_tag(tag, attrs, void=True)
         else:
-            if tag == "html":
-                yield "<!DOCTYPE html>"
+            if node.doctype:
+                yield node.doctype
             yield render_open_tag(tag, attrs)
             yield from stream_children(node.children, ctx)
             yield f"</{tag}>"
@@ -73,8 +164,8 @@ async def astream_node(node: TreeNode, ctx: RenderContext | None = None) -> Asyn
         if node.void:
             yield render_open_tag(tag, attrs, void=True)
         else:
-            if tag == "html":
-                yield "<!DOCTYPE html>"
+            if node.doctype:
+                yield node.doctype
             yield render_open_tag(tag, attrs)
             async for chunk in astream_children(node.children, ctx):
                 yield chunk
@@ -185,15 +276,17 @@ def _astream_fn(ctx: RenderContext):
 
 
 def render(
-    html: Node | Fragment,
+    html: Node | Fragment | Template,
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
     max_depth: int = _DEFAULT_MAX_DEPTH,
     max_nodes: int | None = None,
 ) -> str:
-    """Render a node tree to an HTML string."""
+    """Render a node tree (or compiled Template) to an HTML string."""
     _render_vars.set(args or {})
+    if isinstance(html, Template):
+        return "".join(render_string(html))
     frag = html if isinstance(html, Fragment) else Fragment(html, html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
@@ -207,15 +300,18 @@ def render(
 
 
 def stream(
-    html: Node | Fragment,
+    html: Node | Fragment | Template,
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
     max_depth: int = _DEFAULT_MAX_DEPTH,
     max_nodes: int | None = None,
 ) -> Generator[str]:
-    """Render a node tree as a stream of HTML chunks."""
+    """Render a node tree (or compiled Template) as a stream of HTML chunks."""
     _render_vars.set(args or {})
+    if isinstance(html, Template):
+        yield from render_string(html)
+        return
     frag = html if isinstance(html, Fragment) else Fragment(html, html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
@@ -242,8 +338,8 @@ def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
         # Inject post_render output before the closing tag
         tag = root.tag
         attrs = root._render_attrs()
-        if tag == "html":
-            yield "<!DOCTYPE html>"
+        if root.doctype:
+            yield root.doctype
         yield render_open_tag(tag, attrs)
         yield from stream_children(root.children, ctx)
         yield from ctx.post_render_all()
@@ -255,7 +351,7 @@ def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
 
 
 async def astream(
-    html: Node | Fragment,
+    html: Node | Fragment | Template,
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
@@ -264,8 +360,12 @@ async def astream(
     max_depth: int = _DEFAULT_MAX_DEPTH,
     max_nodes: int | None = None,
 ) -> AsyncGenerator[str]:
-    """Render a node tree as an async stream of HTML chunks."""
+    """Render a node tree (or compiled Template) as an async stream of HTML chunks."""
     _render_vars.set(args or {})
+    if isinstance(html, Template):
+        async for chunk in arender_string(html):
+            yield chunk
+        return
     if min_chunk_size is None:
         async for chunk in _astream_unbuffered(
             html, plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
@@ -336,8 +436,8 @@ async def _astream_root(root: TreeNode, ctx: RenderContext) -> AsyncGenerator[st
         # Inject post_render output before the closing tag
         tag = root.tag
         attrs = root._render_attrs()
-        if tag == "html":
-            yield "<!DOCTYPE html>"
+        if root.doctype:
+            yield root.doctype
         yield render_open_tag(tag, attrs)
         async for chunk in astream_children(root.children, ctx):
             yield chunk
@@ -471,8 +571,6 @@ def _collect_string(value: str | Template, parts: list[str], quote: bool = False
                 case Interpolation(v, _, conversion, format_spec):
                     if callable(v):
                         v = v()
-                    from .render import _convert
-
                     v = _convert(v, conversion)
                     v = format(v, format_spec)
                     parts.append(_html_escape(v, quote=quote) if _needs_escape(v, quote) else v)
@@ -528,8 +626,8 @@ def _collect_node(
             raise RenderLimitExceeded(f"Exceeded max node count ({_counter[1]})")
     if isinstance(node, Element):
         tag = node.tag
-        if tag == "html":
-            parts.append("<!DOCTYPE html>")
+        if node.doctype:
+            parts.append(node.doctype)
         try:
             open_tag = node._open_tag_cache
         except AttributeError:

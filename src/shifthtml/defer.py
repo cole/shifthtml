@@ -6,7 +6,7 @@ from string.templatelib import Template
 
 from .element import Fragment, Node
 from .plugin import RenderContext, register
-from .render import arender_string, render_string
+from .rendering import arender_string, render_string
 from .tree import TreeNode
 
 

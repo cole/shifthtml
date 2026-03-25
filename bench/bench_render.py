@@ -73,5 +73,6 @@ def main() -> None:
     bench("shifthtml-args", lambda: render(args_tree, args=ctx), cli.iterations)
 
 
+
 if __name__ == "__main__":
     main()

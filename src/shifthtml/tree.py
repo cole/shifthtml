@@ -6,8 +6,11 @@ from __future__ import annotations
 
 import copy
 from collections.abc import Iterator
+from contextvars import ContextVar
 from string.templatelib import Template
 from typing import Self
+
+_render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
 type ChildNode = TreeNode | str | Template
 
