@@ -87,3 +87,42 @@ def test_callable_returning_empty_tuple():
 
     tag = div() >> multi
     assert str(tag) == "<div></div>"
+
+
+def test_lazy_with_positional_args():
+    def card(title, subtitle):
+        return div() >> (p() >> title, p() >> subtitle)
+
+    node = div() >> Lazy(card, "Hello", "World")
+    assert str(node) == "<div><div><p>Hello</p><p>World</p></div></div>"
+
+
+def test_lazy_with_keyword_args():
+    def card(title="default"):
+        return p() >> title
+
+    node = div() >> Lazy(card, title="Custom")
+    assert str(node) == "<div><p>Custom</p></div>"
+
+
+def test_lazy_with_mixed_args():
+    def card(title, body="default"):
+        return div() >> (p() >> title, p() >> body)
+
+    node = div() >> Lazy(card, "Hello", body="World")
+    assert str(node) == "<div><div><p>Hello</p><p>World</p></div></div>"
+
+
+def test_lazy_args_repr():
+    def my_fn():
+        pass
+
+    node = Lazy(my_fn, "a", key="val")
+    assert "Lazy(" in repr(node)
+    assert "'a'" in repr(node)
+    assert "key='val'" in repr(node)
+
+
+def test_lazy_no_args_unchanged():
+    node = Lazy(lambda: p() >> "text")
+    assert render(node) == "<p>text</p>"

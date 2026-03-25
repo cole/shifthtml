@@ -2,7 +2,6 @@ from . import tags
 from .element import (
     Async,
     Comment,
-    Deferred,
     Element,
     Fragment,
     Lazy,
@@ -131,7 +130,6 @@ __all__ = (
     "tags",
     "Async",
     "Comment",
-    "Deferred",
     "Lazy",
     "Var",
     "args",

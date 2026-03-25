@@ -1,12 +1,43 @@
 from __future__ import annotations
 
+import copy
 from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
-from .element import Deferred, Fragment, Node
+from .element import Fragment, Node
 from .plugin import RenderContext, register
 from .render import arender_string, render_string
 from .tree import TreeNode
+
+
+class Deferred(Node):
+    __slots__ = ("loading", "slot_name")
+
+    def __init__(
+        self,
+        child: Node | Fragment,
+        *,
+        slot_name: str,
+        loading: str | Template | Node | None = None,
+    ):
+        super().__init__()
+        if loading is not None and not isinstance(loading, str | Template):
+            self.loading: str | Template | Node | None = Node.factory(loading)
+        else:
+            self.loading = loading
+        self.slot_name = slot_name
+
+        if isinstance(child, Fragment):
+            self.append_child(child.root)
+        elif isinstance(child, Node):
+            self.append_child(child)
+        else:
+            raise ValueError(f"Deferred can only be initialized with a Node or Fragment, not {type(child)}")
+
+    def __replace__(self, /, **changes):
+        child = self.children[0]
+        assert isinstance(child, TreeNode)
+        return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
 
 def _escape_js_template(html: str) -> str:

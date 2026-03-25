@@ -361,70 +361,54 @@ class VoidElement(Element):
         raise ValueError(f"Cannot add children to a void element ({self.tag})")
 
 
-class Deferred(Node):
-    __slots__ = ("loading", "slot_name")
-
-    def __init__(
-        self,
-        child: Node | Fragment,
-        *,
-        slot_name: str,
-        loading: str | Template | Node | None = None,
-    ):
-        super().__init__()
-        if loading is not None and not isinstance(loading, str | Template):
-            self.loading: str | Template | Node | None = Node.factory(loading)
-        else:
-            self.loading = loading
-        self.slot_name = slot_name
-
-        if isinstance(child, Fragment):
-            self.append_child(child.root)
-        elif isinstance(child, Node):
-            self.append_child(child)
-        else:
-            raise ValueError(f"Deferred can only be initialized with a Node or Fragment, not {type(child)}")
-
-    def __replace__(self, /, **changes):
-        child = self.children[0]
-        assert isinstance(child, TreeNode)
-        return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
-
-
 class Lazy(Node):
     """Wraps a sync callable, resolved during rendering."""
 
-    __slots__ = ("fn",)
+    __slots__ = ("fn", "args", "kwargs")
 
-    fn: Callable[[], NodeContent]
+    fn: Callable[..., NodeContent]
+    args: tuple
+    kwargs: dict[str, object]
 
-    def __init__(self, fn: Callable[[], NodeContent], /):
+    def __init__(self, fn: Callable[..., NodeContent], /, *args, **kwargs):
         super().__init__()
         self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
 
     def __repr__(self):
-        return f"Lazy({self.fn!r})"
+        parts = [repr(self.fn)]
+        parts.extend(repr(a) for a in self.args)
+        parts.extend(f"{k}={v!r}" for k, v in self.kwargs.items())
+        return f"Lazy({', '.join(parts)})"
 
     def __replace__(self, **changes):
-        return type(self)(self.fn)
+        return type(self)(self.fn, *self.args, **self.kwargs)
 
 
 class Async(Node):
     """Wraps an async callable, resolved during async rendering."""
 
-    __slots__ = ("fn",)
+    __slots__ = ("fn", "args", "kwargs")
 
-    fn: Callable[[], Awaitable[NodeContent]]
+    fn: Callable[..., Awaitable[NodeContent]]
+    args: tuple
+    kwargs: dict[str, object]
 
-    def __init__(self, fn: Callable[[], Awaitable[NodeContent]], /):
+    def __init__(self, fn: Callable[..., Awaitable[NodeContent]], /, *args, **kwargs):
         super().__init__()
         self.fn = fn
+        self.args = args
+        self.kwargs = kwargs
 
     def __repr__(self):
-        return f"Async({self.fn!r})"
+        parts = [repr(self.fn)]
+        parts.extend(repr(a) for a in self.args)
+        parts.extend(f"{k}={v!r}" for k, v in self.kwargs.items())
+        return f"Async({', '.join(parts)})"
 
     def __replace__(self, **changes):
-        return type(self)(self.fn)
+        return type(self)(self.fn, *self.args, **self.kwargs)
 
 
 _MISSING = object()

@@ -2,9 +2,8 @@ from collections.abc import Generator
 
 import pytest
 
-from shifthtml import Element, Fragment, div, p, render, span, stream_node
+from shifthtml import Element, Fragment, div, p, render, span
 from shifthtml.defer import defer
-from shifthtml.element import Deferred
 from shifthtml.plugin import _registry, register
 
 pytestmark = pytest.mark.anyio
@@ -78,12 +77,6 @@ def test_plugin_pass_through():
     register(NoopPlugin())
     result = render(div() >> (p() >> "hello", span() >> "world"))
     assert result == "<div><p>hello</p><span>world</span></div>"
-
-
-def test_deferred_without_plugin_raises():
-    node = Deferred(p(), slot_name="slot-1")
-    with pytest.raises(TypeError, match="Deferred nodes require DeferPlugin"):
-        "".join(stream_node(node))
 
 
 def test_defer_auto_registers():

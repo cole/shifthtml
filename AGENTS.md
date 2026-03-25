@@ -10,5 +10,5 @@
 - commits have a leading emoji (relevant to the commit) and < 70 char summary line; body of commit can provide detail
 - full test coverage, but not verbose
 - no docstrings on tests; the test name should be descriptive enough
-- format and typecheck before committing
+- format, lint and typecheck (using ruff and ty) before committing
 - never use inline imports; import at the top of the file

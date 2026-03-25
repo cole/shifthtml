@@ -22,7 +22,7 @@ import anyio
 
 import shifthtml.element as _element_mod
 
-from .element import Async, Comment, Deferred, Element, Fragment, Lazy, Node, _render_vars
+from .element import Async, Comment, Element, Fragment, Lazy, Node, _render_vars
 from .plugin import Plugin, RenderContext, registered_plugins
 from .render import _needs_escape, arender_string, render_open_tag, render_string
 from .tree import TreeNode
@@ -47,11 +47,9 @@ def stream_node(node: TreeNode, ctx: RenderContext | None = None) -> Generator[s
     elif isinstance(node, Comment):
         yield f"<!--{node._escape_content()}-->"
     elif isinstance(node, Lazy):
-        yield from render_result(node.fn(), ctx)
+        yield from render_result(node.fn(*node.args, **node.kwargs), ctx)
     elif isinstance(node, Async):
         raise TypeError("Async nodes require async rendering")
-    elif isinstance(node, Deferred):
-        raise TypeError("Deferred nodes require DeferPlugin")
     elif isinstance(node, Node):
         yield from stream_children(node.children, ctx)
     else:
@@ -75,13 +73,11 @@ async def astream_node(node: TreeNode, ctx: RenderContext | None = None) -> Asyn
     elif isinstance(node, Comment):
         yield f"<!--{node._escape_content()}-->"
     elif isinstance(node, Lazy):
-        async for chunk in arender_result(node.fn(), ctx):
+        async for chunk in arender_result(node.fn(*node.args, **node.kwargs), ctx):
             yield chunk
     elif isinstance(node, Async):
-        async for chunk in arender_result(await node.fn(), ctx):
+        async for chunk in arender_result(await node.fn(*node.args, **node.kwargs), ctx):
             yield chunk
-    elif isinstance(node, Deferred):
-        raise TypeError("Deferred nodes require DeferPlugin")
     elif isinstance(node, Node):
         async for chunk in astream_children(node.children, ctx):
             yield chunk
@@ -482,7 +478,7 @@ def _collect_node(node: TreeNode, parts: list[str]) -> None:
     elif isinstance(node, Comment):
         parts.append(f"<!--{node._escape_content()}-->")
     elif isinstance(node, Lazy):
-        _collect_result(node.fn(), parts)
+        _collect_result(node.fn(*node.args, **node.kwargs), parts)
     elif isinstance(node, Node):
         _collect_children(node.children, parts)
 

@@ -151,3 +151,19 @@ async def test_async_callable_returning_list():
 
     result = await render_str(div() >> multi)
     assert result == "<div><span>a</span><span>b</span></div>"
+
+
+async def test_async_with_positional_args():
+    async def fetch_greeting(name):
+        return p() >> f"Hello, {name}"
+
+    result = await render_str(div() >> Async(fetch_greeting, "World"))
+    assert result == "<div><p>Hello, World</p></div>"
+
+
+async def test_async_with_keyword_args():
+    async def fetch_user(user_id=0):
+        return span() >> f"user-{user_id}"
+
+    result = await render_str(div() >> Async(fetch_user, user_id=42))
+    assert result == "<div><span>user-42</span></div>"
