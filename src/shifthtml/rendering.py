@@ -23,10 +23,13 @@ import anyio
 import shifthtml.element as _element_mod
 
 from .element import Async, Comment, Element, Fragment, Lazy, Node, _render_vars
+from .errors import RenderLimitExceeded
 from .plugin import Plugin, RenderContext, registered_plugins
 from .render import _needs_escape, arender_string, render_open_tag, render_string
 from .tree import TreeNode
 from .types import NodeContent
+
+_DEFAULT_MAX_DEPTH = 100
 
 # -- Node dispatch (sync) --
 
@@ -47,7 +50,13 @@ def stream_node(node: TreeNode, ctx: RenderContext | None = None) -> Generator[s
     elif isinstance(node, Comment):
         yield f"<!--{node._escape_content()}-->"
     elif isinstance(node, Lazy):
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
         yield from render_result(node.fn(*node.args, **node.kwargs), ctx)
+        if ctx is not None:
+            ctx._depth -= 1
     elif isinstance(node, Async):
         raise TypeError("Async nodes require async rendering")
     elif isinstance(node, Node):
@@ -73,11 +82,23 @@ async def astream_node(node: TreeNode, ctx: RenderContext | None = None) -> Asyn
     elif isinstance(node, Comment):
         yield f"<!--{node._escape_content()}-->"
     elif isinstance(node, Lazy):
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
         async for chunk in arender_result(node.fn(*node.args, **node.kwargs), ctx):
             yield chunk
+        if ctx is not None:
+            ctx._depth -= 1
     elif isinstance(node, Async):
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
         async for chunk in arender_result(await node.fn(*node.args, **node.kwargs), ctx):
             yield chunk
+        if ctx is not None:
+            ctx._depth -= 1
     elif isinstance(node, Node):
         async for chunk in astream_children(node.children, ctx):
             yield chunk
@@ -90,6 +111,9 @@ async def astream_node(node: TreeNode, ctx: RenderContext | None = None) -> Asyn
 
 def _render_node(node: TreeNode, ctx: RenderContext) -> Generator[str]:
     """Render a node through the full plugin pipeline."""
+    ctx._node_count += 1
+    if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
+        raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
     stream = _stream_fn(ctx)
     for plugin in ctx.plugins:
         result = plugin.pre_render_node(node, stream, ctx)
@@ -104,6 +128,9 @@ def _render_node(node: TreeNode, ctx: RenderContext) -> Generator[str]:
 
 async def _arender_node(node: TreeNode, ctx: RenderContext) -> AsyncGenerator[str]:
     """Render a node through the full async plugin pipeline."""
+    ctx._node_count += 1
+    if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
+        raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
     async_fn = _astream_fn(ctx)
     sync_fn = _stream_fn(ctx)
     for plugin in ctx.plugins:
@@ -162,6 +189,8 @@ def render(
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
+    max_depth: int = _DEFAULT_MAX_DEPTH,
+    max_nodes: int | None = None,
 ) -> str:
     """Render a node tree to an HTML string."""
     _render_vars.set(args or {})
@@ -170,10 +199,11 @@ def render(
 
     if not resolved_plugins:
         parts: list[str] = []
-        _collect_node(frag.root, parts)
+        counter = [0, max_nodes] if max_nodes is not None else None
+        _collect_node(frag.root, parts, _max_depth=max_depth, _counter=counter)
         return "".join(parts)
 
-    return "".join(stream(html, args=args, plugins=plugins))
+    return "".join(stream(html, args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes))
 
 
 def stream(
@@ -181,6 +211,8 @@ def stream(
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
+    max_depth: int = _DEFAULT_MAX_DEPTH,
+    max_nodes: int | None = None,
 ) -> Generator[str]:
     """Render a node tree as a stream of HTML chunks."""
     _render_vars.set(args or {})
@@ -188,7 +220,7 @@ def stream(
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
     if resolved_plugins:
-        ctx = RenderContext(plugins=resolved_plugins)
+        ctx = RenderContext(plugins=resolved_plugins, max_depth=max_depth, max_nodes=max_nodes)
         yield from ctx.pre_render_all()
         yield from _stream_root(frag.root, ctx)
     else:
@@ -229,17 +261,23 @@ async def astream(
     plugins: tuple[Plugin, ...] | None = None,
     min_chunk_size: int | None = 4096,
     cancel_scope: anyio.CancelScope | None = None,
+    max_depth: int = _DEFAULT_MAX_DEPTH,
+    max_nodes: int | None = None,
 ) -> AsyncGenerator[str]:
     """Render a node tree as an async stream of HTML chunks."""
     _render_vars.set(args or {})
     if min_chunk_size is None:
-        async for chunk in _astream_unbuffered(html, plugins=plugins, cancel_scope=cancel_scope):
+        async for chunk in _astream_unbuffered(
+            html, plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+        ):
             yield chunk
         return
 
     buf: list[str] = []
     buf_size = 0
-    async for chunk in _astream_unbuffered(html, plugins=plugins, cancel_scope=cancel_scope):
+    async for chunk in _astream_unbuffered(
+        html, plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+    ):
         buf.append(chunk)
         buf_size += len(chunk)
         if buf_size >= min_chunk_size:
@@ -255,12 +293,16 @@ async def _astream_unbuffered(
     *,
     plugins: tuple[Plugin, ...] | None = None,
     cancel_scope: anyio.CancelScope | None = None,
+    max_depth: int = _DEFAULT_MAX_DEPTH,
+    max_nodes: int | None = None,
 ) -> AsyncGenerator[str]:
     frag = html if isinstance(html, Fragment) else Fragment(html, html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
     if resolved_plugins:
-        ctx = RenderContext(plugins=resolved_plugins, cancel_scope=cancel_scope)
+        ctx = RenderContext(
+            plugins=resolved_plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+        )
         async for chunk in ctx.apre_render_all():
             yield chunk
         async for chunk in _astream_root(frag.root, ctx):
@@ -375,7 +417,7 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
 
 def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[str]:
     """Render the return value of a Lazy/Async callable."""
-    if result is None:
+    if result is None or result is False:
         return
     if isinstance(result, str | Template):
         yield from render_string(result)
@@ -393,7 +435,7 @@ def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[s
 
 async def arender_result(result: NodeContent, ctx: RenderContext | None) -> AsyncGenerator[str]:
     """Async render the return value of a Lazy/Async callable."""
-    if result is None:
+    if result is None or result is False:
         return
     if isinstance(result, str | Template):
         async for chunk in arender_string(result):
@@ -436,29 +478,54 @@ def _collect_string(value: str | Template, parts: list[str], quote: bool = False
                     parts.append(_html_escape(v, quote=quote) if _needs_escape(v, quote) else v)
 
 
-def _collect_children(children: list, parts: list[str]) -> None:
+def _collect_children(
+    children: list,
+    parts: list[str],
+    *,
+    _depth: int = 0,
+    _max_depth: int = _DEFAULT_MAX_DEPTH,
+    _counter: list[int] | None = None,
+) -> None:
     for child in children:
         if isinstance(child, str | Template):
             _collect_string(child, parts)
         else:
-            _collect_node(child, parts)
+            _collect_node(child, parts, _depth=_depth, _max_depth=_max_depth, _counter=_counter)
 
 
-def _collect_result(result: NodeContent, parts: list[str]) -> None:
-    if result is None:
+def _collect_result(
+    result: NodeContent,
+    parts: list[str],
+    *,
+    _depth: int = 0,
+    _max_depth: int = _DEFAULT_MAX_DEPTH,
+    _counter: list[int] | None = None,
+) -> None:
+    if result is None or result is False:
         return
     if isinstance(result, str | Template):
         _collect_string(result, parts)
         return
     if isinstance(result, tuple | list):
         for item in result:
-            _collect_result(item, parts)  # type: ignore[arg-type]
+            _collect_result(item, parts, _depth=_depth, _max_depth=_max_depth, _counter=_counter)  # type: ignore[arg-type]
         return
     node = Node.factory(result)
-    _collect_node(node, parts)
+    _collect_node(node, parts, _depth=_depth, _max_depth=_max_depth, _counter=_counter)
 
 
-def _collect_node(node: TreeNode, parts: list[str]) -> None:
+def _collect_node(
+    node: TreeNode,
+    parts: list[str],
+    *,
+    _depth: int = 0,
+    _max_depth: int = _DEFAULT_MAX_DEPTH,
+    _counter: list[int] | None = None,
+) -> None:
+    if _counter is not None:
+        _counter[0] += 1
+        if _counter[0] > _counter[1]:
+            raise RenderLimitExceeded(f"Exceeded max node count ({_counter[1]})")
     if isinstance(node, Element):
         tag = node.tag
         if tag == "html":
@@ -473,14 +540,22 @@ def _collect_node(node: TreeNode, parts: list[str]) -> None:
             parts.append(open_tag)
         else:
             parts.append(open_tag)
-            _collect_children(node.children, parts)
+            _collect_children(node.children, parts, _depth=_depth, _max_depth=_max_depth, _counter=_counter)
             parts.append(f"</{tag}>")
     elif isinstance(node, Comment):
         parts.append(f"<!--{node._escape_content()}-->")
     elif isinstance(node, Lazy):
-        _collect_result(node.fn(*node.args, **node.kwargs), parts)
+        if _depth >= _max_depth:
+            raise RenderLimitExceeded(f"Exceeded max render depth ({_max_depth})")
+        _collect_result(
+            node.fn(*node.args, **node.kwargs),
+            parts,
+            _depth=_depth + 1,
+            _max_depth=_max_depth,
+            _counter=_counter,
+        )
     elif isinstance(node, Node):
-        _collect_children(node.children, parts)
+        _collect_children(node.children, parts, _depth=_depth, _max_depth=_max_depth, _counter=_counter)
 
 
 # -- Wire up element.__str__ --

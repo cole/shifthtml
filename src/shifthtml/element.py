@@ -8,9 +8,12 @@ from contextvars import ContextVar
 from string.templatelib import Template
 from typing import Any, ClassVar, NoReturn, overload
 
+from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .tree import TreeNode
 from .types import NodeContent
+
+_FLATTEN_MAX_DEPTH = 100
 
 
 def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, TreeNode | None]:
@@ -33,11 +36,13 @@ def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, 
     return new_node, pointer_found
 
 
-def _flatten_into(parent: TreeNode, items: Iterable) -> None:
+def _flatten_into(parent: TreeNode, items: Iterable, *, _depth: int = 0) -> None:
     """Flatten an iterable of children directly into parent's children list."""
+    if _depth > _FLATTEN_MAX_DEPTH:
+        raise RenderLimitExceeded("Exceeded max nesting depth in children")
     children = parent.children
     for item in items:
-        if item is None:
+        if item is None or item is False:
             continue
         if isinstance(item, str | Template):
             children.append(item)
@@ -53,7 +58,7 @@ def _flatten_into(parent: TreeNode, items: Iterable) -> None:
             item.parent_node = parent
             children.append(item)
         elif isinstance(item, Iterable):
-            _flatten_into(parent, item)
+            _flatten_into(parent, item, _depth=_depth + 1)
         else:
             node = Node.factory(item)
             node.parent_node = parent
@@ -115,7 +120,7 @@ class Fragment:
     def __rshift__(self, other: NodeContent) -> Fragment: ...
 
     def __rshift__(self, other):
-        if other is None:
+        if other is None or other is False:
             return None
 
         if isinstance(other, str | Template):
@@ -189,7 +194,7 @@ class Node(TreeNode):
     def __rshift__(self, other: None) -> None: ...
 
     def __rshift__(self, other):
-        if other is None:
+        if other is None or other is False:
             return None
 
         new_fragment = Fragment(self, self)

@@ -2,6 +2,7 @@ import pytest
 
 from shifthtml import (
     Comment,
+    Lazy,
     aside,
     body,
     button,
@@ -15,6 +16,7 @@ from shifthtml import (
     main,
     meta,
     p,
+    render,
     stream_node,
     style,
     title,
@@ -227,3 +229,46 @@ def test_template_attribute_escapes_html():
     evil = '"><script>alert(1)</script>'
     tag = div(id=t"{evil}")
     assert "<script>" not in str(tag)
+
+
+def test_false_suppressed_in_children():
+    tag = div() >> (False, "text")
+    assert str(tag) == "<div>text</div>"
+
+
+def test_false_suppressed_top_level():
+    result = div() >> False
+    assert result is None
+
+
+def test_conditional_pattern_true():
+    flag = True
+    tag = div() >> (flag and (p() >> "yes"), "always")
+    assert str(tag) == "<div><p>yes</p>always</div>"
+
+
+def test_conditional_pattern_false():
+    flag = False
+    tag = div() >> (flag and (p() >> "yes"), "always")
+    assert str(tag) == "<div>always</div>"
+
+
+def test_false_in_lazy_return():
+    tag = div() >> Lazy(lambda: False)
+    assert render(tag) == "<div></div>"
+
+
+def test_none_still_suppressed():
+    tag = div() >> (None, "text")
+    assert str(tag) == "<div>text</div>"
+    assert div() >> None is None
+
+
+def test_zero_not_suppressed():
+    with pytest.raises(ValueError, match="Unsupported type"):
+        div() >> (0,)
+
+
+def test_empty_string_not_suppressed():
+    tag = div() >> ""
+    assert str(tag) == "<div></div>"

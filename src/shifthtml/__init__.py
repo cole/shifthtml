@@ -10,6 +10,7 @@ from .element import (
     VoidElement,
     args,
 )
+from .errors import RenderLimitExceeded
 from .plugin import Plugin, RenderContext, clear_registry, register, registered_plugins
 from .rendering import astream, render, stream, stream_node
 from .tags import (
@@ -254,6 +255,7 @@ __all__ = (
     "template",
     "Plugin",
     "RenderContext",
+    "RenderLimitExceeded",
     "register",
     "registered_plugins",
     "clear_registry",

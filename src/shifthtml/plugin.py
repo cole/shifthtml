@@ -61,6 +61,10 @@ class RenderContext:
     plugins: tuple[Plugin, ...]
     state: dict[Any, Any] = field(default_factory=dict)
     cancel_scope: anyio.CancelScope | None = None
+    max_depth: int = 100
+    max_nodes: int | None = None
+    _depth: int = field(default=0, repr=False)
+    _node_count: int = field(default=0, repr=False)
 
     def _post_render_node(self, node: TreeNode) -> Generator[str]:
         for plugin in self.plugins:
