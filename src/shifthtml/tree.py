@@ -5,10 +5,10 @@ Abstract base class for nodes in a tree structure, analogous to DOM nodes.
 from __future__ import annotations
 
 import copy
-from collections.abc import Iterator
+from collections.abc import AsyncGenerator, Generator, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import Self
+from typing import Any, Self
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
@@ -38,6 +38,15 @@ class TreeNode:
     def __init__(self):
         self.parent_node = None
         self.children = []
+
+    def _stream(self, ctx: Any = None) -> Generator[str]:
+        """Yield HTML chunks for this node. Overridden by subclasses."""
+        raise NotImplementedError  # pragma: no cover
+
+    async def _astream(self, ctx: Any = None) -> AsyncGenerator[str]:
+        """Yield HTML chunks asynchronously. Overridden by subclasses."""
+        raise NotImplementedError  # pragma: no cover
+        yield  # pragma: no cover  # noqa: RET503
 
     def __replace__(self, /, **changes):
         new_obj = type(self)()

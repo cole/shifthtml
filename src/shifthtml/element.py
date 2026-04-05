@@ -2,15 +2,30 @@ from __future__ import annotations
 
 import copy
 import inspect
-from collections.abc import Awaitable, Callable, Iterable, Iterator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from contextlib import suppress
 from string.templatelib import Template
-from typing import Any, ClassVar, NoReturn, overload
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, overload
 
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
+from .rendering import (
+    _arender_node,
+    _render_node,
+    arender_string,
+    astream_children,
+    render_open_tag,
+    render_string,
+    stream_children,
+)
+from .rendering import (
+    render as _render_impl,
+)
 from .tree import TreeNode, _render_vars
 from .types import NodeContent
+
+if TYPE_CHECKING:
+    from .plugin import RenderContext
 
 _FLATTEN_MAX_DEPTH = 100
 
@@ -76,11 +91,54 @@ def _convert_attribute_names(name: str) -> str:
         return result
 
 
+# -- Callable result helpers --
+
+
+def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[str]:
+    """Render the return value of a Lazy/Async callable."""
+    if result is None or result is False:
+        return
+    if isinstance(result, str | Template):
+        yield from render_string(result)
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            yield from render_result(item, ctx)  # type: ignore[arg-type]
+        return
+    node = Node.factory(result)
+    if ctx is not None:
+        yield from _render_node(node, ctx)
+    else:
+        yield from node._stream()
+
+
+async def arender_result(result: NodeContent, ctx: RenderContext | None) -> AsyncGenerator[str]:
+    """Async render the return value of a Lazy/Async callable."""
+    if result is None or result is False:
+        return
+    if isinstance(result, str | Template):
+        async for chunk in arender_string(result):
+            yield chunk
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            async for chunk in arender_result(item, ctx):  # type: ignore[arg-type]
+                yield chunk
+        return
+    node = Node.factory(result)
+    if ctx is not None:
+        async for chunk in _arender_node(node, ctx):
+            yield chunk
+    else:
+        async for chunk in node._astream():
+            yield chunk
+
+
+# -- Fragment --
+
+
 class Fragment:
-    """
-    A document fragment — a builder wrapper around a DOM tree.
-    Owns no rendering logic; use render()/stream()/astream() from the rendering module.
-    """
+    """A document fragment — a builder wrapper around a DOM tree."""
 
     __slots__ = ("root", "append_pointer")
 
@@ -107,7 +165,7 @@ class Fragment:
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
     def __str__(self):
-        return _render_fn(self)
+        return _render_impl(self)
 
     def __iter__(self) -> Iterator[TreeNode | str | Template]:
         return iter(self.root.children)
@@ -131,7 +189,7 @@ class Fragment:
             return self
 
         if isinstance(other, Fragment):
-            self.append(other)  # Fragment.append already clones via _copy_tree
+            self.append(other)
             return self
 
         if isinstance(other, Node):
@@ -161,6 +219,9 @@ class Fragment:
         self.append_pointer = node
 
 
+# -- Node types --
+
+
 class Node(TreeNode):
     """
     A node in the document tree with builder support.
@@ -185,6 +246,13 @@ class Node(TreeNode):
                 return Async(contents)
             return Lazy(contents)  # type: ignore[arg-type]
         raise ValueError(f"Unsupported type for >>: {type(contents)}")
+
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield from stream_children(self.children, ctx)
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        async for chunk in astream_children(self.children, ctx):
+            yield chunk
 
     @overload
     def __rshift__(self, other: NodeContent) -> Fragment: ...
@@ -235,7 +303,7 @@ class Node(TreeNode):
         return "".join(parts)
 
     def __str__(self) -> str:
-        return _render_fn(self)
+        return _render_impl(self)
 
 
 class Comment(Node):
@@ -261,6 +329,12 @@ class Comment(Node):
     def _escape_content(self) -> str:
         content = str(self.content)
         return content.replace("--", "- -")
+
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield f"<!--{self._escape_content()}-->"
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        yield f"<!--{self._escape_content()}-->"
 
 
 class Element(Node):
@@ -351,6 +425,31 @@ class Element(Node):
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
 
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        tag = self.tag
+        attrs = self._render_attrs()
+        if self.void:
+            yield render_open_tag(tag, attrs, void=True)
+        else:
+            if self.doctype:
+                yield self.doctype
+            yield render_open_tag(tag, attrs)
+            yield from stream_children(self.children, ctx)
+            yield f"</{tag}>"
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        tag = self.tag
+        attrs = self._render_attrs()
+        if self.void:
+            yield render_open_tag(tag, attrs, void=True)
+        else:
+            if self.doctype:
+                yield self.doctype
+            yield render_open_tag(tag, attrs)
+            async for chunk in astream_children(self.children, ctx):
+                yield chunk
+            yield f"</{tag}>"
+
 
 class VoidElement(Element):
     """An HTML element that cannot have children (e.g., img, br, input)."""
@@ -390,6 +489,25 @@ class Lazy(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn, *self.args, **self.kwargs)
 
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
+        yield from render_result(self.fn(*self.args, **self.kwargs), ctx)
+        if ctx is not None:
+            ctx._depth -= 1
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
+        async for chunk in arender_result(self.fn(*self.args, **self.kwargs), ctx):
+            yield chunk
+        if ctx is not None:
+            ctx._depth -= 1
+
 
 class Async(Node):
     """Wraps an async callable, resolved during async rendering."""
@@ -414,6 +532,19 @@ class Async(Node):
 
     def __replace__(self, **changes):
         return type(self)(self.fn, *self.args, **self.kwargs)
+
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        raise TypeError("Async nodes require async rendering")
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
+        async for chunk in arender_result(await self.fn(*self.args, **self.kwargs), ctx):
+            yield chunk
+        if ctx is not None:
+            ctx._depth -= 1
 
 
 _MISSING = object()
@@ -459,10 +590,3 @@ class _VarNamespace:
 
 
 args = _VarNamespace()
-
-
-def _default_render_fn(node: Node | Fragment) -> str:
-    raise RuntimeError("Rendering module not loaded")  # pragma: no cover
-
-
-_render_fn: Callable[..., str] = _default_render_fn
