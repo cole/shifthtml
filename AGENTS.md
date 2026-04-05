@@ -4,6 +4,8 @@
 - modern deps & toolchain (3.14+)
 - DOM APIs are our inspiration; the browser knows how to build HTML
 - On top of that, we aim for a concise but pythonic and readable DSL
+- core concern: simple tree builder rendering  of HTML
+- loosely coupled higher layers: template compilation, low JS tooling for dynamic content
 
 # Guidelines
 - jj for version control
