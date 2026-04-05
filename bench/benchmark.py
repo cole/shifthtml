@@ -349,9 +349,7 @@ def bench_shifthtml_async(iterations: int, num_products: int) -> dict[str, Any]:
                 footer() >> f"© {ctx['year']} {ctx['site_name']}",
             ),
         )
-        from shifthtml import astream
-
-        return "".join([chunk async for chunk in astream(page)])
+        return "".join([chunk async for chunk in page.astream()])
 
     async def run() -> dict[str, Any]:
         # warmup
@@ -390,7 +388,6 @@ def bench_shifthtml_args(iterations: int, num_products: int) -> dict[str, Any]:
         html,
         meta,
         nav,
-        render,
         span,
         style,
         title,
@@ -427,13 +424,13 @@ def bench_shifthtml_args(iterations: int, num_products: int) -> dict[str, Any]:
     # warmup
     ctx = make_context(num_products)
     for _ in range(5):
-        render(page, args=ctx)
+        page.render(args=ctx)
 
     times: list[float] = []
     for _ in range(iterations):
         ctx = make_context(num_products)
         t0 = time.perf_counter()
-        result = render(page, args=ctx)
+        result = page.render(args=ctx)
         times.append((time.perf_counter() - t0) * 1000)
 
     return _summarise("shifthtml-args", iterations, num_products, times, len(result))
@@ -531,7 +528,6 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
         html,
         meta,
         nav,
-        render,
         span,
         style,
         title,
@@ -572,8 +568,7 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
         nav_section = nav() >> [a(href=item["url"]) >> item["name"] for item in ctx["nav_items"]]
         products_section = div(class_="products") >> [_shift_product_card(p) for p in ctx["products"]]
 
-        return render(
-            compiled,
+        return compiled.render(
             args={
                 "site_name": ctx["site_name"],
                 "font_family": ctx["font_family"],

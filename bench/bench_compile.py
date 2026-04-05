@@ -32,7 +32,6 @@ from shifthtml import (
     meta,
     nav,
     p,
-    render,
     section,
     span,
     style,
@@ -44,35 +43,38 @@ from shifthtml import (
 def build_page():
     """~50 elements, 5 Var slots — fixed structure, only scalars change."""
     return html(lang="en") >> (
-        head() >> (
+        head()
+        >> (
             meta(charset="utf-8"),
             meta(name="viewport", content="width=device-width, initial-scale=1.0"),
             title() >> t"{args.page_title}",
             link(rel="stylesheet", href="/style.css"),
             style() >> "body { font-family: sans-serif; margin: 0; }",
         ),
-        div(class_="wrapper") >> (
-            header(class_="site-header") >> (
-                nav() >> ul() >> [li() >> span() >> f"Nav {i}" for i in range(8)],
-            ),
-            section(class_="hero") >> (
+        div(class_="wrapper")
+        >> (
+            header(class_="site-header") >> (nav() >> ul() >> [li() >> span() >> f"Nav {i}" for i in range(8)],),
+            section(class_="hero")
+            >> (
                 h1() >> t"{args.heading}",
                 p(class_="subtitle") >> t"Hello, {args.username}!",
             ),
-            div(class_="content") >> (
-                section(class_="main") >> (
+            div(class_="content")
+            >> (
+                section(class_="main")
+                >> (
                     h2() >> "About",
                     p() >> t"{args.bio}",
-                    ul(class_="features") >> [
-                        li(class_=f"feature-{i}") >> span() >> f"Feature {i}" for i in range(10)
-                    ],
+                    ul(class_="features") >> [li(class_=f"feature-{i}") >> span() >> f"Feature {i}" for i in range(10)],
                 ),
-                section(class_="sidebar") >> (
+                section(class_="sidebar")
+                >> (
                     h2() >> "Links",
                     ul() >> [li() >> span() >> f"Sidebar item {i}" for i in range(8)],
                 ),
             ),
-            footer(class_="site-footer") >> (
+            footer(class_="site-footer")
+            >> (
                 p() >> t"{args.footer_text}",
                 nav() >> ul() >> [li() >> span() >> f"Footer link {i}" for i in range(4)],
             ),
@@ -127,14 +129,14 @@ def main() -> None:
     compiled = compile(page)
 
     # Verify output parity
-    assert render(page, args=RENDER_ARGS) == render(compiled, args=RENDER_ARGS), "Output mismatch!"
+    assert page.render(args=RENDER_ARGS) == compiled.render(args=RENDER_ARGS), "Output mismatch!"
 
     print(f"Iterations: {cli.iterations}  |  Python: {sys.version.split()[0]}")
-    print(f"Tree: ~50 elements, 5 Var slots, {len(render(compiled, args=RENDER_ARGS))} chars output")
+    print(f"Tree: ~50 elements, 5 Var slots, {len(compiled.render(args=RENDER_ARGS))} chars output")
     print("-" * 100)
 
-    tree_stats = bench("render(tree)", lambda: render(page, args=RENDER_ARGS), cli.iterations)
-    compiled_stats = bench("render(compiled)", lambda: render(compiled, args=RENDER_ARGS), cli.iterations)
+    tree_stats = bench("render(tree)", lambda: page.render(args=RENDER_ARGS), cli.iterations)
+    compiled_stats = bench("render(compiled)", lambda: compiled.render(args=RENDER_ARGS), cli.iterations)
 
     print("-" * 100)
     speedup = tree_stats["median_ms"] / compiled_stats["median_ms"]

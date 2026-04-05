@@ -18,8 +18,6 @@ import time
 from bench_build import build_args_tree, build_tree
 from benchmark import make_context
 
-from shifthtml import render
-
 
 def bench(name: str, fn, iterations: int) -> dict:
     # warmup
@@ -70,8 +68,7 @@ def main() -> None:
 
     # shifthtml-args: template built once, rendered with same data each iteration
     args_tree = build_args_tree()
-    bench("shifthtml-args", lambda: render(args_tree, args=ctx), cli.iterations)
-
+    bench("shifthtml-args", lambda: args_tree.render(args=ctx), cli.iterations)
 
 
 if __name__ == "__main__":
