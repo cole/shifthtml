@@ -18,14 +18,14 @@ from .rendering import (
     render_string,
     stream_children,
 )
-from .rendering import (
-    render as _render_impl,
-)
+from .rendering import astream as _astream_impl
+from .rendering import render as _render_impl
+from .rendering import stream as _stream_impl
 from .tree import TreeNode, _render_vars
 from .types import NodeContent
 
 if TYPE_CHECKING:
-    from .plugin import RenderContext
+    from .plugin import Plugin, RenderContext
 
 _FLATTEN_MAX_DEPTH = 100
 
@@ -164,8 +164,41 @@ class Fragment:
     def __repr__(self):
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
+    def render(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        plugins: tuple[Plugin, ...] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> str:
+        return _render_impl(self, args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+
+    def stream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        plugins: tuple[Plugin, ...] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> Generator[str]:
+        return _stream_impl(self, args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+
+    def astream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        plugins: tuple[Plugin, ...] | None = None,
+        min_chunk_size: int | None = 4096,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> AsyncGenerator[str]:
+        return _astream_impl(
+            self, args=args, plugins=plugins, min_chunk_size=min_chunk_size, max_depth=max_depth, max_nodes=max_nodes
+        )
+
     def __str__(self):
-        return _render_impl(self)
+        return self.render()
 
     def __iter__(self) -> Iterator[TreeNode | str | Template]:
         return iter(self.root.children)
@@ -254,6 +287,39 @@ class Node(TreeNode):
         async for chunk in astream_children(self.children, ctx):
             yield chunk
 
+    def render(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        plugins: tuple[Plugin, ...] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> str:
+        return _render_impl(self, args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+
+    def stream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        plugins: tuple[Plugin, ...] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> Generator[str]:
+        return _stream_impl(self, args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+
+    def astream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        plugins: tuple[Plugin, ...] | None = None,
+        min_chunk_size: int | None = 4096,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> AsyncGenerator[str]:
+        return _astream_impl(
+            self, args=args, plugins=plugins, min_chunk_size=min_chunk_size, max_depth=max_depth, max_nodes=max_nodes
+        )
+
     @overload
     def __rshift__(self, other: NodeContent) -> Fragment: ...
 
@@ -303,7 +369,7 @@ class Node(TreeNode):
         return "".join(parts)
 
     def __str__(self) -> str:
-        return _render_impl(self)
+        return self.render()
 
 
 class Comment(Node):
