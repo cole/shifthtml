@@ -117,6 +117,16 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
 _DEFAULT_MAX_DEPTH = 100
 
 
+def _unwrap_template(html: object) -> Template | None:
+    """Return the stdlib Template if html is a Template or compiled wrapper, else None."""
+    if isinstance(html, Template):
+        return html
+    inner = getattr(html, "_inner", None)
+    if isinstance(inner, Template):
+        return inner
+    return None
+
+
 def _extract_root(html: object) -> TreeNode:
     """Extract the root TreeNode from a Node or Fragment-like object."""
     root = html.root if hasattr(html, "root") else html
@@ -212,8 +222,9 @@ def render(
 ) -> str:
     """Render a node tree (or compiled Template) to an HTML string."""
     _render_vars.set(args or {})
-    if isinstance(html, Template):
-        return "".join(render_string(html))
+    tpl = _unwrap_template(html)
+    if tpl is not None:
+        return "".join(render_string(tpl))
     root = _extract_root(html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
@@ -234,8 +245,9 @@ def stream(
 ) -> Generator[str]:
     """Render a node tree (or compiled Template) as a stream of HTML chunks."""
     _render_vars.set(args or {})
-    if isinstance(html, Template):
-        yield from render_string(html)
+    tpl = _unwrap_template(html)
+    if tpl is not None:
+        yield from render_string(tpl)
         return
     root = _extract_root(html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
@@ -287,8 +299,9 @@ async def astream(
 ) -> AsyncGenerator[str]:
     """Render a node tree (or compiled Template) as an async stream of HTML chunks."""
     _render_vars.set(args or {})
-    if isinstance(html, Template):
-        async for chunk in arender_string(html):
+    tpl = _unwrap_template(html)
+    if tpl is not None:
+        async for chunk in arender_string(tpl):
             yield chunk
         return
     if min_chunk_size is None:

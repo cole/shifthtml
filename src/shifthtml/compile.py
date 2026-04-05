@@ -7,12 +7,42 @@ resolved at render time.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator, Generator
 from html import escape as _html_escape
-from string.templatelib import Interpolation, Template
+from string.templatelib import Interpolation
+from string.templatelib import Template as StdlibTemplate
 
 from .element import Async, Comment, Element, Fragment, Lazy, Node, Var
-from .rendering import _needs_escape, render, render_open_tag
-from .tree import TreeNode
+from .rendering import _needs_escape, arender_string, render, render_open_tag, render_string
+from .tree import TreeNode, _render_vars
+
+
+class Template:
+    """A compiled HTML template with variable slots."""
+
+    __slots__ = ("_inner",)
+
+    def __init__(self, inner: StdlibTemplate, /):
+        self._inner = inner
+
+    def render(self, *, args: dict[str, object] | None = None) -> str:
+        _render_vars.set(args or {})
+        return "".join(render_string(self._inner))
+
+    def stream(self, *, args: dict[str, object] | None = None) -> Generator[str]:
+        _render_vars.set(args or {})
+        return render_string(self._inner)
+
+    async def astream(self, *, args: dict[str, object] | None = None) -> AsyncGenerator[str]:
+        _render_vars.set(args or {})
+        async for chunk in arender_string(self._inner):
+            yield chunk
+
+    def __str__(self) -> str:
+        return self.render()
+
+    def __repr__(self) -> str:
+        return f"Template({self._inner!r})"
 
 
 def compile(tree: Node | Fragment) -> Template:
@@ -20,7 +50,7 @@ def compile(tree: Node | Fragment) -> Template:
     root = tree.root if isinstance(tree, Fragment) else tree
     parts: list[str | Interpolation] = []
     _compile_node(root, parts)
-    return Template(*_merge_adjacent_strings(parts))
+    return Template(StdlibTemplate(*_merge_adjacent_strings(parts)))
 
 
 def _compile_node(node: TreeNode, parts: list[str | Interpolation]) -> None:
@@ -54,7 +84,7 @@ def _compile_children(children: list, parts: list[str | Interpolation]) -> None:
                 parts.append(_html_escape(child))
             else:
                 parts.append(child)
-        elif isinstance(child, Template):
+        elif isinstance(child, StdlibTemplate):
             for item in child:
                 if isinstance(item, str | Interpolation):
                     parts.append(item)
