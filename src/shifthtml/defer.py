@@ -6,7 +6,7 @@ from string.templatelib import Template
 
 from .element import Fragment, Node
 from .plugin import RenderContext, register
-from .rendering import arender_string, render_string
+from .rendering import _arender_node, _render_node, arender_string, render_string
 from .tree import TreeNode
 
 
@@ -86,8 +86,6 @@ class DeferPlugin:
         yield "</div>"
 
     def post_render(self, ctx: RenderContext) -> Generator[str]:
-        from .rendering import _render_node
-
         deferred: list[Deferred] = ctx.state.get("deferred", [])
         while deferred:
             node = deferred.pop(0)
@@ -111,8 +109,6 @@ class DeferPlugin:
         yield "</div>"
 
     async def apost_render(self, ctx: RenderContext) -> AsyncGenerator[str]:
-        from .rendering import _arender_node
-
         deferred: list[Deferred] = ctx.state.get("deferred", [])
         while deferred:
             if ctx.cancel_scope is not None and ctx.cancel_scope.cancel_called:
