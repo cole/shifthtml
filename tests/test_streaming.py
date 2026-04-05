@@ -3,7 +3,7 @@ import time
 import anyio
 import pytest
 
-from shifthtml import astream, div, p, span
+from shifthtml import div, p, span
 from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
@@ -19,7 +19,7 @@ async def test_early_siblings_flush_before_slow_siblings():
 
     page = div() >> (p() >> "fast", slow)
 
-    async for chunk in astream(page, min_chunk_size=None):
+    async for chunk in page.astream(min_chunk_size=None):
         now = time.monotonic() - start
         if "fast" in chunk:
             flush_times.append(("fast", now))
@@ -39,7 +39,7 @@ async def test_flush_preserves_document_order():
 
     page = div() >> (p() >> "first", slow, p() >> "last")
     chunks: list[str] = []
-    async for chunk in astream(page):
+    async for chunk in page.astream():
         chunks.append(chunk)
 
     result = "".join(chunks)
@@ -62,7 +62,7 @@ async def test_cancel_scope_stops_deferred_rendering():
 
     scope = anyio.CancelScope()
     chunks: list[str] = []
-    async for chunk in astream(page, min_chunk_size=None, cancel_scope=scope):
+    async for chunk in page.astream(min_chunk_size=None, cancel_scope=scope):
         chunks.append(chunk)
         if "result-1" in chunk:
             scope.cancel()
@@ -77,7 +77,7 @@ async def test_default_batching_coalesces_small_chunks():
     page = div() >> (p() >> "hello", p() >> "world")
 
     chunks: list[str] = []
-    async for chunk in astream(page):
+    async for chunk in page.astream():
         chunks.append(chunk)
 
     assert len(chunks) == 1
@@ -88,7 +88,7 @@ async def test_batching_splits_at_threshold():
     page = div() >> [p() >> f"paragraph-{i}" for i in range(50)]
 
     chunks: list[str] = []
-    async for chunk in astream(page, min_chunk_size=64):
+    async for chunk in page.astream(min_chunk_size=64):
         chunks.append(chunk)
 
     assert len(chunks) > 1
@@ -103,7 +103,7 @@ async def test_unbuffered_with_zero_min_chunk_size():
     page = div() >> (p() >> "a", p() >> "b")
 
     chunks: list[str] = []
-    async for chunk in astream(page, min_chunk_size=None):
+    async for chunk in page.astream(min_chunk_size=None):
         chunks.append(chunk)
 
     assert len(chunks) > 2

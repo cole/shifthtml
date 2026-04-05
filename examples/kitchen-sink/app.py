@@ -11,8 +11,6 @@ from pathlib import Path
 
 from components import page
 
-from shifthtml import stream
-
 STATIC_DIR = Path(__file__).parent / "static"
 
 CONTENT_TYPES = {
@@ -34,7 +32,7 @@ class Handler(BaseHTTPRequestHandler):
         global request_count
         request_count += 1
 
-        content = stream(page(request_count=request_count))
+        content = page(request_count=request_count).stream()
 
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")

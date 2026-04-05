@@ -16,8 +16,6 @@ from shifthtml import (
     main,
     meta,
     p,
-    render,
-    stream_node,
     style,
     title,
     ul,
@@ -177,8 +175,7 @@ def test_render_attribute_none_omitted():
 
 
 def test_comment_render():
-    result = "".join(stream_node(Comment("hello")))
-    assert result == "<!--hello-->"
+    assert Comment("hello").render() == "<!--hello-->"
 
 
 def test_comment_in_tree():
@@ -187,13 +184,11 @@ def test_comment_in_tree():
 
 
 def test_comment_escapes_double_dash():
-    result = "".join(stream_node(Comment("bad-->stuff")))
-    assert result == "<!--bad- ->stuff-->"
+    assert Comment("bad-->stuff").render() == "<!--bad- ->stuff-->"
 
 
 def test_comment_escapes_double_dash_middle():
-    result = "".join(stream_node(Comment("a--b")))
-    assert result == "<!--a- -b-->"
+    assert Comment("a--b").render() == "<!--a- -b-->"
 
 
 def test_comment_clone():
@@ -255,7 +250,7 @@ def test_conditional_pattern_false():
 
 def test_false_in_lazy_return():
     tag = div() >> Lazy(lambda: False)
-    assert render(tag) == "<div></div>"
+    assert tag.render() == "<div></div>"
 
 
 def test_none_still_suppressed():

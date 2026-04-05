@@ -7,6 +7,8 @@ from contextlib import suppress
 from string.templatelib import Template
 from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, overload
 
+import anyio
+
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
@@ -190,11 +192,18 @@ class Fragment:
         args: dict[str, object] | None = None,
         plugins: tuple[Plugin, ...] | None = None,
         min_chunk_size: int | None = 4096,
+        cancel_scope: anyio.CancelScope | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
         return _astream_impl(
-            self, args=args, plugins=plugins, min_chunk_size=min_chunk_size, max_depth=max_depth, max_nodes=max_nodes
+            self,
+            args=args,
+            plugins=plugins,
+            min_chunk_size=min_chunk_size,
+            cancel_scope=cancel_scope,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
         )
 
     def __str__(self):
@@ -313,11 +322,18 @@ class Node(TreeNode):
         args: dict[str, object] | None = None,
         plugins: tuple[Plugin, ...] | None = None,
         min_chunk_size: int | None = 4096,
+        cancel_scope: anyio.CancelScope | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
         return _astream_impl(
-            self, args=args, plugins=plugins, min_chunk_size=min_chunk_size, max_depth=max_depth, max_nodes=max_nodes
+            self,
+            args=args,
+            plugins=plugins,
+            min_chunk_size=min_chunk_size,
+            cancel_scope=cancel_scope,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
         )
 
     @overload

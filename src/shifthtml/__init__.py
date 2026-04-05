@@ -1,5 +1,5 @@
 from . import tags
-from .compile import compile
+from .compile import Template, compile
 from .element import (
     Async,
     Comment,
@@ -13,7 +13,6 @@ from .element import (
 )
 from .errors import RenderLimitExceeded
 from .plugin import Plugin, RenderContext, clear_registry, register, registered_plugins
-from .rendering import astream, render, stream, stream_node
 from .tags import (
     a,
     abbr,
@@ -131,6 +130,7 @@ from .tags import (
 __all__ = (
     "tags",
     "compile",
+    "Template",
     "Async",
     "Comment",
     "Lazy",
@@ -140,10 +140,6 @@ __all__ = (
     "Fragment",
     "Node",
     "VoidElement",
-    "render",
-    "stream",
-    "stream_node",
-    "astream",
     "html",
     "head",
     "body",

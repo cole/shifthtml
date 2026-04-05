@@ -4,8 +4,6 @@ from pathlib import Path
 from components import page, todo_item, todo_list
 from flask import Flask, g, request, send_from_directory
 
-from shifthtml import stream
-
 app = Flask(__name__)
 DATABASE = "todos.db"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -50,7 +48,7 @@ def index_route():
     db = get_db()
     todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
 
-    return stream(page(todos))
+    return page(todos).stream()
 
 
 @app.route("/todos", methods=["POST"])
@@ -62,7 +60,7 @@ def add_todo():
         db.commit()
 
     todos = db.execute("SELECT * FROM todos ORDER BY id DESC").fetchall()
-    return stream(todo_list(todos))
+    return todo_list(todos).stream()
 
 
 @app.route("/todos/<int:todo_id>/toggle", methods=["PUT"])
@@ -72,7 +70,7 @@ def toggle_todo(todo_id):
     db.commit()
 
     todo = db.execute("SELECT * FROM todos WHERE id = ?", (todo_id,)).fetchone()
-    return stream(todo_item(todo))
+    return todo_item(todo).stream()
 
 
 @app.route("/todos/<int:todo_id>", methods=["DELETE"])
