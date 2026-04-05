@@ -95,9 +95,11 @@ async def test_async_with_deferred():
     assert result == (
         "<div>"
         "<p>before</p>"
-        '<div id="p:slot-1">Loading...</div>'
+        '<div id="slot-1">Loading...</div>'
         "<p>after</p>"
-        '<script>document.getElementById("p:slot-1").outerHTML=`<div><span>loaded<\\/span><\\/div>`</script>'
+        '<shift-update action="replace" target="slot-1"><template>'
+        "<div><span>loaded</span></div>"
+        "</template></shift-update>"
         "</div>"
     )
 

@@ -19,8 +19,9 @@ def test_render_deferred_paragraph():
         p() >> "Paragraph 3",
     )
     assert tag.render() == (
-        '<div><p>Paragraph 1</p><div id="p:para-2">Loading...</div><p>Paragraph 3</p>'
-        '<script>document.getElementById("p:para-2").outerHTML=`<p>Paragraph 2<\\/p>`</script></div>'
+        '<div><p>Paragraph 1</p><div id="para-2">Loading...</div><p>Paragraph 3</p>'
+        '<shift-update action="replace" target="para-2">'
+        "<template><p>Paragraph 2</p></template></shift-update></div>"
     )
 
 
@@ -37,13 +38,19 @@ def test_render_deferred_list_and_nested_items():
     )
     assert tag.render() == (
         "<div><header><h1>Deferred streaming</h1></header>"
-        '<main><div id="p:list">Loading...</div></main>'
+        '<main><div id="list">Loading...</div></main>'
         "<footer>Footer content</footer>"
-        '<script>document.getElementById("p:list").outerHTML=`<ul><li><div id="p:item-0">Loading...<\\/div><\\/li>'
-        '<li><div id="p:item-1">Loading...<\\/div><\\/li>'
-        '<li><div id="p:item-2">Loading...<\\/div><\\/li><\\/ul>`</script>'
-        '<script>document.getElementById("p:item-0").outerHTML=`<span>Item 0<\\/span>`</script>'
-        '<script>document.getElementById("p:item-1").outerHTML=`<span>Item 1<\\/span>`</script>'
-        '<script>document.getElementById("p:item-2").outerHTML=`<span>Item 2<\\/span>`</script>'
+        '<shift-update action="replace" target="list"><template>'
+        "<ul>"
+        '<li><div id="item-0">Loading...</div></li>'
+        '<li><div id="item-1">Loading...</div></li>'
+        '<li><div id="item-2">Loading...</div></li>'
+        "</ul></template></shift-update>"
+        '<shift-update action="replace" target="item-0">'
+        "<template><span>Item 0</span></template></shift-update>"
+        '<shift-update action="replace" target="item-1">'
+        "<template><span>Item 1</span></template></shift-update>"
+        '<shift-update action="replace" target="item-2">'
+        "<template><span>Item 2</span></template></shift-update>"
         "</div>"
     )

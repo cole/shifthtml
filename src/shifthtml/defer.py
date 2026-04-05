@@ -40,11 +40,6 @@ class Deferred(Node):
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
 
-def _escape_js_template(html: str) -> str:
-    """Escape HTML for safe embedding inside a JS template literal."""
-    return html.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${").replace("</", "<\\/")
-
-
 def _render_loading(loading: str | Template | Node, stream) -> Generator[str]:
     if isinstance(loading, str | Template):
         yield from render_string(loading)
@@ -80,7 +75,7 @@ class DeferPlugin:
         return self._render_placeholder(node, stream)
 
     def _render_placeholder(self, node: Deferred, stream) -> Generator[str]:
-        yield f'<div id="p:{node.slot_name}">'
+        yield f'<div id="{node.slot_name}">'
         if node.loading is not None:
             yield from _render_loading(node.loading, stream)
         yield "</div>"
@@ -90,9 +85,9 @@ class DeferPlugin:
         while deferred:
             node = deferred.pop(0)
             child = node.children[0]
-            html = "".join(_render_node(child, ctx))
-            escaped = _escape_js_template(html)
-            yield f'<script>document.getElementById("p:{node.slot_name}").outerHTML=`{escaped}`</script>'
+            yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
+            yield from _render_node(child, ctx)
+            yield "</template></shift-update>"
 
     def apre_render_node(self, node: TreeNode, astream, ctx: RenderContext) -> AsyncGenerator[str] | None:
         if not isinstance(node, Deferred):
@@ -102,7 +97,7 @@ class DeferPlugin:
         return self._arender_placeholder(node, astream)
 
     async def _arender_placeholder(self, node: Deferred, astream) -> AsyncGenerator[str]:
-        yield f'<div id="p:{node.slot_name}">'
+        yield f'<div id="{node.slot_name}">'
         if node.loading is not None:
             async for chunk in _arender_loading(node.loading, astream):
                 yield chunk
@@ -115,12 +110,10 @@ class DeferPlugin:
                 return
             node = deferred.pop(0)
             child = node.children[0]
-            chunks: list[str] = []
+            yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
             async for chunk in _arender_node(child, ctx):
-                chunks.append(chunk)
-            html = "".join(chunks)
-            escaped = _escape_js_template(html)
-            yield f'<script>document.getElementById("p:{node.slot_name}").outerHTML=`{escaped}`</script>'
+                yield chunk
+            yield "</template></shift-update>"
 
 
 defer = DeferPlugin()
