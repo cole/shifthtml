@@ -5,7 +5,7 @@ import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from contextlib import suppress
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, cast, overload
 
 import anyio
 
@@ -105,7 +105,7 @@ def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[s
         return
     if isinstance(result, tuple | list):
         for item in result:
-            yield from render_result(item, ctx)  # type: ignore[arg-type]
+            yield from render_result(cast(NodeContent, item), ctx)
         return
     node = Node.factory(result)
     if ctx is not None:
@@ -124,7 +124,7 @@ async def arender_result(result: NodeContent, ctx: RenderContext | None) -> Asyn
         return
     if isinstance(result, tuple | list):
         for item in result:
-            async for chunk in arender_result(item, ctx):  # type: ignore[arg-type]
+            async for chunk in arender_result(cast(NodeContent, item), ctx):
                 yield chunk
         return
     node = Node.factory(result)
@@ -144,10 +144,10 @@ class Fragment:
 
     __slots__ = ("root", "append_pointer")
 
-    root: TreeNode
-    append_pointer: TreeNode
+    root: Node
+    append_pointer: Node
 
-    def __init__(self, root: TreeNode, append_pointer: TreeNode, /):
+    def __init__(self, root: Node, append_pointer: Node, /):
         self.root = root
         self.append_pointer = append_pointer
 
@@ -158,6 +158,9 @@ class Fragment:
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
         if new_pointer is None:
             raise ValueError("Pointer target not found in the tree")
+        # _copy_tree preserves concrete types via copy.replace
+        assert isinstance(new_root, Node)
+        assert isinstance(new_pointer, Node)
         return Fragment(new_root, new_pointer)
 
     def __replace__(self, /, **changes):
@@ -216,6 +219,9 @@ class Fragment:
     def __rshift__(self, other: None) -> None: ...
 
     @overload
+    def __rshift__(self, other: Literal[False]) -> None: ...
+
+    @overload
     def __rshift__(self, other: NodeContent) -> Fragment: ...
 
     def __rshift__(self, other):
@@ -247,12 +253,15 @@ class Fragment:
 
         return self
 
-    def append(self, node: TreeNode | Fragment) -> None:
+    def append(self, node: Node | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
             if new_pointer is None:
                 raise ValueError("Pointer target not found in the tree")
+            # _copy_tree preserves concrete types via copy.replace
+            assert isinstance(new_root, Node)
+            assert isinstance(new_pointer, Node)
             self.append_pointer.append_child(new_root)
             self.append_pointer = new_pointer
             return
@@ -281,12 +290,12 @@ class Node(TreeNode):
         if isinstance(contents, Fragment):
             root = contents.root
             if root.parent_node is not None:
-                return root.clone_node(deep=True)  # type: ignore[return-value]
-            return root  # type: ignore[return-value]
+                return root.clone_node(deep=True)
+            return root
         if callable(contents):
             if inspect.iscoroutinefunction(contents):
                 return Async(contents)
-            return Lazy(contents)  # type: ignore[arg-type]
+            return Lazy(cast(Callable[..., NodeContent], contents))
         raise ValueError(f"Unsupported type for >>: {type(contents)}")
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
@@ -341,6 +350,9 @@ class Node(TreeNode):
 
     @overload
     def __rshift__(self, other: None) -> None: ...
+
+    @overload
+    def __rshift__(self, other: Literal[False]) -> None: ...
 
     def __rshift__(self, other):
         if other is None or other is False:
@@ -553,7 +565,7 @@ class Lazy(Node):
     __slots__ = ("fn", "args", "kwargs")
 
     fn: Callable[..., NodeContent]
-    args: tuple
+    args: tuple[object, ...]
     kwargs: dict[str, object]
 
     def __init__(self, fn: Callable[..., NodeContent], /, *args, **kwargs):
@@ -597,7 +609,7 @@ class Async(Node):
     __slots__ = ("fn", "args", "kwargs")
 
     fn: Callable[..., Awaitable[NodeContent]]
-    args: tuple
+    args: tuple[object, ...]
     kwargs: dict[str, object]
 
     def __init__(self, fn: Callable[..., Awaitable[NodeContent]], /, *args, **kwargs):

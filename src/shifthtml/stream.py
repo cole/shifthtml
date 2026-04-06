@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from .rendering import render
+from .rendering import Renderable, render
 
 __all__ = ("sse",)
 
 
-def sse(node: object, *, event: str | None = None, id: str | None = None) -> str:
+def sse(node: Renderable, *, event: str | None = None, id: str | None = None) -> str:
     """Format a renderable node as a Server-Sent Event string.
 
     Returns the complete SSE event including trailing blank line.

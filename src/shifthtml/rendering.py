@@ -13,13 +13,19 @@ import inspect
 from collections.abc import AsyncGenerator, Generator, Mapping
 from html import escape
 from string.templatelib import Interpolation, Template
-from typing import Any, Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 import anyio
 
 from .errors import RenderLimitExceeded
-from .plugin import Plugin, RenderContext, registered_plugins
+from .plugin import AStreamFn, Plugin, RenderContext, StreamFn, registered_plugins
 from .tree import TreeNode, _render_vars
+
+if TYPE_CHECKING:
+    from .compile import Template as CompiledTemplate
+    from .element import Element, Fragment, Node
+
+type Renderable = Node | Fragment | CompiledTemplate | Template
 
 # -- Low-level string / tag helpers --
 
@@ -117,17 +123,7 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
 _DEFAULT_MAX_DEPTH = 100
 
 
-def _unwrap_template(html: object) -> Template | None:
-    """Return the stdlib Template if html is a Template or compiled wrapper, else None."""
-    if isinstance(html, Template):
-        return html
-    inner = getattr(html, "_inner", None)
-    if isinstance(inner, Template):
-        return inner
-    return None
-
-
-def _extract_root(html: object) -> TreeNode:
+def _extract_root(html: Renderable) -> TreeNode:
     """Extract the root TreeNode from a Node or Fragment-like object."""
     root = html.root if hasattr(html, "root") else html
     assert isinstance(root, TreeNode)
@@ -190,7 +186,7 @@ async def _arender_node(node: TreeNode, ctx: RenderContext) -> AsyncGenerator[st
         yield chunk
 
 
-def _stream_fn(ctx: RenderContext):
+def _stream_fn(ctx: RenderContext) -> StreamFn:
     """Create a stream callable that renders a node's own markup."""
 
     def stream(node: TreeNode) -> Generator[str]:
@@ -199,7 +195,7 @@ def _stream_fn(ctx: RenderContext):
     return stream
 
 
-def _astream_fn(ctx: RenderContext):
+def _astream_fn(ctx: RenderContext) -> AStreamFn:
     """Create an async stream callable that renders a node's own markup."""
 
     async def astream(node: TreeNode) -> AsyncGenerator[str]:
@@ -213,7 +209,7 @@ def _astream_fn(ctx: RenderContext):
 
 
 def render(
-    html: object,
+    html: Renderable,
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
@@ -222,9 +218,10 @@ def render(
 ) -> str:
     """Render a node tree (or compiled Template) to an HTML string."""
     _render_vars.set(args or {})
-    tpl = _unwrap_template(html)
-    if tpl is not None:
-        return "".join(render_string(tpl))
+    if hasattr(html, "_ops"):
+        return html.render(args=args)  # CompiledTemplate
+    if isinstance(html, Template):
+        return "".join(render_string(html))
     root = _extract_root(html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
 
@@ -236,7 +233,7 @@ def render(
 
 
 def stream(
-    html: object,
+    html: Renderable,
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
@@ -245,9 +242,11 @@ def stream(
 ) -> Generator[str]:
     """Render a node tree (or compiled Template) as a stream of HTML chunks."""
     _render_vars.set(args or {})
-    tpl = _unwrap_template(html)
-    if tpl is not None:
-        yield from render_string(tpl)
+    if hasattr(html, "_ops"):
+        yield from html.stream(args=args)  # CompiledTemplate
+        return
+    if isinstance(html, Template):
+        yield from render_string(html)
         return
     root = _extract_root(html)
     resolved_plugins = plugins if plugins is not None else registered_plugins()
@@ -272,7 +271,7 @@ def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
             return
 
     if hasattr(root, "tag") and not getattr(root, "void", False):
-        el = cast(Any, root)
+        el = cast("Element", root)
         tag = el.tag
         attrs = el._render_attrs()
         if el.doctype:
@@ -288,7 +287,7 @@ def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
 
 
 async def astream(
-    html: object,
+    html: Renderable,
     *,
     args: dict[str, object] | None = None,
     plugins: tuple[Plugin, ...] | None = None,
@@ -299,9 +298,12 @@ async def astream(
 ) -> AsyncGenerator[str]:
     """Render a node tree (or compiled Template) as an async stream of HTML chunks."""
     _render_vars.set(args or {})
-    tpl = _unwrap_template(html)
-    if tpl is not None:
-        async for chunk in arender_string(tpl):
+    if hasattr(html, "_ops"):
+        async for chunk in html.astream(args=args):  # CompiledTemplate
+            yield chunk
+        return
+    if isinstance(html, Template):
+        async for chunk in arender_string(html):
             yield chunk
         return
     if min_chunk_size is None:
@@ -327,7 +329,7 @@ async def astream(
 
 
 async def _astream_unbuffered(
-    html: object,
+    html: Renderable,
     *,
     plugins: tuple[Plugin, ...] | None = None,
     cancel_scope: anyio.CancelScope | None = None,
@@ -371,7 +373,7 @@ async def _astream_root(root: TreeNode, ctx: RenderContext) -> AsyncGenerator[st
             return
 
     if hasattr(root, "tag") and not getattr(root, "void", False):
-        el = cast(Any, root)
+        el = cast("Element", root)
         tag = el.tag
         attrs = el._render_attrs()
         if el.doctype:

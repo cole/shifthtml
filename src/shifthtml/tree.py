@@ -8,7 +8,10 @@ import copy
 from collections.abc import AsyncGenerator, Generator, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import Any, Self
+from typing import TYPE_CHECKING, Self
+
+if TYPE_CHECKING:
+    from .plugin import RenderContext
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
@@ -39,11 +42,11 @@ class TreeNode:
         self.parent_node = None
         self.children = []
 
-    def _stream(self, ctx: Any = None) -> Generator[str]:
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         """Yield HTML chunks for this node. Overridden by subclasses."""
         raise NotImplementedError  # pragma: no cover
 
-    async def _astream(self, ctx: Any = None) -> AsyncGenerator[str]:
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         """Yield HTML chunks asynchronously. Overridden by subclasses."""
         raise NotImplementedError  # pragma: no cover
         yield  # pragma: no cover  # noqa: RET503

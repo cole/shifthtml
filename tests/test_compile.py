@@ -174,3 +174,72 @@ def test_compile_node_var_preserves_args_for_later_vars():
 
     result = compiled.render(args={"content": p() >> "dynamic", "title": "Hello"})
     assert result == "<div><p>dynamic</p><p>Hello</p></div>"
+
+
+def test_compile_conditional():
+    page = div() >> (args.show & (p() >> "yes"),)
+    compiled = compile(page)
+    assert compiled.render(args={"show": True}) == "<div><p>yes</p></div>"
+    assert compiled.render(args={"show": False}) == "<div></div>"
+
+
+def test_compile_conditional_with_else():
+    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    compiled = compile(page)
+    assert compiled.render(args={"show": True}) == "<div><p>yes</p></div>"
+    assert compiled.render(args={"show": False}) == "<div><p>no</p></div>"
+
+
+def test_compile_conditional_callable_branch():
+    calls: list[int] = []
+
+    def make_content():
+        calls.append(1)
+        return p() >> "lazy"
+
+    page = div() >> (args.show & make_content,)
+    compiled = compile(page)
+
+    compiled.render(args={"show": False})
+    assert calls == []
+
+    compiled.render(args={"show": True})
+    assert calls == [1]
+
+
+def test_compile_conditional_render_parity():
+    page = div() >> (h1() >> "Title", args.show & (p() >> "visible"))
+    compiled = compile(page)
+    for show in (True, False):
+        test_args: dict[str, object] = {"show": show}
+        assert compiled.render(args=test_args) == page.render(args=test_args)
+
+
+def test_compile_iteration():
+    page = ul() >> args.items.map(lambda x: li() >> x)
+    compiled = compile(page)
+    assert compiled.render(args={"items": ["a", "b"]}) == "<ul><li>a</li><li>b</li></ul>"
+    assert compiled.render(args={"items": []}) == "<ul></ul>"
+
+
+def test_compile_iteration_render_parity():
+    page = ul() >> args.items.map(lambda x: li() >> x)
+    compiled = compile(page)
+    for items in (["a", "b", "c"], [], ["x"]):
+        test_args: dict[str, object] = {"items": items}
+        assert compiled.render(args=test_args) == page.render(args=test_args)
+
+
+@pytest.mark.anyio
+async def test_compile_conditional_astream():
+    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    compiled = compile(page)
+    chunks = [chunk async for chunk in compiled.astream(args={"show": True})]
+    assert "".join(chunks) == "<div><p>yes</p></div>"
+
+
+def test_compile_conditional_stream():
+    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    compiled = compile(page)
+    chunks = list(compiled.stream(args={"show": False}))
+    assert "".join(chunks) == "<div><p>no</p></div>"

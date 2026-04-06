@@ -2,12 +2,12 @@ import copy
 
 import pytest
 
-from shifthtml import div
+from shifthtml import Node, div
 from shifthtml.element import Fragment
 from shifthtml.tree import TreeNode
 
 
-class SimpleNode(TreeNode):
+class SimpleNode(Node):
     def __init__(self, value: str):
         super().__init__()
         self.value = value

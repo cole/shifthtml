@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator, Callable, Generator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
@@ -37,8 +37,8 @@ class Plugin(Protocol):
     def post_render(self, ctx: RenderContext) -> Generator[str]: ...
 
 
-type StreamFn = Generator[str]
-type AStreamFn = AsyncGenerator[str]
+type StreamFn = Callable[[TreeNode], Generator[str]]
+type AStreamFn = Callable[[TreeNode], AsyncGenerator[str]]
 
 
 _registry: dict[type, Plugin] = {}
