@@ -10,15 +10,14 @@ from contextvars import ContextVar
 from string.templatelib import Template
 from typing import TYPE_CHECKING, Any, ClassVar, Self
 
+from .types import _MISSING
+
 if TYPE_CHECKING:
     from .plugin import RenderContext
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
 type ChildNode = TreeNode | str | Template
-
-
-_MISSING = object()
 
 
 def _resolve_var(name: str, default: object = _MISSING) -> Any:

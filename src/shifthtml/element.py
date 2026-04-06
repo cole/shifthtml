@@ -5,7 +5,6 @@ from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iter
 from contextlib import suppress
 from html import escape as _html_escape
 from string.templatelib import Interpolation, Template
-from string.templatelib import Template as StdlibTemplate
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
@@ -15,6 +14,7 @@ from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .plugin import RenderContext, registered_plugins
 from .rendering import (
+    _arender_node,
     _astream_fn,
     _needs_escape,
     _render_node,
@@ -26,7 +26,7 @@ from .rendering import (
     stream_children,
 )
 from .tree import TreeNode, _render_vars
-from .types import NodeContent, is_async_content_fn, is_node_list, is_sync_content_fn
+from .types import _MISSING, NodeContent, is_async_content_fn, is_node_list, is_sync_content_fn
 
 if TYPE_CHECKING:
     from .plugin import Plugin
@@ -171,11 +171,18 @@ class Fragment:
         return self.root.compile()
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
-        yield from self.root._stream(ctx)
+        if ctx is not None:
+            yield from _render_node(self.root, ctx)
+        else:
+            yield from self.root._stream()
 
     async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in self.root._astream(ctx):
-            yield chunk
+        if ctx is not None:
+            async for chunk in _arender_node(self.root, ctx):
+                yield chunk
+        else:
+            async for chunk in self.root._astream():
+                yield chunk
 
     def __str__(self):
         return self.render()
@@ -725,7 +732,7 @@ class Lazy(Node):
 
     def _compile(self, ops: list[RenderOp]) -> None:
         if isinstance(self.fn, Var):
-            ops.append(StdlibTemplate("", Interpolation(self.fn, self.fn.name, None, ""), ""))
+            ops.append(Template("", Interpolation(self.fn, self.fn.name, None, ""), ""))
         else:
             ops.append(self.render())
 
@@ -892,9 +899,6 @@ class IterationNode(Node):
                 yield chunk
 
 
-_MISSING = object()
-
-
 class Var:
     """A named variable for use in preserved trees.
 
@@ -950,7 +954,7 @@ def _compile_children(children: list, ops: list[RenderOp]) -> None:
     for child in children:
         if isinstance(child, str):
             ops.append(_html_escape(child) if _needs_escape(child) else child)
-        elif isinstance(child, StdlibTemplate):
+        elif isinstance(child, Template):
             ops.append(child)
         elif isinstance(child, Node):
             child._compile(ops)
@@ -962,7 +966,7 @@ def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
         return
     if isinstance(content, str):
         ops.append(_html_escape(content) if _needs_escape(content) else content)
-    elif isinstance(content, StdlibTemplate):
+    elif isinstance(content, Template):
         ops.append(content)
     elif isinstance(content, Fragment):
         content.root._compile(ops)

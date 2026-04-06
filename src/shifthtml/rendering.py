@@ -114,13 +114,6 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
 # -- Callable result helpers --
 
 
-def _to_root(obj: Streamable) -> TreeNode:
-    """Extract root TreeNode from a Streamable (Fragment delegates via .root)."""
-    root = getattr(obj, "root", obj)
-    assert isinstance(root, TreeNode)
-    return root
-
-
 def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
     """Render the return value of a Lazy/Async callable."""
     if result is None or result is False:
@@ -128,11 +121,14 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
     if isinstance(result, str | Template):
         yield from render_string(result)
         return
-    if isinstance(result, Streamable):
+    if isinstance(result, TreeNode):
         if ctx is not None:
-            yield from _render_node(_to_root(result), ctx)
+            yield from _render_node(result, ctx)
         else:
             yield from result._stream()
+        return
+    if isinstance(result, Streamable):
+        yield from result._stream(ctx)
         return
     if isinstance(result, tuple | list):
         for item in result:
@@ -152,14 +148,17 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
         async for chunk in arender_string(result):
             yield chunk
         return
-    if isinstance(result, Streamable):
-        root = _to_root(result)
+    if isinstance(result, TreeNode):
         if ctx is not None:
-            async for chunk in _arender_node(root, ctx):
+            async for chunk in _arender_node(result, ctx):
                 yield chunk
         else:
-            async for chunk in root._astream():
+            async for chunk in result._astream():
                 yield chunk
+        return
+    if isinstance(result, Streamable):
+        async for chunk in result._astream(ctx):
+            yield chunk
         return
     if isinstance(result, tuple | list):
         for item in result:

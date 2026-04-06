@@ -3,17 +3,18 @@ from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iter
 from string.templatelib import Template
 from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 
-from .tree import TreeNode
-
 if TYPE_CHECKING:
     from .element import Fragment
     from .plugin import RenderContext
+    from .tree import TreeNode
+
+_MISSING: object = object()
 
 
 @runtime_checkable
 class Streamable(Protocol):
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]: ...
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]: ...
+    def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]: ...
 
 
 type NodeContent = (
