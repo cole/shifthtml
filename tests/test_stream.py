@@ -30,7 +30,7 @@ def test_sse_multiline_content():
 def test_sse_with_live_mutation():
     result = sse(replace("x", div(id="x") >> "new"))
     assert result == (
-        'data: <shift-update action="replace" target="x"><template><div id="x">new</div></template></shift-update>\n\n'
+        'data: <shift-update action="replace" target="x"><template><div id="x">new</div></template><shift-done></shift-done></shift-update>\n\n'
     )
 
 
@@ -43,7 +43,7 @@ def test_sse_with_multiple_mutations():
     result = sse(wrapper)
     assert result == (
         "data: "
-        '<shift-update action="replace" target="a"><template><span>1</span></template></shift-update>'
-        '<shift-update action="replace" target="b"><template><li>2</li></template></shift-update>'
+        '<shift-update action="replace" target="a"><template><span>1</span></template><shift-done></shift-done></shift-update>'
+        '<shift-update action="replace" target="b"><template><li>2</li></template><shift-done></shift-done></shift-update>'
         "\n\n"
     )

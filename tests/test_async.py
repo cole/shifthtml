@@ -4,7 +4,7 @@ import anyio
 import pytest
 
 from shifthtml import Async, div, h1, li, p, span, ul
-from shifthtml.defer import _ACTIVATE_SCRIPT, defer
+from shifthtml.defer import defer
 
 pytestmark = pytest.mark.anyio
 
@@ -99,8 +99,7 @@ async def test_async_with_deferred():
         "<p>after</p>"
         '<shift-update action="replace" target="slot-1"><template>'
         "<div><span>loaded</span></div>"
-        "</template></shift-update>"
-        f"{_ACTIVATE_SCRIPT}"
+        "</template><shift-done></shift-done></shift-update>"
         "</div>"
     )
 

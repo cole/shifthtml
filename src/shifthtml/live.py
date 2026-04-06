@@ -11,11 +11,24 @@ class ShiftUpdateElement(Element):
     tag: ClassVar[str] = "shift-update"
 
 
+class ShiftDoneElement(Element):
+    tag: ClassVar[str] = "shift-done"
+
+
 _RUNTIME_JS = (
     "class ShiftUpdate extends HTMLElement{"
     "connectedCallback(){"
+    "if(this.getAttribute('action')==='remove'){"
+    "var t=document.getElementById(this.getAttribute('target'));"
+    "if(t)t.remove();this.remove();return}"
+    "this._r()||new MutationObserver(function(m,o){"
+    "if(this._r())o.disconnect()"
+    "}.bind(this)).observe(this,{childList:true})"
+    "}"
+    "_r(){"
+    "if(!this.querySelector('shift-done'))return!1;"
     "var t=this.querySelector('template');"
-    "if(t)this._apply(t)"
+    "this._apply(t);return!0"
     "}"
     "_apply(tpl){"
     "if(this._d)return;this._d=1;"
@@ -28,7 +41,6 @@ _RUNTIME_JS = (
     "else if(a==='prepend')t.prepend(c);"
     "else if(a==='before')t.before(c);"
     "else if(a==='after')t.after(c);"
-    "else if(a==='remove')t.remove();"
     "this.remove()"
     "}}"
     "customElements.define('shift-update',ShiftUpdate);"
@@ -43,24 +55,27 @@ _SSE_JS = (
 )
 
 
+_MARKER = ShiftDoneElement()
+
+
 def replace(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="replace", target=target) >> (template() >> content)
+    return ShiftUpdateElement(action="replace", target=target) >> (template() >> content, _MARKER)
 
 
 def append(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="append", target=target) >> (template() >> content)
+    return ShiftUpdateElement(action="append", target=target) >> (template() >> content, _MARKER)
 
 
 def prepend(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="prepend", target=target) >> (template() >> content)
+    return ShiftUpdateElement(action="prepend", target=target) >> (template() >> content, _MARKER)
 
 
 def before(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="before", target=target) >> (template() >> content)
+    return ShiftUpdateElement(action="before", target=target) >> (template() >> content, _MARKER)
 
 
 def after(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="after", target=target) >> (template() >> content)
+    return ShiftUpdateElement(action="after", target=target) >> (template() >> content, _MARKER)
 
 
 def remove(target: str) -> Fragment:

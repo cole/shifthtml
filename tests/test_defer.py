@@ -9,7 +9,7 @@ from shifthtml import (
     span,
     ul,
 )
-from shifthtml.defer import _ACTIVATE_SCRIPT, defer
+from shifthtml.defer import defer
 
 
 def test_render_deferred_paragraph():
@@ -21,8 +21,7 @@ def test_render_deferred_paragraph():
     assert tag.render() == (
         '<div><p>Paragraph 1</p><div id="para-2">Loading...</div><p>Paragraph 3</p>'
         '<shift-update action="replace" target="para-2">'
-        "<template><p>Paragraph 2</p></template></shift-update>"
-        f"{_ACTIVATE_SCRIPT}</div>"
+        "<template><p>Paragraph 2</p></template><shift-done></shift-done></shift-update></div>"
     )
 
 
@@ -46,16 +45,12 @@ def test_render_deferred_list_and_nested_items():
         '<li><div id="item-0">Loading...</div></li>'
         '<li><div id="item-1">Loading...</div></li>'
         '<li><div id="item-2">Loading...</div></li>'
-        "</ul></template></shift-update>"
-        f"{_ACTIVATE_SCRIPT}"
+        "</ul></template><shift-done></shift-done></shift-update>"
         '<shift-update action="replace" target="item-0">'
-        "<template><span>Item 0</span></template></shift-update>"
-        f"{_ACTIVATE_SCRIPT}"
+        "<template><span>Item 0</span></template><shift-done></shift-done></shift-update>"
         '<shift-update action="replace" target="item-1">'
-        "<template><span>Item 1</span></template></shift-update>"
-        f"{_ACTIVATE_SCRIPT}"
+        "<template><span>Item 1</span></template><shift-done></shift-done></shift-update>"
         '<shift-update action="replace" target="item-2">'
-        "<template><span>Item 2</span></template></shift-update>"
-        f"{_ACTIVATE_SCRIPT}"
+        "<template><span>Item 2</span></template><shift-done></shift-done></shift-update>"
         "</div>"
     )
