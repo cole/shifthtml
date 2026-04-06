@@ -382,10 +382,12 @@ class ContentNode(Node):
             if result is not None:
                 yield from result
                 yield from ctx._post_render_node(self)
-                yield from ctx.post_render_all()
+                if not ctx.state.get("_post_rendered"):
+                    yield from ctx.post_render_all()
                 return
         yield from self._stream(ctx)
-        yield from ctx.post_render_all()
+        if not ctx.state.get("_post_rendered"):
+            yield from ctx.post_render_all()
         yield from ctx._post_render_node(self)
 
     async def _astream_root(self, ctx: RenderContext) -> AsyncGenerator[str]:
@@ -401,8 +403,9 @@ class ContentNode(Node):
                         yield chunk
                     async for chunk in ctx._apost_render_node(self):
                         yield chunk
-                    async for chunk in ctx.apost_render_all():
-                        yield chunk
+                    if not ctx.state.get("_post_rendered"):
+                        async for chunk in ctx.apost_render_all():
+                            yield chunk
                     return
             else:
                 sresult = plugin.pre_render_node(self, sync_fn, ctx)
@@ -411,13 +414,15 @@ class ContentNode(Node):
                         yield chunk
                     async for chunk in ctx._apost_render_node(self):
                         yield chunk
-                    async for chunk in ctx.apost_render_all():
-                        yield chunk
+                    if not ctx.state.get("_post_rendered"):
+                        async for chunk in ctx.apost_render_all():
+                            yield chunk
                     return
         async for chunk in self._astream(ctx):
             yield chunk
-        async for chunk in ctx.apost_render_all():
-            yield chunk
+        if not ctx.state.get("_post_rendered"):
+            async for chunk in ctx.apost_render_all():
+                yield chunk
         async for chunk in ctx._apost_render_node(self):
             yield chunk
 
@@ -613,6 +618,9 @@ class Element(ContentNode):
                 yield self.doctype
             yield render_open_tag(tag, attrs)
             yield from stream_children(self.children, ctx)
+            if ctx is not None and tag == "body":
+                yield from ctx.post_render_all()
+                ctx.state["_post_rendered"] = True
             yield f"</{tag}>"
 
     async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
@@ -626,6 +634,10 @@ class Element(ContentNode):
             yield render_open_tag(tag, attrs)
             async for chunk in astream_children(self.children, ctx):
                 yield chunk
+            if ctx is not None and tag == "body":
+                async for chunk in ctx.apost_render_all():
+                    yield chunk
+                ctx.state["_post_rendered"] = True
             yield f"</{tag}>"
 
     def _stream_root(self, ctx: RenderContext) -> Generator[str]:
@@ -636,7 +648,8 @@ class Element(ContentNode):
             if result is not None:
                 yield from result
                 yield from ctx._post_render_node(self)
-                yield from ctx.post_render_all()
+                if not ctx.state.get("_post_rendered"):
+                    yield from ctx.post_render_all()
                 return
         if self.void:
             yield render_open_tag(self.tag, self._render_attrs(), void=True)
@@ -645,7 +658,8 @@ class Element(ContentNode):
                 yield self.doctype
             yield render_open_tag(self.tag, self._render_attrs())
             yield from stream_children(self.children, ctx)
-            yield from ctx.post_render_all()
+            if not ctx.state.get("_post_rendered"):
+                yield from ctx.post_render_all()
             yield f"</{self.tag}>"
         yield from ctx._post_render_node(self)
 
@@ -662,8 +676,9 @@ class Element(ContentNode):
                         yield chunk
                     async for chunk in ctx._apost_render_node(self):
                         yield chunk
-                    async for chunk in ctx.apost_render_all():
-                        yield chunk
+                    if not ctx.state.get("_post_rendered"):
+                        async for chunk in ctx.apost_render_all():
+                            yield chunk
                     return
             else:
                 sresult = plugin.pre_render_node(self, sync_fn, ctx)
@@ -672,8 +687,9 @@ class Element(ContentNode):
                         yield chunk
                     async for chunk in ctx._apost_render_node(self):
                         yield chunk
-                    async for chunk in ctx.apost_render_all():
-                        yield chunk
+                    if not ctx.state.get("_post_rendered"):
+                        async for chunk in ctx.apost_render_all():
+                            yield chunk
                     return
         if self.void:
             yield render_open_tag(self.tag, self._render_attrs(), void=True)
@@ -683,8 +699,9 @@ class Element(ContentNode):
             yield render_open_tag(self.tag, self._render_attrs())
             async for chunk in astream_children(self.children, ctx):
                 yield chunk
-            async for chunk in ctx.apost_render_all():
-                yield chunk
+            if not ctx.state.get("_post_rendered"):
+                async for chunk in ctx.apost_render_all():
+                    yield chunk
             yield f"</{self.tag}>"
         async for chunk in ctx._apost_render_node(self):
             yield chunk
