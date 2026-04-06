@@ -2,12 +2,9 @@ import random
 from datetime import UTC, datetime
 from time import sleep
 
-from shifthtml import Element, Lazy
+from shifthtml import Lazy
 from shifthtml import tags as t
 from shifthtml.defer import defer
-from shifthtml.meta import TagMeta
-
-hgroup = TagMeta("HTMLHGroupElement", (Element,), {"tag": "hgroup"})
 
 FORTUNES = [
     ("The best way to predict the future is to invent it.", "Alan Kay"),
@@ -85,7 +82,7 @@ def banner(now: datetime, request_count: int):
 
 def headings_section():
     return t.section() >> (
-        hgroup()
+        t.hgroup()
         >> (
             t.h1() >> "h1 HTML5 Kitchen Sink",
             t.h2() >> ("h2 Back in my quaint ", t.a(href="#") >> "garden"),

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from .element import Element, Fragment
-from .meta import TagMeta
 from .tags import script, template
 from .types import NodeContent
 
-ShiftUpdateElement = TagMeta("ShiftUpdateElement", (Element,), {"tag": "shift-update"})
+
+class ShiftUpdateElement(Element):
+    tag: ClassVar[str] = "shift-update"
+
 
 _RUNTIME_JS = (
     "class ShiftUpdate extends HTMLElement{"
