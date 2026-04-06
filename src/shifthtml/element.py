@@ -208,6 +208,13 @@ class Fragment:
             max_nodes=max_nodes,
         )
 
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield from self.root._stream(ctx)
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        async for chunk in self.root._astream(ctx):
+            yield chunk
+
     def __str__(self):
         return self.render()
 
@@ -563,6 +570,8 @@ class Lazy(Node):
 
     __slots__ = ("fn", "args", "kwargs")
 
+    _may_block: ClassVar[bool] = True
+
     fn: Callable[..., NodeContent]
     args: tuple[object, ...]
     kwargs: dict[str, object]
@@ -606,6 +615,8 @@ class Async(Node):
     """Wraps an async callable, resolved during async rendering."""
 
     __slots__ = ("fn", "args", "kwargs")
+
+    _may_block: ClassVar[bool] = True
 
     fn: Callable[..., Awaitable[NodeContent]]
     args: tuple[object, ...]

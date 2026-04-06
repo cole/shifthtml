@@ -8,7 +8,7 @@ import copy
 from collections.abc import AsyncGenerator, Generator, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 if TYPE_CHECKING:
     from .plugin import RenderContext
@@ -16,6 +16,19 @@ if TYPE_CHECKING:
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
 type ChildNode = TreeNode | str | Template
+
+
+_MISSING = object()
+
+
+def _resolve_var(name: str, default: object = _MISSING) -> Any:
+    """Look up a render-time variable by name. Used by compiled template execution."""
+    vars = _render_vars.get()
+    if vars and name in vars:
+        return vars[name]
+    if default is not _MISSING:
+        return default
+    raise LookupError(f"Var {name!r} not set")
 
 
 class TreeNode:
@@ -34,6 +47,8 @@ class TreeNode:
     """
 
     __slots__ = ("parent_node", "children")
+
+    _may_block: ClassVar[bool] = False
 
     parent_node: None | TreeNode
     children: list[ChildNode]

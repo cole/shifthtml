@@ -1,12 +1,22 @@
+from __future__ import annotations
+
 import inspect
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable
 from string.templatelib import Template
-from typing import TYPE_CHECKING, TypeGuard
+from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 
 from .tree import TreeNode
 
 if TYPE_CHECKING:
     from .element import Fragment
+    from .plugin import RenderContext
+
+
+@runtime_checkable
+class Streamable(Protocol):
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]: ...
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]: ...
+
 
 type NodeContent = (
     TreeNode
