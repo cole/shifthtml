@@ -1,4 +1,4 @@
-"""Compile a ShiftHTML tree into a Template for fast repeated rendering.
+"""Compile a ShiftHTML tree into a CompiledTemplate for fast repeated rendering.
 
 Partially evaluates the tree: static HTML and eagerly-resolved Lazy nodes
 become string ops, while Var slots, conditionals, and loops become IR ops
@@ -9,32 +9,12 @@ from __future__ import annotations
 
 from collections.abc import AsyncGenerator, Callable, Generator
 from dataclasses import dataclass
-from html import escape as _html_escape
-from string.templatelib import Interpolation
 from string.templatelib import Template as StdlibTemplate
 from typing import Any
 
-from .element import (
-    Async,
-    Comment,
-    ConditionalNode,
-    Element,
-    Fragment,
-    IterationNode,
-    Lazy,
-    Node,
-    Var,
-)
-from .rendering import (
-    _needs_escape,
-    arender_result,
-    arender_string,
-    render_open_tag,
-    render_result,
-    render_string,
-)
-from .tree import TreeNode, _render_vars
-from .types import NodeContent, is_node_list, is_sync_content_fn
+from .rendering import arender_result, arender_string, render_result, render_string
+from .tree import _render_vars, _resolve_var
+from .types import NodeContent
 
 # -- IR types --
 
@@ -66,10 +46,10 @@ class LazySlot:
 type RenderOp = str | StdlibTemplate | Branch | Loop | LazySlot
 
 
-# -- Template --
+# -- CompiledTemplate --
 
 
-class Template:
+class CompiledTemplate:
     """A compiled HTML template with variable slots and control flow."""
 
     __slots__ = ("_ops",)
@@ -98,7 +78,7 @@ class Template:
         return self.render()
 
     def __repr__(self) -> str:
-        return f"Template({self._ops!r})"
+        return f"CompiledTemplate({self._ops!r})"
 
 
 # -- Op execution --
@@ -112,10 +92,10 @@ def _exec_ops(ops: list[RenderOp], out: list[str]) -> None:
             case StdlibTemplate() as tpl:
                 out.extend(render_string(tpl))
             case Branch(var_name, if_true, if_false):
-                branch = if_true if Var(var_name)() else if_false
+                branch = if_true if _resolve_var(var_name) else if_false
                 _exec_ops(branch, out)
             case Loop(var_name, body_fn):
-                for item in Var(var_name)():
+                for item in _resolve_var(var_name):
                     out.extend(render_result(body_fn(item), None))
             case LazySlot(fn):
                 out.extend(render_result(fn(), None))
@@ -129,10 +109,10 @@ def _stream_ops(ops: list[RenderOp]) -> Generator[str]:
             case StdlibTemplate() as tpl:
                 yield from render_string(tpl)
             case Branch(var_name, if_true, if_false):
-                branch = if_true if Var(var_name)() else if_false
+                branch = if_true if _resolve_var(var_name) else if_false
                 yield from _stream_ops(branch)
             case Loop(var_name, body_fn):
-                for item in Var(var_name)():
+                for item in _resolve_var(var_name):
                     yield from render_result(body_fn(item), None)
             case LazySlot(fn):
                 yield from render_result(fn(), None)
@@ -147,11 +127,11 @@ async def _astream_ops(ops: list[RenderOp]) -> AsyncGenerator[str]:
                 async for chunk in arender_string(tpl):
                     yield chunk
             case Branch(var_name, if_true, if_false):
-                branch = if_true if Var(var_name)() else if_false
+                branch = if_true if _resolve_var(var_name) else if_false
                 async for chunk in _astream_ops(branch):
                     yield chunk
             case Loop(var_name, body_fn):
-                for item in Var(var_name)():
+                for item in _resolve_var(var_name):
                     async for chunk in arender_result(body_fn(item), None):
                         yield chunk
             case LazySlot(fn):
@@ -159,83 +139,7 @@ async def _astream_ops(ops: list[RenderOp]) -> AsyncGenerator[str]:
                     yield chunk
 
 
-# -- Compiler --
-
-
-def compile(tree: Node | Fragment) -> Template:
-    """Compile a node tree into a Template with Var slots and control flow."""
-    root = tree.root if isinstance(tree, Fragment) else tree
-    ops: list[RenderOp] = []
-    _compile_node(root, ops)
-    return Template(_merge_ops(ops))
-
-
-def _compile_node(node: TreeNode, ops: list[RenderOp]) -> None:
-    if isinstance(node, ConditionalNode):
-        if_true_ops: list[RenderOp] = []
-        _compile_content(node.if_true, if_true_ops)
-        if_false_ops: list[RenderOp] = []
-        if node.if_false is not None:
-            _compile_content(node.if_false, if_false_ops)
-        ops.append(Branch(node.var.name, if_true_ops, if_false_ops))
-    elif isinstance(node, IterationNode):
-        ops.append(Loop(node.var.name, node.body_fn))
-    elif isinstance(node, Element):
-        if node.doctype:
-            ops.append(node.doctype)
-        attrs = node._render_attrs()
-        ops.append(render_open_tag(node.tag, attrs, void=node.void))
-        if not node.void:
-            _compile_children(node.children, ops)
-            ops.append(f"</{node.tag}>")
-    elif isinstance(node, Comment):
-        ops.append(f"<!--{node._escape_content()}-->")
-    elif isinstance(node, Lazy):
-        if isinstance(node.fn, Var):
-            ops.append(StdlibTemplate("", Interpolation(node.fn, node.fn.name, None, ""), ""))
-        else:
-            ops.append(node.render())
-    elif isinstance(node, Async):
-        raise TypeError(
-            "compile() cannot eagerly resolve Async nodes. Only Var slots remain dynamic in compiled templates."
-        )
-    elif isinstance(node, Node):
-        _compile_children(node.children, ops)
-
-
-def _compile_children(children: list, ops: list[RenderOp]) -> None:
-    for child in children:
-        if isinstance(child, str):
-            if _needs_escape(child):
-                ops.append(_html_escape(child))
-            else:
-                ops.append(child)
-        elif isinstance(child, StdlibTemplate):
-            ops.append(child)
-        elif isinstance(child, TreeNode):
-            _compile_node(child, ops)
-
-
-def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
-    """Compile arbitrary NodeContent into RenderOps (for conditional branches)."""
-    if content is None or content is False:
-        return
-    if isinstance(content, str):
-        if _needs_escape(content):
-            ops.append(_html_escape(content))
-        else:
-            ops.append(content)
-    elif isinstance(content, StdlibTemplate):
-        ops.append(content)
-    elif isinstance(content, Fragment):
-        _compile_node(content.root, ops)
-    elif isinstance(content, TreeNode):
-        _compile_node(content, ops)
-    elif is_node_list(content):
-        for item in content:
-            _compile_content(item, ops)
-    elif is_sync_content_fn(content):
-        ops.append(LazySlot(content))
+# -- Merge utility --
 
 
 def _merge_ops(ops: list[RenderOp]) -> list[RenderOp]:

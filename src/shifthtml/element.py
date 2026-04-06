@@ -3,16 +3,20 @@ from __future__ import annotations
 import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from contextlib import suppress
-from string.templatelib import Template
+from html import escape as _html_escape
+from string.templatelib import Interpolation, Template
+from string.templatelib import Template as StdlibTemplate
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
 
+from .compile import Branch, CompiledTemplate, LazySlot, Loop, RenderOp, _merge_ops
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .plugin import RenderContext, registered_plugins
 from .rendering import (
     _astream_fn,
+    _needs_escape,
     _render_node,
     _stream_fn,
     arender_result,
@@ -22,7 +26,7 @@ from .rendering import (
     stream_children,
 )
 from .tree import TreeNode, _render_vars
-from .types import NodeContent, is_async_content_fn, is_sync_content_fn
+from .types import NodeContent, is_async_content_fn, is_node_list, is_sync_content_fn
 
 if TYPE_CHECKING:
     from .plugin import Plugin
@@ -163,6 +167,9 @@ class Fragment:
             max_nodes=max_nodes,
         )
 
+    def compile(self) -> CompiledTemplate:
+        return self.root.compile()
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from self.root._stream(ctx)
 
@@ -265,6 +272,14 @@ class Node(TreeNode):
     async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         async for chunk in astream_children(self.children, ctx):
             yield chunk
+
+    def compile(self) -> CompiledTemplate:
+        ops: list[RenderOp] = []
+        self._compile(ops)
+        return CompiledTemplate(_merge_ops(ops))
+
+    def _compile(self, ops: list[RenderOp]) -> None:
+        _compile_children(self.children, ops)
 
     def render(
         self,
@@ -475,6 +490,9 @@ class Comment(Node):
         content = str(self.content)
         return content.replace("--", "- -")
 
+    def _compile(self, ops: list[RenderOp]) -> None:
+        ops.append(f"<!--{self._escape_content()}-->")
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
 
@@ -569,6 +587,14 @@ class Element(Node):
         if self._style:
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
+
+    def _compile(self, ops: list[RenderOp]) -> None:
+        if self.doctype:
+            ops.append(self.doctype)
+        ops.append(render_open_tag(self.tag, self._render_attrs(), void=self.void))
+        if not self.void:
+            _compile_children(self.children, ops)
+            ops.append(f"</{self.tag}>")
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         tag = self.tag
@@ -697,6 +723,12 @@ class Lazy(Node):
     def __replace__(self, **changes):
         return type(self)(self.fn, *self.args, **self.kwargs)
 
+    def _compile(self, ops: list[RenderOp]) -> None:
+        if isinstance(self.fn, Var):
+            ops.append(StdlibTemplate("", Interpolation(self.fn, self.fn.name, None, ""), ""))
+        else:
+            ops.append(self.render())
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             if ctx._depth >= ctx.max_depth:
@@ -742,6 +774,11 @@ class Async(Node):
 
     def __replace__(self, **changes):
         return type(self)(self.fn, *self.args, **self.kwargs)
+
+    def _compile(self, ops: list[RenderOp]) -> None:
+        raise TypeError(
+            "compile() cannot eagerly resolve Async nodes. Only Var slots remain dynamic in compiled templates."
+        )
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Async nodes require async rendering")
@@ -791,6 +828,14 @@ class ConditionalNode(Node):
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("ConditionalNode does not support children")
 
+    def _compile(self, ops: list[RenderOp]) -> None:
+        if_true_ops: list[RenderOp] = []
+        _compile_content(self.if_true, if_true_ops)
+        if_false_ops: list[RenderOp] = []
+        if self.if_false is not None:
+            _compile_content(self.if_false, if_false_ops)
+        ops.append(Branch(self.var.name, if_true_ops, if_false_ops))
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         val = self.var()
         branch = self.if_true if val else self.if_false
@@ -831,6 +876,9 @@ class IterationNode(Node):
 
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("IterationNode does not support children")
+
+    def _compile(self, ops: list[RenderOp]) -> None:
+        ops.append(Loop(self.var.name, self.body_fn))
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         items = self.var()
@@ -893,3 +941,35 @@ class _VarNamespace:
 
 
 args = _VarNamespace()
+
+
+# -- Compile helpers --
+
+
+def _compile_children(children: list, ops: list[RenderOp]) -> None:
+    for child in children:
+        if isinstance(child, str):
+            ops.append(_html_escape(child) if _needs_escape(child) else child)
+        elif isinstance(child, StdlibTemplate):
+            ops.append(child)
+        elif isinstance(child, Node):
+            child._compile(ops)
+
+
+def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
+    """Compile arbitrary NodeContent into RenderOps (for conditional branches)."""
+    if content is None or content is False:
+        return
+    if isinstance(content, str):
+        ops.append(_html_escape(content) if _needs_escape(content) else content)
+    elif isinstance(content, StdlibTemplate):
+        ops.append(content)
+    elif isinstance(content, Fragment):
+        content.root._compile(ops)
+    elif isinstance(content, Node):
+        content._compile(ops)
+    elif is_node_list(content):
+        for item in content:
+            _compile_content(item, ops)
+    elif is_sync_content_fn(content):
+        ops.append(LazySlot(content))

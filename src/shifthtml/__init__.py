@@ -1,5 +1,5 @@
 from . import tags
-from .compile import Template, compile
+from .compile import CompiledTemplate
 from .element import (
     Async,
     Comment,
@@ -131,8 +131,7 @@ from .tags import (
 
 __all__ = (
     "tags",
-    "compile",
-    "Template",
+    "CompiledTemplate",
     "Async",
     "Comment",
     "ConditionalNode",
