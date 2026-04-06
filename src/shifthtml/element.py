@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 _FLATTEN_MAX_DEPTH = 100
 
 
-def _to_node(contents: NodeContent) -> Node:
-    """Coerce arbitrary content into a tree node."""
+def _wrap_content(contents: NodeContent) -> Node:
+    """Wrap remaining NodeContent types (Node, Fragment, callables) into a tree node."""
     if isinstance(contents, Node):
         return contents
     if isinstance(contents, Fragment):
@@ -93,7 +93,7 @@ def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
         elif isinstance(item, Iterable):
             _flatten_into(parent, item, _depth=_depth + 1)
         else:
-            node = _to_node(item)
+            node = _wrap_content(item)
             node.parent_node = parent
             children.append(node)
 
@@ -243,7 +243,7 @@ class Fragment:
             _flatten_into(self.append_pointer, other)
             return self
 
-        node = _to_node(other)
+        node = _wrap_content(other)
         self.append(node)
 
         return self
@@ -471,7 +471,7 @@ class ContentNode(Node):
             _flatten_into(self, other)
             return new_fragment
 
-        node = _to_node(other)
+        node = _wrap_content(other)
         new_fragment.append(node)
 
         return new_fragment
