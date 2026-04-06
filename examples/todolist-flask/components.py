@@ -35,7 +35,7 @@ def add_todo_form():
 
 def todo_list(todos):
     if not todos:
-        return div(class_="todo-list empty") >> "No todos yet. Add one above!"
+        return div(id="todo-list", class_="todo-list empty") >> "No todos yet. Add one above!"
 
     return div(id="todo-list", class_="todo-list") >> (todo_item(todo) for todo in todos)
 
