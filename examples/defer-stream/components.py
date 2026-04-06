@@ -50,12 +50,7 @@ def page():
 
     page_body = body() >> (
         header(class_="page-header") >> h1() >> "Defer Stream Demo",
-        div(id="content")
-        >> defer(
-            "body-content",
-            columns(),
-            loading="Loading body content...",
-        ),
+        div(id="content") >> columns(),
         runtime(),
     )
 
