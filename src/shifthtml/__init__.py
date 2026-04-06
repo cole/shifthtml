@@ -4,11 +4,11 @@ from .element import (
     Async,
     Comment,
     ConditionalNode,
+    ContentNode,
     Element,
     Fragment,
     IterationNode,
     Lazy,
-    Node,
     Var,
     VoidElement,
     args,
@@ -128,6 +128,7 @@ from .tags import (
     video,
     wbr,
 )
+from .tree import Node
 
 __all__ = (
     "tags",
@@ -141,6 +142,7 @@ __all__ = (
     "args",
     "Element",
     "Fragment",
+    "ContentNode",
     "Node",
     "VoidElement",
     "html",

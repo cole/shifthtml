@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
-type ChildNode = TreeNode | str | Template
+type ChildNode = Node | str | Template
 
 
 def _resolve_var(name: str, default: object = _MISSING) -> Any:
@@ -30,18 +30,18 @@ def _resolve_var(name: str, default: object = _MISSING) -> Any:
     raise LookupError(f"Var {name!r} not set")
 
 
-class TreeNode:
+class Node:
     """
     Abstract base class for nodes in a tree structure.
 
     Different types of nodes are supported, analogous to Document Object Model (DOM)
     nodes, such as document, element, text, comment nodes, etc.
 
-    TreeNodes are initially "floating" without parent or children.
+    Nodes are initially "floating" without parent or children.
     They are added to a tree via `append_child`, which sets up parent/child
     relationships. Adding an existing node elsewhere will raise an error.
 
-    Children can be TreeNode instances, plain strings, or Template objects.
+    Children can be Node instances, plain strings, or Template objects.
     Strings and Templates are terminal — immutable, no parent tracking.
     """
 
@@ -49,7 +49,7 @@ class TreeNode:
 
     _may_block: ClassVar[bool] = False
 
-    parent_node: None | TreeNode
+    parent_node: None | Node
     children: list[ChildNode]
 
     def __init__(self):
@@ -71,7 +71,7 @@ class TreeNode:
 
         if new_children:
             for child in new_children:
-                if isinstance(child, TreeNode):
+                if isinstance(child, Node):
                     new_obj.append_child(copy.replace(child))
                 else:
                     new_obj.children.append(child)
@@ -86,16 +86,16 @@ class TreeNode:
         """Depth-first traversal of this node and all descendants."""
         yield self
         for child in self.children:
-            if isinstance(child, TreeNode):
+            if isinstance(child, Node):
                 yield from child.walk()
             else:
                 yield child
 
-    def _validate_new_child(self, child: TreeNode) -> None:
+    def _validate_new_child(self, child: Node) -> None:
         if child is self:
             raise ValueError("Can't make a node a child of itself")
-        if not isinstance(child, TreeNode):
-            raise ValueError(f"Expected a TreeNode, str, or Template. Got {child.__class__.__name__!r}")
+        if not isinstance(child, Node):
+            raise ValueError(f"Expected a Node, str, or Template. Got {child.__class__.__name__!r}")
         if child.parent_node is not None:
             raise ValueError(f"Child {child!r} is already in the tree. Parent: {child.parent_node!r}")
 
@@ -111,35 +111,35 @@ class TreeNode:
     def remove_child(self, child: ChildNode) -> None:
         """Remove a child node from this node."""
         if child not in self.children:
-            raise ValueError(f"TreeNode {child!r} is not a child of this node {self!r}")
+            raise ValueError(f"Node {child!r} is not a child of this node {self!r}")
 
         self.children.remove(child)
-        if isinstance(child, TreeNode):
+        if isinstance(child, Node):
             child.parent_node = None
 
     def insert_before(self, new_child: ChildNode, reference: ChildNode) -> None:
         """Insert new_child before reference in this node's children."""
-        if isinstance(new_child, TreeNode):
+        if isinstance(new_child, Node):
             self._validate_new_child(new_child)
         if reference not in self.children:
             raise ValueError(f"Reference node {reference!r} is not a child of this node")
 
         idx = self.children.index(reference)
-        if isinstance(new_child, TreeNode):
+        if isinstance(new_child, Node):
             new_child.parent_node = self
         self.children.insert(idx, new_child)
 
     def replace_child(self, new_child: ChildNode, old_child: ChildNode) -> ChildNode:
         """Replace old_child with new_child. Returns old_child."""
-        if isinstance(new_child, TreeNode):
+        if isinstance(new_child, Node):
             self._validate_new_child(new_child)
         if old_child not in self.children:
-            raise ValueError(f"TreeNode {old_child!r} is not a child of this node")
+            raise ValueError(f"Node {old_child!r} is not a child of this node")
 
         idx = self.children.index(old_child)
-        if isinstance(old_child, TreeNode):
+        if isinstance(old_child, Node):
             old_child.parent_node = None
-        if isinstance(new_child, TreeNode):
+        if isinstance(new_child, Node):
             new_child.parent_node = self
         self.children[idx] = new_child
         return old_child
@@ -150,13 +150,13 @@ class TreeNode:
             raise ValueError("Cannot remove a node that has no parent")
         self.parent_node.remove_child(self)
 
-    def _insert_nodes(self, parent: TreeNode, idx: int, nodes: tuple[TreeNode, ...]) -> None:
+    def _insert_nodes(self, parent: Node, idx: int, nodes: tuple[Node, ...]) -> None:
         for offset, node in enumerate(nodes):
             self._validate_new_child(node)
             node.parent_node = parent
             parent.children.insert(idx + offset, node)
 
-    def replace_with(self, *nodes: TreeNode) -> None:
+    def replace_with(self, *nodes: Node) -> None:
         """Replace this node in its parent with one or more nodes."""
         if self.parent_node is None:
             raise ValueError("Cannot replace a node that has no parent")
@@ -167,7 +167,7 @@ class TreeNode:
         parent.children.pop(idx)
         self._insert_nodes(parent, idx, nodes)
 
-    def before(self, *nodes: TreeNode) -> None:
+    def before(self, *nodes: Node) -> None:
         """Insert nodes before this node in its parent."""
         if self.parent_node is None:
             raise ValueError("Cannot insert before a node that has no parent")
@@ -176,7 +176,7 @@ class TreeNode:
         idx = parent.children.index(self)
         self._insert_nodes(parent, idx, nodes)
 
-    def after(self, *nodes: TreeNode) -> None:
+    def after(self, *nodes: Node) -> None:
         """Insert nodes after this node in its parent."""
         if self.parent_node is None:
             raise ValueError("Cannot insert after a node that has no parent")
@@ -185,7 +185,7 @@ class TreeNode:
         idx = parent.children.index(self) + 1
         self._insert_nodes(parent, idx, nodes)
 
-    def prepend(self, *nodes: TreeNode) -> None:
+    def prepend(self, *nodes: Node) -> None:
         """Insert nodes at the beginning of this node's children."""
         self._insert_nodes(self, 0, nodes)
 
@@ -208,7 +208,7 @@ class TreeNode:
         return None
 
     @property
-    def next_sibling(self) -> TreeNode | None:
+    def next_sibling(self) -> Node | None:
         """The next sibling of this node, or None if it has no next sibling."""
         if self.parent_node is None:
             return None
@@ -217,11 +217,11 @@ class TreeNode:
         index = siblings.index(self)
         if index + 1 < len(siblings):
             sibling = siblings[index + 1]
-            return sibling if isinstance(sibling, TreeNode) else None
+            return sibling if isinstance(sibling, Node) else None
         return None
 
     @property
-    def previous_sibling(self) -> TreeNode | None:
+    def previous_sibling(self) -> Node | None:
         """The previous sibling of this node, or None if it has no previous sibling."""
         if self.parent_node is None:
             return None
@@ -230,7 +230,7 @@ class TreeNode:
         index = siblings.index(self)
         if index - 1 >= 0:
             sibling = siblings[index - 1]
-            return sibling if isinstance(sibling, TreeNode) else None
+            return sibling if isinstance(sibling, Node) else None
         return None
 
     def clone_node(self, deep: bool = False) -> Self:

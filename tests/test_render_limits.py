@@ -1,7 +1,7 @@
 import pytest
 
 from shifthtml import Lazy, RenderLimitExceeded, div, li, p, ul
-from shifthtml.element import Node, _flatten_into
+from shifthtml.element import ContentNode, _flatten_into
 
 
 def _recursive_lazy(depth: int = 0):
@@ -35,7 +35,7 @@ def test_flatten_into_depth_limit():
     nested: object = ("leaf",)
     for _ in range(150):
         nested = (nested,)
-    node = Node()
+    node = ContentNode()
     with pytest.raises(RenderLimitExceeded, match="max nesting depth"):
         _flatten_into(node, (nested,))
 

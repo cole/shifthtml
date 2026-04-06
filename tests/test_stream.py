@@ -35,9 +35,9 @@ def test_sse_with_live_mutation():
 
 
 def test_sse_with_multiple_mutations():
-    from shifthtml.element import Node
+    from shifthtml.element import ContentNode
 
-    wrapper = Node()
+    wrapper = ContentNode()
     wrapper.append_child(replace("a", span() >> "1").root)
     wrapper.append_child(replace("b", li() >> "2").root)
     result = sse(wrapper)

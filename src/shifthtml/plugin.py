@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 if TYPE_CHECKING:
     import anyio
 
-    from .tree import TreeNode
+    from .tree import Node
 
 
 @runtime_checkable
@@ -29,7 +29,7 @@ class Plugin(Protocol):
 
     def pre_render_node(
         self,
-        node: TreeNode,
+        node: Node,
         stream: StreamFn,
         ctx: RenderContext,
     ) -> Generator[str] | None: ...
@@ -37,8 +37,8 @@ class Plugin(Protocol):
     def post_render(self, ctx: RenderContext) -> Generator[str]: ...
 
 
-type StreamFn = Callable[[TreeNode], Generator[str]]
-type AStreamFn = Callable[[TreeNode], AsyncGenerator[str]]
+type StreamFn = Callable[[Node], Generator[str]]
+type AStreamFn = Callable[[Node], AsyncGenerator[str]]
 
 
 _registry: dict[type, Plugin] = {}
@@ -66,7 +66,7 @@ class RenderContext:
     _depth: int = field(default=0, repr=False)
     _node_count: int = field(default=0, repr=False)
 
-    def _post_render_node(self, node: TreeNode) -> Generator[str]:
+    def _post_render_node(self, node: Node) -> Generator[str]:
         for plugin in self.plugins:
             hook = getattr(plugin, "post_render_node", None)
             if hook is not None:
@@ -84,7 +84,7 @@ class RenderContext:
         for plugin in self.plugins:
             yield from plugin.post_render(self)
 
-    async def _apost_render_node(self, node: TreeNode) -> AsyncGenerator[str]:
+    async def _apost_render_node(self, node: Node) -> AsyncGenerator[str]:
         for plugin in self.plugins:
             ahook = getattr(plugin, "apost_render_node", None)
             if ahook is not None:

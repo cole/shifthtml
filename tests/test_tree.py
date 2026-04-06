@@ -2,9 +2,9 @@ import copy
 
 import pytest
 
-from shifthtml import Node, div
+from shifthtml import div
 from shifthtml.element import Fragment
-from shifthtml.tree import TreeNode
+from shifthtml.tree import Node
 
 
 class SimpleNode(Node):
@@ -87,7 +87,7 @@ def test_node_accepts_string_children():
 
 
 def test_node_add_unknown_type():
-    with pytest.raises(ValueError, match="Expected a TreeNode, str, or Template"):
+    with pytest.raises(ValueError, match="Expected a Node, str, or Template"):
         SimpleNode("test").append_child(42)  # ty: ignore[invalid-argument-type]
 
 
@@ -122,10 +122,10 @@ def test_fragment_append_node():
     assert tree2.root.children[0] is tree2.append_pointer
     assert len(tree3.root.children) == 1
     child3 = tree3.root.children[0]
-    assert isinstance(child3, TreeNode) and child3.children[0] is tree3.append_pointer
+    assert isinstance(child3, Node) and child3.children[0] is tree3.append_pointer
     assert len(tree4.root.children) == 1
     child4 = tree4.root.children[0]
-    assert isinstance(child4, TreeNode) and child4.children[0] is tree4.append_pointer
+    assert isinstance(child4, Node) and child4.children[0] is tree4.append_pointer
 
 
 def test_fragment_append_fragment():

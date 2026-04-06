@@ -25,7 +25,7 @@ from .rendering import (
     render_result,
     stream_children,
 )
-from .tree import TreeNode, _render_vars
+from .tree import Node, _render_vars
 from .types import _MISSING, NodeContent, is_async_content_fn, is_node_list, is_sync_content_fn
 
 if TYPE_CHECKING:
@@ -34,9 +34,9 @@ if TYPE_CHECKING:
 _FLATTEN_MAX_DEPTH = 100
 
 
-def _to_node(contents: NodeContent) -> TreeNode:
+def _to_node(contents: NodeContent) -> Node:
     """Coerce arbitrary content into a tree node."""
-    if isinstance(contents, TreeNode):
+    if isinstance(contents, Node):
         return contents
     if isinstance(contents, Fragment):
         root = contents.root
@@ -50,8 +50,8 @@ def _to_node(contents: NodeContent) -> TreeNode:
     raise ValueError(f"Unsupported type: {type(contents)}")
 
 
-def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, TreeNode | None]:
-    pointer_found: TreeNode | None = None
+def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
+    pointer_found: Node | None = None
 
     new_node = copy.replace(old_node, children=[])
 
@@ -70,7 +70,7 @@ def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, 
     return new_node, pointer_found
 
 
-def _flatten_into(parent: TreeNode, items: Iterable, *, _depth: int = 0) -> None:
+def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
     """Flatten an iterable of children directly into parent's children list."""
     if _depth > _FLATTEN_MAX_DEPTH:
         raise RenderLimitExceeded("Exceeded max nesting depth in children")
@@ -86,7 +86,7 @@ def _flatten_into(parent: TreeNode, items: Iterable, *, _depth: int = 0) -> None
                 root = root.clone_node(deep=True)
             root.parent_node = parent
             children.append(root)
-        elif isinstance(item, TreeNode):
+        elif isinstance(item, Node):
             if item.parent_node is not None:
                 item = item.clone_node(deep=True)
             item.parent_node = parent
@@ -120,9 +120,9 @@ class Fragment:
     __slots__ = ("root", "append_pointer")
 
     root: Node
-    append_pointer: TreeNode
+    append_pointer: Node
 
-    def __init__(self, root: Node, append_pointer: TreeNode, /):
+    def __init__(self, root: Node, append_pointer: Node, /):
         self.root = root
         self.append_pointer = append_pointer
 
@@ -133,8 +133,6 @@ class Fragment:
         new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
         if new_pointer is None:
             raise ValueError("Pointer target not found in the tree")
-        # _copy_tree preserves concrete types via copy.replace
-        assert isinstance(new_root, Node)
         return Fragment(new_root, new_pointer)
 
     def __replace__(self, /, **changes):
@@ -151,7 +149,10 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
-        return self.root.render(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+        if isinstance(self.root, ContentNode):
+            return self.root.render(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+        _render_vars.set(args or {})
+        return "".join(self.root._stream())
 
     def stream(
         self,
@@ -161,7 +162,10 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> Generator[str]:
-        return self.root.stream(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+        if isinstance(self.root, ContentNode):
+            return self.root.stream(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+        _render_vars.set(args or {})
+        return self.root._stream()
 
     def astream(
         self,
@@ -173,17 +177,22 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
-        return self.root.astream(
-            args=args,
-            plugins=plugins,
-            min_chunk_size=min_chunk_size,
-            cancel_scope=cancel_scope,
-            max_depth=max_depth,
-            max_nodes=max_nodes,
-        )
+        if isinstance(self.root, ContentNode):
+            return self.root.astream(
+                args=args,
+                plugins=plugins,
+                min_chunk_size=min_chunk_size,
+                cancel_scope=cancel_scope,
+                max_depth=max_depth,
+                max_nodes=max_nodes,
+            )
+        _render_vars.set(args or {})
+        return self.root._astream()
 
     def compile(self) -> CompiledTemplate:
-        return self.root.compile()
+        if isinstance(self.root, ContentNode):
+            return self.root.compile()
+        raise TypeError("Cannot compile a Fragment whose root is not a ContentNode")
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
@@ -202,7 +211,7 @@ class Fragment:
     def __str__(self):
         return self.render()
 
-    def __iter__(self) -> Iterator[TreeNode | str | Template]:
+    def __iter__(self) -> Iterator[Node | str | Template]:
         return iter(self.root.children)
 
     @overload
@@ -230,7 +239,7 @@ class Fragment:
             self.append(other)
             return self
 
-        if isinstance(other, TreeNode):
+        if isinstance(other, Node):
             self.append(other)
             return self
 
@@ -243,7 +252,7 @@ class Fragment:
 
         return self
 
-    def append(self, node: TreeNode | Fragment) -> None:
+    def append(self, node: Node | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
@@ -257,20 +266,18 @@ class Fragment:
         self.append_pointer = node
 
 
-# -- Node types --
+# -- ContentNode types --
 
 
-class Node(TreeNode):
+class ContentNode(Node):
     """
     A node in the document tree with builder support.
 
-    Extends TreeNode with the >> operator for building HTML trees,
+    Extends Node with the >> operator for building HTML trees,
     and a factory method for creating nodes from various content types.
     """
 
     __slots__ = ()
-
-
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from stream_children(self.children, ctx)
@@ -444,7 +451,7 @@ class Node(TreeNode):
             new_fragment.append(other)
             return new_fragment
 
-        if isinstance(other, TreeNode):
+        if isinstance(other, Node):
             new_fragment.append(other)
             return new_fragment
 
@@ -472,8 +479,8 @@ class Node(TreeNode):
         return self.render()
 
 
-class Comment(Node):
-    """An HTML Comment Node."""
+class Comment(ContentNode):
+    """An HTML Comment ContentNode."""
 
     __slots__ = ("content",)
 
@@ -506,7 +513,7 @@ class Comment(Node):
         yield f"<!--{self._escape_content()}-->"
 
 
-class Element(Node):
+class Element(ContentNode):
     """An HTML Element with tag, attributes, and builder support."""
 
     __slots__ = ("attributes", "_style", "_class_list", "_dataset", "_open_tag_cache")
@@ -541,7 +548,7 @@ class Element(Node):
         new_children = changes.get("children", self.children)
         if new_children:
             for child in new_children:
-                if isinstance(child, TreeNode):
+                if isinstance(child, Node):
                     new_obj.append_child(copy.replace(child))
                 else:
                     new_obj.children.append(child)
@@ -703,7 +710,7 @@ class VoidElement(Element):
         raise ValueError(f"Cannot add children to a void element ({self.tag})")
 
 
-class Lazy(Node):
+class Lazy(ContentNode):
     """Wraps a sync callable, resolved during rendering."""
 
     __slots__ = ("fn", "args", "kwargs")
@@ -755,7 +762,7 @@ class Lazy(Node):
             ctx._depth -= 1
 
 
-class Async(Node):
+class Async(ContentNode):
     """Wraps an async callable, resolved during async rendering."""
 
     __slots__ = ("fn", "args", "kwargs")
@@ -800,7 +807,7 @@ class Async(Node):
             ctx._depth -= 1
 
 
-class ConditionalNode(Node):
+class ConditionalNode(ContentNode):
     """Renders content conditionally based on a Var's truthiness."""
 
     __slots__ = ("var", "if_true", "if_false")
@@ -858,7 +865,7 @@ class ConditionalNode(Node):
             yield chunk
 
 
-class IterationNode(Node):
+class IterationNode(ContentNode):
     """Renders content for each item in a Var's iterable value."""
 
     __slots__ = ("var", "body_fn")
@@ -955,8 +962,8 @@ def _compile_children(children: list, ops: list[RenderOp]) -> None:
             ops.append(_html_escape(child) if _needs_escape(child) else child)
         elif isinstance(child, Template):
             ops.append(child)
-        elif isinstance(child, TreeNode):
-            if isinstance(child, Node):
+        elif isinstance(child, Node):
+            if isinstance(child, ContentNode):
                 child._compile(ops)
             else:
                 ops.append("".join(child._stream()))
@@ -971,9 +978,13 @@ def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
     elif isinstance(content, Template):
         ops.append(content)
     elif isinstance(content, Fragment):
-        content.root._compile(ops)
-    elif isinstance(content, TreeNode):
-        if isinstance(content, Node):
+        root = content.root
+        if isinstance(root, ContentNode):
+            root._compile(ops)
+        else:
+            ops.append("".join(root._stream()))
+    elif isinstance(content, Node):
+        if isinstance(content, ContentNode):
             content._compile(ops)
         else:
             ops.append("".join(content._stream()))

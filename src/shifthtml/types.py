@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 if TYPE_CHECKING:
     from .element import Fragment
     from .plugin import RenderContext
-    from .tree import TreeNode
+    from .tree import Node
 
 _MISSING: object = object()
 
@@ -18,7 +18,7 @@ class Streamable(Protocol):
 
 
 type NodeContent = (
-    TreeNode
+    Node
     | Fragment
     | str
     | Template

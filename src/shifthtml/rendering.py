@@ -19,7 +19,7 @@ import anyio
 
 from .errors import RenderLimitExceeded
 from .plugin import AStreamFn, RenderContext, StreamFn
-from .tree import TreeNode
+from .tree import Node
 from .types import Streamable, is_async_content_fn, is_sync_content_fn
 
 # -- Low-level string / tag helpers --
@@ -121,7 +121,7 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
     if isinstance(result, str | Template):
         yield from render_string(result)
         return
-    if isinstance(result, TreeNode):
+    if isinstance(result, Node):
         if ctx is not None:
             yield from _render_node(result, ctx)
         else:
@@ -148,7 +148,7 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
         async for chunk in arender_string(result):
             yield chunk
         return
-    if isinstance(result, TreeNode):
+    if isinstance(result, Node):
         if ctx is not None:
             async for chunk in _arender_node(result, ctx):
                 yield chunk
@@ -179,7 +179,7 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
 # -- RenderContext dispatch (with plugin pipeline) --
 
 
-def _render_node(node: TreeNode, ctx: RenderContext) -> Generator[str]:
+def _render_node(node: Node, ctx: RenderContext) -> Generator[str]:
     """Render a node through the full plugin pipeline."""
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
@@ -196,7 +196,7 @@ def _render_node(node: TreeNode, ctx: RenderContext) -> Generator[str]:
     yield from ctx._post_render_node(node)
 
 
-async def _arender_node(node: TreeNode, ctx: RenderContext) -> AsyncGenerator[str]:
+async def _arender_node(node: Node, ctx: RenderContext) -> AsyncGenerator[str]:
     """Render a node through the full async plugin pipeline."""
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
@@ -231,7 +231,7 @@ async def _arender_node(node: TreeNode, ctx: RenderContext) -> AsyncGenerator[st
 def _stream_fn(ctx: RenderContext) -> StreamFn:
     """Create a stream callable that renders a node's own markup."""
 
-    def stream(node: TreeNode) -> Generator[str]:
+    def stream(node: Node) -> Generator[str]:
         yield from node._stream(ctx)
 
     return stream
@@ -240,7 +240,7 @@ def _stream_fn(ctx: RenderContext) -> StreamFn:
 def _astream_fn(ctx: RenderContext) -> AStreamFn:
     """Create an async stream callable that renders a node's own markup."""
 
-    async def astream(node: TreeNode) -> AsyncGenerator[str]:
+    async def astream(node: Node) -> AsyncGenerator[str]:
         async for chunk in node._astream(ctx):
             yield chunk
 
@@ -288,7 +288,7 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
     async def collect(i: int, child: object) -> None:
         if isinstance(child, str | Template):
             results[i] = [chunk async for chunk in arender_string(child)]
-        elif isinstance(child, TreeNode):
+        elif isinstance(child, Node):
             if ctx is not None:
                 results[i] = [chunk async for chunk in _arender_node(child, ctx)]
             else:

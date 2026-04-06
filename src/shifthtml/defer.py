@@ -4,50 +4,50 @@ import copy
 from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
-from .element import Fragment, Node, _to_node
+from .element import ContentNode, Fragment, _to_node
 from .plugin import RenderContext, register
 from .rendering import _arender_node, _render_node, arender_string, render_string
-from .tree import TreeNode
+from .tree import Node
 
 
-class Deferred(Node):
+class Deferred(ContentNode):
     __slots__ = ("loading", "slot_name")
 
     def __init__(
         self,
-        child: TreeNode | Fragment,
+        child: Node | Fragment,
         *,
         slot_name: str,
-        loading: str | Template | TreeNode | None = None,
+        loading: str | Template | Node | None = None,
     ):
         super().__init__()
         if loading is not None and not isinstance(loading, str | Template):
-            self.loading: str | Template | TreeNode | None = _to_node(loading)
+            self.loading: str | Template | Node | None = _to_node(loading)
         else:
             self.loading = loading
         self.slot_name = slot_name
 
         if isinstance(child, Fragment):
             self.append_child(child.root)
-        elif isinstance(child, TreeNode):
+        elif isinstance(child, Node):
             self.append_child(child)
         else:
-            raise ValueError(f"Deferred can only be initialized with a TreeNode or Fragment, not {type(child)}")
+            raise ValueError(f"Deferred can only be initialized with a Node or Fragment, not {type(child)}")
 
     def __replace__(self, /, **changes):
         child = self.children[0]
-        assert isinstance(child, TreeNode)
+        assert isinstance(child, Node)
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
 
-def _render_loading(loading: str | Template | TreeNode, stream) -> Generator[str]:
+def _render_loading(loading: str | Template | Node, stream) -> Generator[str]:
     if isinstance(loading, str | Template):
         yield from render_string(loading)
     else:
         yield from stream(loading)
 
 
-async def _arender_loading(loading: str | Template | TreeNode, astream) -> AsyncGenerator[str]:
+async def _arender_loading(loading: str | Template | Node, astream) -> AsyncGenerator[str]:
     if isinstance(loading, str | Template):
         async for chunk in arender_string(loading):
             yield chunk
@@ -60,14 +60,14 @@ class DeferPlugin:
     def __call__(
         self,
         slot_name: str,
-        node: TreeNode | Fragment,
+        node: Node | Fragment,
         *,
-        loading: TreeNode | str | Template | None = None,
+        loading: Node | str | Template | None = None,
     ) -> Deferred:
         register(self)
         return Deferred(node, slot_name=slot_name, loading=loading)
 
-    def pre_render_node(self, node: TreeNode, stream, ctx: RenderContext) -> Generator[str] | None:
+    def pre_render_node(self, node: Node, stream, ctx: RenderContext) -> Generator[str] | None:
         if not isinstance(node, Deferred):
             return None
 
@@ -89,7 +89,7 @@ class DeferPlugin:
             yield from _render_node(child, ctx)
             yield "</template></shift-update>"
 
-    def apre_render_node(self, node: TreeNode, astream, ctx: RenderContext) -> AsyncGenerator[str] | None:
+    def apre_render_node(self, node: Node, astream, ctx: RenderContext) -> AsyncGenerator[str] | None:
         if not isinstance(node, Deferred):
             return None
 

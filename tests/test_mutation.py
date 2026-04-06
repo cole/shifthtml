@@ -1,7 +1,7 @@
 import pytest
 
 from shifthtml import div, h1, li, p, span, ul
-from shifthtml.tree import TreeNode
+from shifthtml.tree import Node
 
 
 def test_remove():
@@ -25,7 +25,7 @@ def test_remove_no_parent():
 def test_replace_with_single():
     f = div() >> (p() >> "old",)
     old = f.root.first_child
-    assert isinstance(old, TreeNode)
+    assert isinstance(old, Node)
     new = (span() >> "new").root
     old.replace_with(new)
     assert str(f) == "<div><span>new</span></div>"
@@ -34,7 +34,7 @@ def test_replace_with_single():
 def test_replace_with_multiple():
     f = div() >> (p() >> "target",)
     target = f.root.first_child
-    assert isinstance(target, TreeNode)
+    assert isinstance(target, Node)
     a = (span() >> "a").root
     b = (span() >> "b").root
     target.replace_with(a, b)
@@ -50,7 +50,7 @@ def test_replace_with_no_parent():
 def test_before():
     f = ul() >> (li() >> "second",)
     second = f.root.first_child
-    assert isinstance(second, TreeNode)
+    assert isinstance(second, Node)
     first = (li() >> "first").root
     second.before(first)
     assert str(f) == "<ul><li>first</li><li>second</li></ul>"
@@ -59,7 +59,7 @@ def test_before():
 def test_before_multiple():
     f = ul() >> (li() >> "third",)
     third = f.root.first_child
-    assert isinstance(third, TreeNode)
+    assert isinstance(third, Node)
     first = (li() >> "first").root
     second = (li() >> "second").root
     third.before(first, second)
@@ -75,7 +75,7 @@ def test_before_no_parent():
 def test_after():
     f = ul() >> (li() >> "first",)
     first = f.root.first_child
-    assert isinstance(first, TreeNode)
+    assert isinstance(first, Node)
     second = (li() >> "second").root
     first.after(second)
     assert str(f) == "<ul><li>first</li><li>second</li></ul>"
@@ -84,7 +84,7 @@ def test_after():
 def test_after_multiple():
     f = ul() >> (li() >> "first",)
     first = f.root.first_child
-    assert isinstance(first, TreeNode)
+    assert isinstance(first, Node)
     second = (li() >> "second").root
     third = (li() >> "third").root
     first.after(second, third)
@@ -141,7 +141,7 @@ def test_insert_before_invalid_reference():
 def test_replace_child():
     f = div() >> (p() >> "old",)
     old = f.root.first_child
-    assert isinstance(old, TreeNode)
+    assert isinstance(old, Node)
     new = (span() >> "new").root
     returned = f.root.replace_child(new, old)
     assert returned is old
@@ -161,9 +161,9 @@ def test_contains():
     f = div() >> p() >> span() >> "deep"
     root = f.root
     first = root.first_child
-    assert isinstance(first, TreeNode)
+    assert isinstance(first, Node)
     deep_span = first.first_child
-    assert isinstance(deep_span, TreeNode)
+    assert isinstance(deep_span, Node)
     assert root.contains(deep_span) is True
     assert root.contains(root) is True
 
