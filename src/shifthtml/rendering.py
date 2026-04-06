@@ -20,12 +20,12 @@ import anyio
 from .errors import RenderLimitExceeded
 from .plugin import AStreamFn, Plugin, RenderContext, StreamFn, registered_plugins
 from .tree import TreeNode, _render_vars
+from .types import Streamable, is_async_content_fn, is_sync_content_fn
 
 if TYPE_CHECKING:
-    from .compile import Template as CompiledTemplate
     from .element import Element, Fragment, Node
 
-type Renderable = Node | Fragment | CompiledTemplate | Template
+    type Renderable = Node | Fragment | Template
 
 # -- Low-level string / tag helpers --
 
@@ -54,10 +54,8 @@ def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
                 case Interpolation(v, _, conversion, format_spec):
                     if callable(v):
                         v = v()
-                    if hasattr(v, "_stream"):
+                    if isinstance(v, Streamable):
                         yield "".join(v._stream())
-                    elif hasattr(v, "root"):
-                        yield "".join(v.root._stream())
                     else:
                         v = _convert(v, conversion)
                         v = format(v, format_spec)
@@ -79,10 +77,8 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
                             v = await result
                         else:
                             v = result
-                    if hasattr(v, "_stream"):
+                    if isinstance(v, Streamable):
                         yield "".join(v._stream())
-                    elif hasattr(v, "root"):
-                        yield "".join(v.root._stream())
                     else:
                         v = _convert(v, conversion)
                         v = format(v, format_spec)
@@ -118,6 +114,72 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
             parts.append(f' {key}="{sv}"')
     parts.append(" />" if void else ">")
     return "".join(parts)
+
+
+# -- Callable result helpers --
+
+
+def _to_root(obj: Streamable) -> TreeNode:
+    """Extract root TreeNode from a Streamable (Fragment delegates via .root)."""
+    root = getattr(obj, "root", obj)
+    assert isinstance(root, TreeNode)
+    return root
+
+
+def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
+    """Render the return value of a Lazy/Async callable."""
+    if result is None or result is False:
+        return
+    if isinstance(result, str | Template):
+        yield from render_string(result)
+        return
+    if isinstance(result, Streamable):
+        if ctx is not None:
+            yield from _render_node(_to_root(result), ctx)
+        else:
+            yield from result._stream()
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            yield from render_result(item, ctx)
+        return
+    if is_sync_content_fn(result):
+        yield from render_result(result(), ctx)
+        return
+    raise ValueError(f"Unsupported content type: {type(result)}")
+
+
+async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGenerator[str]:
+    """Async render the return value of a Lazy/Async callable."""
+    if result is None or result is False:
+        return
+    if isinstance(result, str | Template):
+        async for chunk in arender_string(result):
+            yield chunk
+        return
+    if isinstance(result, Streamable):
+        root = _to_root(result)
+        if ctx is not None:
+            async for chunk in _arender_node(root, ctx):
+                yield chunk
+        else:
+            async for chunk in root._astream():
+                yield chunk
+        return
+    if isinstance(result, tuple | list):
+        for item in result:
+            async for chunk in arender_result(item, ctx):
+                yield chunk
+        return
+    if is_async_content_fn(result):
+        async for chunk in arender_result(await result(), ctx):
+            yield chunk
+        return
+    if is_sync_content_fn(result):
+        async for chunk in arender_result(result(), ctx):
+            yield chunk
+        return
+    raise ValueError(f"Unsupported content type: {type(result)}")
 
 
 _DEFAULT_MAX_DEPTH = 100
@@ -420,7 +482,7 @@ def stream_children(children: list, ctx: RenderContext | None = None) -> Generat
 
 async def astream_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
     """Render a list of children to async HTML chunks."""
-    if len(children) > 1 and any(hasattr(child, "fn") for child in children):
+    if len(children) > 1 and any(getattr(child, "_may_block", False) for child in children):
         async for chunk in _astream_children_parallel(children, ctx):
             yield chunk
         return

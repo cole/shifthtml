@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from .rendering import Renderable, render
+from typing import TYPE_CHECKING
+
+from .rendering import render
+
+if TYPE_CHECKING:
+    from .element import Fragment, Node
 
 __all__ = ("sse",)
 
 
-def sse(node: Renderable, *, event: str | None = None, id: str | None = None) -> str:
+def sse(node: Node | Fragment, *, event: str | None = None, id: str | None = None) -> str:
     """Format a renderable node as a Server-Sent Event string.
 
     Returns the complete SSE event including trailing blank line.

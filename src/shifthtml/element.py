@@ -11,19 +11,17 @@ import anyio
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
-    _arender_node,
-    _render_node,
-    arender_string,
+    arender_result,
     astream_children,
     render_open_tag,
-    render_string,
+    render_result,
     stream_children,
 )
 from .rendering import astream as _astream_impl
 from .rendering import render as _render_impl
 from .rendering import stream as _stream_impl
 from .tree import TreeNode, _render_vars
-from .types import NodeContent, is_async_content_fn, is_node_list, is_sync_content_fn
+from .types import NodeContent, is_async_content_fn, is_sync_content_fn
 
 if TYPE_CHECKING:
     from .plugin import Plugin, RenderContext
@@ -90,49 +88,6 @@ def _convert_attribute_names(name: str) -> str:
         result = _snake_to_kebab(name.rstrip("_"))
         _attr_name_cache[name] = result
         return result
-
-
-# -- Callable result helpers --
-
-
-def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[str]:
-    """Render the return value of a Lazy/Async callable."""
-    if result is None or result is False:
-        return
-    if isinstance(result, str | Template):
-        yield from render_string(result)
-        return
-    if is_node_list(result):
-        for item in result:
-            yield from render_result(item, ctx)
-        return
-    node = Node.factory(result)
-    if ctx is not None:
-        yield from _render_node(node, ctx)
-    else:
-        yield from node._stream()
-
-
-async def arender_result(result: NodeContent, ctx: RenderContext | None) -> AsyncGenerator[str]:
-    """Async render the return value of a Lazy/Async callable."""
-    if result is None or result is False:
-        return
-    if isinstance(result, str | Template):
-        async for chunk in arender_string(result):
-            yield chunk
-        return
-    if is_node_list(result):
-        for item in result:
-            async for chunk in arender_result(item, ctx):
-                yield chunk
-        return
-    node = Node.factory(result)
-    if ctx is not None:
-        async for chunk in _arender_node(node, ctx):
-            yield chunk
-    else:
-        async for chunk in node._astream():
-            yield chunk
 
 
 # -- Fragment --

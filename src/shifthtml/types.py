@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable
 from string.templatelib import Template
@@ -30,13 +28,13 @@ type NodeContent = (
 )
 
 
-def is_node_list(obj: NodeContent) -> TypeGuard[Iterable[NodeContent]]:
+def is_node_list(obj: object) -> TypeGuard[Iterable[NodeContent]]:
     return isinstance(obj, tuple | list)
 
 
-def is_sync_content_fn(obj: NodeContent) -> TypeGuard[Callable[..., NodeContent]]:
+def is_sync_content_fn(obj: object) -> TypeGuard[Callable[..., NodeContent]]:
     return callable(obj) and not inspect.iscoroutinefunction(obj)
 
 
-def is_async_content_fn(obj: NodeContent) -> TypeGuard[Callable[..., Awaitable[NodeContent]]]:
+def is_async_content_fn(obj: object) -> TypeGuard[Callable[..., Awaitable[NodeContent]]]:
     return callable(obj) and inspect.iscoroutinefunction(obj)

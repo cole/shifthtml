@@ -24,10 +24,16 @@ from .element import (
     Lazy,
     Node,
     Var,
-    arender_result,
-    render_result,
 )
-from .rendering import _needs_escape, arender_string, render, render_open_tag, render_string
+from .rendering import (
+    _needs_escape,
+    arender_result,
+    arender_string,
+    render,
+    render_open_tag,
+    render_result,
+    render_string,
+)
 from .tree import TreeNode, _render_vars
 from .types import NodeContent, is_node_list, is_sync_content_fn
 
