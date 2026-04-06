@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<header>
+    <h1>{{ category }} Products</h1>
+    <nav>
+        {% for item in nav_items %}
+        <a href="{{ item.url }}">{{ item.name }}</a>
+        {% endfor %}
+    </nav>
+</header>
+
+<div class="filters">
+    <span>Price: {{ filters.price_range }}</span>
+    <span>Rating: {{ filters.rating }}</span>
+</div>
+
+<div class="products">
+    {% for product in products %}
+    <div class="product-card{% if product.featured %} featured{% endif %}{% if product.is_new %} new{% endif %}">
+        <div class="product-header">
+            <h2>{{ product.name }}</h2>
+            <span class="sku">{{ product.sku }}</span>
+        </div>
+        <p class="description">{{ product.description }}</p>
+        <div class="pricing">
+            {% if product.on_sale %}
+            <span class="original-price">${{ product.original_price|stringformat:".2f" }}</span>
+            <span class="sale-price">${{ product.price|stringformat:".2f" }}</span>
+            {% else %}
+            <span class="price">${{ product.price|stringformat:".2f" }}</span>
+            {% endif %}
+        </div>
+        <div class="meta">
+            <span class="stock{% if product.stock == 0 %} out-of-stock{% endif %}">
+                {% if product.stock > 0 %}{{ product.stock }} in stock{% else %}Out of stock{% endif %}
+            </span>
+            <span class="rating">
+                {% for star in product.rating|make_range %}★{% endfor %}{% for star in product.rating|stars_empty %}☆{% endfor %}
+            </span>
+            <span class="reviews">({{ product.reviews }} reviews)</span>
+        </div>
+        <div class="tags">
+            {% for tag in product.tags %}
+            <span class="tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+        <nav class="breadcrumb">
+            {% for crumb in product.category_path %}
+            <span>{{ crumb }}</span>{% if not forloop.last %} &raquo; {% endif %}
+            {% endfor %}
+        </nav>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

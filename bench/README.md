@@ -1,6 +1,6 @@
 # bench
 
-Compares **shifthtml** against **jinja2**, **minijinja**, and **tdom** on a
+Compares **shifthtml** against **jinja2**, **minijinja**, **django templates**, and **tdom** on a
 product-listing page with configurable product count.
 
 ## Run

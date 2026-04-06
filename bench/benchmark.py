@@ -6,6 +6,7 @@
 #     "jinja2",
 #     "minijinja",
 #     "tdom",
+#     "django",
 # ]
 #
 # [tool.uv.sources]
@@ -228,6 +229,52 @@ def _tdom_product_card(tdom_html, p: dict[str, Any]) -> object:  # noqa: ANN001
     <div class="tags">{tags}</div>
     <nav class="breadcrumb"><span>{crumbs}</span></nav>
 </div>""")
+
+
+# ---------------------------------------------------------------------------
+# Engine: django
+# ---------------------------------------------------------------------------
+
+
+def bench_django(iterations: int, num_products: int) -> dict[str, Any]:
+    import django
+    from django.conf import settings
+
+    if not settings.configured:
+        settings.configure(USE_TZ=False)
+        django.setup()
+
+    from django.template import Context, Engine
+    from django.template.library import Library
+
+    lib = Library()
+
+    @lib.filter
+    def make_range(value: int) -> range:
+        return range(int(value))
+
+    @lib.filter
+    def stars_empty(value: int) -> range:
+        return range(5 - int(value))
+
+    django_dir = TEMPLATE_DIR / "django"
+    engine = Engine(dirs=[str(django_dir)])
+    engine.template_builtins.append(lib)
+    template = engine.get_template("products.html")
+
+    # warmup
+    ctx = make_context(num_products)
+    for _ in range(5):
+        template.render(Context(ctx))
+
+    times: list[float] = []
+    for _ in range(iterations):
+        ctx = make_context(num_products)
+        t0 = time.perf_counter()
+        result = template.render(Context(ctx))
+        times.append((time.perf_counter() - t0) * 1000)
+
+    return _summarise("django", iterations, num_products, times, len(result))
 
 
 # ---------------------------------------------------------------------------
@@ -528,6 +575,7 @@ ENGINES = {
     "jinja2": bench_jinja2,
     "minijinja": bench_minijinja,
     "tdom": bench_tdom,
+    "django": bench_django,
     "shifthtml": bench_shifthtml,
     "shifthtml-compiled": bench_shifthtml_compiled,
     "shifthtml-async": bench_shifthtml_async,
