@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from html import escape as _html_escape
 from string.templatelib import Interpolation
 from string.templatelib import Template as StdlibTemplate
-from typing import Any, cast
+from typing import Any
 
 from .element import (
     Async,
@@ -29,7 +29,7 @@ from .element import (
 )
 from .rendering import _needs_escape, arender_string, render, render_open_tag, render_string
 from .tree import TreeNode, _render_vars
-from .types import NodeContent
+from .types import NodeContent, is_node_list, is_sync_content_fn
 
 # -- IR types --
 
@@ -226,11 +226,11 @@ def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
         _compile_node(content.root, ops)
     elif isinstance(content, TreeNode):
         _compile_node(content, ops)
-    elif isinstance(content, tuple | list):
+    elif is_node_list(content):
         for item in content:
-            _compile_content(cast(NodeContent, item), ops)
-    elif callable(content):
-        ops.append(LazySlot(cast(Callable[..., NodeContent], content)))
+            _compile_content(item, ops)
+    elif is_sync_content_fn(content):
+        ops.append(LazySlot(content))
 
 
 def _merge_ops(ops: list[RenderOp]) -> list[RenderOp]:

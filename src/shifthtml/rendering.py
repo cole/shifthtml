@@ -167,18 +167,22 @@ async def _arender_node(node: TreeNode, ctx: RenderContext) -> AsyncGenerator[st
     sync_fn = _stream_fn(ctx)
     for plugin in ctx.plugins:
         ahook = getattr(plugin, "apre_render_node", None)
-        result = ahook(node, async_fn, ctx) if ahook else plugin.pre_render_node(node, sync_fn, ctx)
-
-        if result is not None:
-            if isinstance(result, AsyncGenerator):
-                async for chunk in result:
+        if ahook is not None:
+            aresult: AsyncGenerator[str] | None = ahook(node, async_fn, ctx)
+            if aresult is not None:
+                async for chunk in aresult:
                     yield chunk
-            else:
-                for chunk in result:
+                async for chunk in ctx._apost_render_node(node):
                     yield chunk
-            async for chunk in ctx._apost_render_node(node):
-                yield chunk
-            return
+                return
+        else:
+            sresult = plugin.pre_render_node(node, sync_fn, ctx)
+            if sresult is not None:
+                for chunk in sresult:
+                    yield chunk
+                async for chunk in ctx._apost_render_node(node):
+                    yield chunk
+                return
 
     async for chunk in node._astream(ctx):
         yield chunk
@@ -358,19 +362,26 @@ async def _astream_root(root: TreeNode, ctx: RenderContext) -> AsyncGenerator[st
     sync_fn = _stream_fn(ctx)
     for plugin in ctx.plugins:
         ahook = getattr(plugin, "apre_render_node", None)
-        result = ahook(root, async_fn, ctx) if ahook else plugin.pre_render_node(root, sync_fn, ctx)
-        if result is not None:
-            if isinstance(result, AsyncGenerator):
-                async for chunk in result:
+        if ahook is not None:
+            aresult: AsyncGenerator[str] | None = ahook(root, async_fn, ctx)
+            if aresult is not None:
+                async for chunk in aresult:
                     yield chunk
-            else:
-                for chunk in result:
+                async for chunk in ctx._apost_render_node(root):
                     yield chunk
-            async for chunk in ctx._apost_render_node(root):
-                yield chunk
-            async for chunk in ctx.apost_render_all():
-                yield chunk
-            return
+                async for chunk in ctx.apost_render_all():
+                    yield chunk
+                return
+        else:
+            sresult = plugin.pre_render_node(root, sync_fn, ctx)
+            if sresult is not None:
+                for chunk in sresult:
+                    yield chunk
+                async for chunk in ctx._apost_render_node(root):
+                    yield chunk
+                async for chunk in ctx.apost_render_all():
+                    yield chunk
+                return
 
     if hasattr(root, "tag") and not getattr(root, "void", False):
         el = cast("Element", root)

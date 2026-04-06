@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import copy
-import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from contextlib import suppress
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, cast, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
 
@@ -24,7 +23,7 @@ from .rendering import astream as _astream_impl
 from .rendering import render as _render_impl
 from .rendering import stream as _stream_impl
 from .tree import TreeNode, _render_vars
-from .types import NodeContent
+from .types import NodeContent, is_async_content_fn, is_node_list, is_sync_content_fn
 
 if TYPE_CHECKING:
     from .plugin import Plugin, RenderContext
@@ -103,9 +102,9 @@ def render_result(result: NodeContent, ctx: RenderContext | None) -> Generator[s
     if isinstance(result, str | Template):
         yield from render_string(result)
         return
-    if isinstance(result, tuple | list):
+    if is_node_list(result):
         for item in result:
-            yield from render_result(cast(NodeContent, item), ctx)
+            yield from render_result(item, ctx)
         return
     node = Node.factory(result)
     if ctx is not None:
@@ -122,9 +121,9 @@ async def arender_result(result: NodeContent, ctx: RenderContext | None) -> Asyn
         async for chunk in arender_string(result):
             yield chunk
         return
-    if isinstance(result, tuple | list):
+    if is_node_list(result):
         for item in result:
-            async for chunk in arender_result(cast(NodeContent, item), ctx):
+            async for chunk in arender_result(item, ctx):
                 yield chunk
         return
     node = Node.factory(result)
@@ -292,10 +291,10 @@ class Node(TreeNode):
             if root.parent_node is not None:
                 return root.clone_node(deep=True)
             return root
-        if callable(contents):
-            if inspect.iscoroutinefunction(contents):
-                return Async(contents)
-            return Lazy(cast(Callable[..., NodeContent], contents))
+        if is_async_content_fn(contents):
+            return Async(contents)
+        if is_sync_content_fn(contents):
+            return Lazy(contents)
         raise ValueError(f"Unsupported type for >>: {type(contents)}")
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:

@@ -88,7 +88,7 @@ def test_node_accepts_string_children():
 
 def test_node_add_unknown_type():
     with pytest.raises(ValueError, match="Expected a TreeNode, str, or Template"):
-        SimpleNode("test").append_child(42)  # type: ignore[invalid-argument-type]
+        SimpleNode("test").append_child(42)  # ty: ignore[invalid-argument-type]
 
 
 def test_fragment_append_node():

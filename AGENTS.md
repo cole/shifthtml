@@ -15,3 +15,4 @@
 - format, lint and typecheck (using ruff and ty) before committing
 - never use inline imports; import at the top of the file
 - avoid type ignores and casts
+- simplify where possible
