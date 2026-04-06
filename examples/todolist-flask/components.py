@@ -52,7 +52,7 @@ def todo_item(todo):
         hx_target=f"#todo-{todo_id}",
         hx_swap="outerHTML",
         autocomplete="off",
-        checked=is_completed,
+        checked=bool(is_completed),
     )
     label_text = span(class_=label_classes) >> todo["title"]
     delete_btn = (
