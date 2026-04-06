@@ -56,9 +56,10 @@ def page():
             columns(),
             loading="Loading body content...",
         ),
+        runtime(),
     )
 
-    return html(lang="en") >> (page_head, page_body, runtime())
+    return html(lang="en") >> (page_head, page_body)
 
 
 def columns():
