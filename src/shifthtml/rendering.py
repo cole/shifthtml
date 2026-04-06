@@ -13,19 +13,14 @@ import inspect
 from collections.abc import AsyncGenerator, Generator, Mapping
 from html import escape
 from string.templatelib import Interpolation, Template
-from typing import TYPE_CHECKING, Literal, cast
+from typing import Literal
 
 import anyio
 
 from .errors import RenderLimitExceeded
-from .plugin import AStreamFn, Plugin, RenderContext, StreamFn, registered_plugins
-from .tree import TreeNode, _render_vars
+from .plugin import AStreamFn, RenderContext, StreamFn
+from .tree import TreeNode
 from .types import Streamable, is_async_content_fn, is_sync_content_fn
-
-if TYPE_CHECKING:
-    from .element import Element, Fragment, Node
-
-    type Renderable = Node | Fragment | Template
 
 # -- Low-level string / tag helpers --
 
@@ -182,24 +177,6 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
     raise ValueError(f"Unsupported content type: {type(result)}")
 
 
-_DEFAULT_MAX_DEPTH = 100
-
-
-def _extract_root(html: Renderable) -> TreeNode:
-    """Extract the root TreeNode from a Node or Fragment-like object."""
-    root = html.root if hasattr(html, "root") else html
-    assert isinstance(root, TreeNode)
-    return root
-
-
-# -- Compatibility wrapper --
-
-
-def stream_node(node: TreeNode, ctx: RenderContext | None = None) -> Generator[str]:
-    """Render a single node to HTML chunks (compat wrapper)."""
-    yield from node._stream(ctx)
-
-
 # -- RenderContext dispatch (with plugin pipeline) --
 
 
@@ -269,201 +246,6 @@ def _astream_fn(ctx: RenderContext) -> AStreamFn:
             yield chunk
 
     return astream
-
-
-# -- Public API --
-
-
-def render(
-    html: Renderable,
-    *,
-    args: dict[str, object] | None = None,
-    plugins: tuple[Plugin, ...] | None = None,
-    max_depth: int = _DEFAULT_MAX_DEPTH,
-    max_nodes: int | None = None,
-) -> str:
-    """Render a node tree (or compiled Template) to an HTML string."""
-    _render_vars.set(args or {})
-    if hasattr(html, "_ops"):
-        return html.render(args=args)  # CompiledTemplate
-    if isinstance(html, Template):
-        return "".join(render_string(html))
-    root = _extract_root(html)
-    resolved_plugins = plugins if plugins is not None else registered_plugins()
-
-    if resolved_plugins:
-        return "".join(stream(html, args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes))
-
-    ctx = RenderContext(plugins=(), max_depth=max_depth, max_nodes=max_nodes)
-    return "".join(_render_node(root, ctx))
-
-
-def stream(
-    html: Renderable,
-    *,
-    args: dict[str, object] | None = None,
-    plugins: tuple[Plugin, ...] | None = None,
-    max_depth: int = _DEFAULT_MAX_DEPTH,
-    max_nodes: int | None = None,
-) -> Generator[str]:
-    """Render a node tree (or compiled Template) as a stream of HTML chunks."""
-    _render_vars.set(args or {})
-    if hasattr(html, "_ops"):
-        yield from html.stream(args=args)  # CompiledTemplate
-        return
-    if isinstance(html, Template):
-        yield from render_string(html)
-        return
-    root = _extract_root(html)
-    resolved_plugins = plugins if plugins is not None else registered_plugins()
-
-    if resolved_plugins:
-        ctx = RenderContext(plugins=resolved_plugins, max_depth=max_depth, max_nodes=max_nodes)
-        yield from ctx.pre_render_all()
-        yield from _stream_root(root, ctx)
-    else:
-        yield from root._stream()
-
-
-def _stream_root(root: TreeNode, ctx: RenderContext) -> Generator[str]:
-    """Render the root node with plugin dispatch."""
-    stream = _stream_fn(ctx)
-    for plugin in ctx.plugins:
-        result = plugin.pre_render_node(root, stream, ctx)
-        if result is not None:
-            yield from result
-            yield from ctx._post_render_node(root)
-            yield from ctx.post_render_all()
-            return
-
-    if hasattr(root, "tag") and not getattr(root, "void", False):
-        el = cast("Element", root)
-        tag = el.tag
-        attrs = el._render_attrs()
-        if el.doctype:
-            yield el.doctype
-        yield render_open_tag(tag, attrs)
-        yield from stream_children(root.children, ctx)
-        yield from ctx.post_render_all()
-        yield f"</{tag}>"
-    else:
-        yield from root._stream(ctx)
-        yield from ctx.post_render_all()
-    yield from ctx._post_render_node(root)
-
-
-async def astream(
-    html: Renderable,
-    *,
-    args: dict[str, object] | None = None,
-    plugins: tuple[Plugin, ...] | None = None,
-    min_chunk_size: int | None = 4096,
-    cancel_scope: anyio.CancelScope | None = None,
-    max_depth: int = _DEFAULT_MAX_DEPTH,
-    max_nodes: int | None = None,
-) -> AsyncGenerator[str]:
-    """Render a node tree (or compiled Template) as an async stream of HTML chunks."""
-    _render_vars.set(args or {})
-    if hasattr(html, "_ops"):
-        async for chunk in html.astream(args=args):  # CompiledTemplate
-            yield chunk
-        return
-    if isinstance(html, Template):
-        async for chunk in arender_string(html):
-            yield chunk
-        return
-    if min_chunk_size is None:
-        async for chunk in _astream_unbuffered(
-            html, plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-        ):
-            yield chunk
-        return
-
-    buf: list[str] = []
-    buf_size = 0
-    async for chunk in _astream_unbuffered(
-        html, plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-    ):
-        buf.append(chunk)
-        buf_size += len(chunk)
-        if buf_size >= min_chunk_size:
-            yield "".join(buf)
-            buf.clear()
-            buf_size = 0
-    if buf:
-        yield "".join(buf)
-
-
-async def _astream_unbuffered(
-    html: Renderable,
-    *,
-    plugins: tuple[Plugin, ...] | None = None,
-    cancel_scope: anyio.CancelScope | None = None,
-    max_depth: int = _DEFAULT_MAX_DEPTH,
-    max_nodes: int | None = None,
-) -> AsyncGenerator[str]:
-    root = _extract_root(html)
-    resolved_plugins = plugins if plugins is not None else registered_plugins()
-
-    if resolved_plugins:
-        ctx = RenderContext(
-            plugins=resolved_plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-        )
-        async for chunk in ctx.apre_render_all():
-            yield chunk
-        async for chunk in _astream_root(root, ctx):
-            yield chunk
-    else:
-        async for chunk in root._astream():
-            yield chunk
-
-
-async def _astream_root(root: TreeNode, ctx: RenderContext) -> AsyncGenerator[str]:
-    """Render the root node with async plugin dispatch."""
-    async_fn = _astream_fn(ctx)
-    sync_fn = _stream_fn(ctx)
-    for plugin in ctx.plugins:
-        ahook = getattr(plugin, "apre_render_node", None)
-        if ahook is not None:
-            aresult: AsyncGenerator[str] | None = ahook(root, async_fn, ctx)
-            if aresult is not None:
-                async for chunk in aresult:
-                    yield chunk
-                async for chunk in ctx._apost_render_node(root):
-                    yield chunk
-                async for chunk in ctx.apost_render_all():
-                    yield chunk
-                return
-        else:
-            sresult = plugin.pre_render_node(root, sync_fn, ctx)
-            if sresult is not None:
-                for chunk in sresult:
-                    yield chunk
-                async for chunk in ctx._apost_render_node(root):
-                    yield chunk
-                async for chunk in ctx.apost_render_all():
-                    yield chunk
-                return
-
-    if hasattr(root, "tag") and not getattr(root, "void", False):
-        el = cast("Element", root)
-        tag = el.tag
-        attrs = el._render_attrs()
-        if el.doctype:
-            yield el.doctype
-        yield render_open_tag(tag, attrs)
-        async for chunk in astream_children(root.children, ctx):
-            yield chunk
-        async for chunk in ctx.apost_render_all():
-            yield chunk
-        yield f"</{tag}>"
-    else:
-        async for chunk in root._astream(ctx):
-            yield chunk
-        async for chunk in ctx.apost_render_all():
-            yield chunk
-    async for chunk in ctx._apost_render_node(root):
-        yield chunk
 
 
 # -- Children helpers --

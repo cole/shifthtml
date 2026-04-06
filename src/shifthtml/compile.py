@@ -29,7 +29,6 @@ from .rendering import (
     _needs_escape,
     arender_result,
     arender_string,
-    render,
     render_open_tag,
     render_result,
     render_string,
@@ -195,7 +194,7 @@ def _compile_node(node: TreeNode, ops: list[RenderOp]) -> None:
         if isinstance(node.fn, Var):
             ops.append(StdlibTemplate("", Interpolation(node.fn, node.fn.name, None, ""), ""))
         else:
-            ops.append(render(node))
+            ops.append(node.render())
     elif isinstance(node, Async):
         raise TypeError(
             "compile() cannot eagerly resolve Async nodes. Only Var slots remain dynamic in compiled templates."

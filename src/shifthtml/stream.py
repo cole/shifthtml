@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .rendering import render
-
 if TYPE_CHECKING:
     from .element import Fragment, Node
 
@@ -15,7 +13,7 @@ def sse(node: Node | Fragment, *, event: str | None = None, id: str | None = Non
 
     Returns the complete SSE event including trailing blank line.
     """
-    html = render(node)
+    html = str(node)
     parts: list[str] = []
     if event is not None:
         parts.append(f"event: {event}")
