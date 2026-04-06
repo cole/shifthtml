@@ -369,73 +369,6 @@ def bench_shifthtml_async(iterations: int, num_products: int) -> dict[str, Any]:
     return asyncio.run(run())
 
 
-# ---------------------------------------------------------------------------
-# Engine: shifthtml (args — preserved tree)
-# ---------------------------------------------------------------------------
-
-
-def bench_shifthtml_args(iterations: int, num_products: int) -> dict[str, Any]:
-    from shifthtml import (
-        Lazy,
-        a,
-        args,
-        body,
-        div,
-        footer,
-        h1,
-        head,
-        header,
-        html,
-        meta,
-        nav,
-        span,
-        style,
-        title,
-    )
-
-    # Build tree once — shell is preserved, dynamic parts use args/Lazy
-    page = html(lang="en") >> (
-        head()
-        >> (
-            meta(charset="UTF-8"),
-            meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-            title() >> t"{args.site_name}",
-            style() >> t"body {{ font-family: {args.font_family}; background: {args.bg_color}; }}",
-        ),
-        body()
-        >> (
-            header()
-            >> (
-                Lazy(lambda: h1() >> f"{args.category()} Products"),
-                Lazy(lambda: nav() >> [a(href=item["url"]) >> item["name"] for item in args.nav_items()]),
-            ),
-            div(class_="filters")
-            >> Lazy(
-                lambda: (
-                    span() >> f"Price: {args.filters()['price_range']}",
-                    span() >> f"Rating: {args.filters()['rating']}",
-                )
-            ),
-            div(class_="products") >> Lazy(lambda: [_shift_product_card(p) for p in args.products()]),
-            Lazy(lambda: footer() >> f"© {args.year()} {args.site_name()}"),
-        ),
-    )
-
-    # warmup
-    ctx = make_context(num_products)
-    for _ in range(5):
-        page.render(args=ctx)
-
-    times: list[float] = []
-    for _ in range(iterations):
-        ctx = make_context(num_products)
-        t0 = time.perf_counter()
-        result = page.render(args=ctx)
-        times.append((time.perf_counter() - t0) * 1000)
-
-    return _summarise("shifthtml-args", iterations, num_products, times, len(result))
-
-
 def _shift_product_card(p: dict[str, Any]) -> object:
     from shifthtml import div, h2, nav, p as p_tag, span  # noqa: I001
 
@@ -519,7 +452,6 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
         a,
         args,
         body,
-        compile,
         div,
         footer,
         h1,
@@ -534,8 +466,8 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
     )
 
     # Build and compile the page shell once — static elements become string
-    # parts, only Var slots remain dynamic.  Dynamic-length sections
-    # (nav, products) are entire Var slots so the caller passes node trees.
+    # ops, Var t-strings become Template ops, and .map() calls become Loop
+    # ops that iterate raw data at render time.
     shell = html(lang="en") >> (
         head()
         >> (
@@ -549,35 +481,30 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
             header()
             >> (
                 h1() >> t"{args.category} Products",
-                args.nav_section,
+                nav() >> args.nav_items.map(lambda item: a(href=item["url"]) >> item["name"]),
             ),
             div(class_="filters")
             >> (
                 span() >> t"Price: {args.price_range}",
                 span() >> t"Rating: {args.rating}",
             ),
-            args.products_section,
+            div(class_="products") >> args.products.map(_shift_product_card),
             footer() >> t"\u00a9 {args.year} {args.site_name}",
         ),
     )
-    compiled = compile(shell)
+    compiled = shell.compile()
 
     def render_page(ctx: dict[str, Any]) -> str:
-        # Build dynamic-length sections as node trees, passed as Var values.
-        # render_string handles Node/Fragment values by calling render().
-        nav_section = nav() >> [a(href=item["url"]) >> item["name"] for item in ctx["nav_items"]]
-        products_section = div(class_="products") >> [_shift_product_card(p) for p in ctx["products"]]
-
         return compiled.render(
             args={
                 "site_name": ctx["site_name"],
                 "font_family": ctx["font_family"],
                 "bg_color": ctx["bg_color"],
                 "category": ctx["category"],
-                "nav_section": nav_section,
+                "nav_items": ctx["nav_items"],
                 "price_range": ctx["filters"]["price_range"],
                 "rating": ctx["filters"]["rating"],
-                "products_section": products_section,
+                "products": ctx["products"],
                 "year": ctx["year"],
             },
         )
@@ -602,7 +529,6 @@ ENGINES = {
     "minijinja": bench_minijinja,
     "tdom": bench_tdom,
     "shifthtml": bench_shifthtml,
-    "shifthtml-args": bench_shifthtml_args,
     "shifthtml-compiled": bench_shifthtml_compiled,
     "shifthtml-async": bench_shifthtml_async,
 }

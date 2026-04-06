@@ -6,7 +6,7 @@
 # [tool.uv.sources]
 # shifthtml = { path = ".." }
 # ///
-"""Benchmark compile() vs direct render() for repeated rendering.
+"""Benchmark .compile() vs direct .render() for repeated rendering.
 
 Compares tree-walk rendering against compiled Template iteration on a
 fixed-structure page (~50 elements, 5 Var slots).
@@ -19,7 +19,6 @@ import time
 
 from shifthtml import (
     args,
-    compile,
     div,
     footer,
     h1,
@@ -41,7 +40,7 @@ from shifthtml import (
 
 
 def build_page():
-    """~50 elements, 5 Var slots — fixed structure, only scalars change."""
+    """Fixed structure with 5 Var slots and 4 iteration (.map) slots."""
     return html(lang="en") >> (
         head()
         >> (
@@ -53,7 +52,7 @@ def build_page():
         ),
         div(class_="wrapper")
         >> (
-            header(class_="site-header") >> (nav() >> ul() >> [li() >> span() >> f"Nav {i}" for i in range(8)],),
+            header(class_="site-header") >> (nav() >> ul() >> args.nav_items.map(lambda name: li() >> span() >> name),),
             section(class_="hero")
             >> (
                 h1() >> t"{args.heading}",
@@ -65,18 +64,18 @@ def build_page():
                 >> (
                     h2() >> "About",
                     p() >> t"{args.bio}",
-                    ul(class_="features") >> [li(class_=f"feature-{i}") >> span() >> f"Feature {i}" for i in range(10)],
+                    ul(class_="features") >> args.features.map(lambda name: li() >> span() >> name),
                 ),
                 section(class_="sidebar")
                 >> (
                     h2() >> "Links",
-                    ul() >> [li() >> span() >> f"Sidebar item {i}" for i in range(8)],
+                    ul() >> args.sidebar_items.map(lambda name: li() >> span() >> name),
                 ),
             ),
             footer(class_="site-footer")
             >> (
                 p() >> t"{args.footer_text}",
-                nav() >> ul() >> [li() >> span() >> f"Footer link {i}" for i in range(4)],
+                nav() >> ul() >> args.footer_links.map(lambda name: li() >> span() >> name),
             ),
         ),
     )
@@ -88,6 +87,10 @@ RENDER_ARGS: dict[str, object] = {
     "username": "Alice",
     "bio": "Software engineer and open source contributor.",
     "footer_text": "© 2025 My Site",
+    "nav_items": [f"Nav {i}" for i in range(8)],
+    "features": [f"Feature {i}" for i in range(10)],
+    "sidebar_items": [f"Sidebar item {i}" for i in range(8)],
+    "footer_links": [f"Footer link {i}" for i in range(4)],
 }
 
 
@@ -121,18 +124,18 @@ def bench(name: str, fn, iterations: int) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark compile() vs render()")
+    parser = argparse.ArgumentParser(description="Benchmark .compile() vs .render()")
     parser.add_argument("--iterations", type=int, default=500)
     cli = parser.parse_args()
 
     page = build_page()
-    compiled = compile(page)
+    compiled = page.compile()
 
     # Verify output parity
     assert page.render(args=RENDER_ARGS) == compiled.render(args=RENDER_ARGS), "Output mismatch!"
 
     print(f"Iterations: {cli.iterations}  |  Python: {sys.version.split()[0]}")
-    print(f"Tree: ~50 elements, 5 Var slots, {len(compiled.render(args=RENDER_ARGS))} chars output")
+    print(f"Tree: 5 Var slots + 4 .map() loops, {len(compiled.render(args=RENDER_ARGS))} chars output")
     print("-" * 100)
 
     tree_stats = bench("render(tree)", lambda: page.render(args=RENDER_ARGS), cli.iterations)
