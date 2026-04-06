@@ -20,7 +20,7 @@ import anyio
 from .errors import RenderLimitExceeded
 from .plugin import AStreamFn, RenderContext, StreamFn
 from .tree import Node
-from .types import Streamable, is_async_content_fn, is_sync_content_fn
+from .types import Renderable, is_async_content_fn, is_sync_content_fn
 
 # -- Low-level string / tag helpers --
 
@@ -49,7 +49,7 @@ def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
                 case Interpolation(v, _, conversion, format_spec):
                     if callable(v):
                         v = v()
-                    if isinstance(v, Streamable):
+                    if isinstance(v, Renderable):
                         yield "".join(v._stream())
                     else:
                         v = _convert(v, conversion)
@@ -72,7 +72,7 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
                             v = await result
                         else:
                             v = result
-                    if isinstance(v, Streamable):
+                    if isinstance(v, Renderable):
                         yield "".join(v._stream())
                     else:
                         v = _convert(v, conversion)
@@ -127,7 +127,7 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
         else:
             yield from result._stream()
         return
-    if isinstance(result, Streamable):
+    if isinstance(result, Renderable):
         yield from result._stream(ctx)
         return
     if isinstance(result, tuple | list):
@@ -156,7 +156,7 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
             async for chunk in result._astream():
                 yield chunk
         return
-    if isinstance(result, Streamable):
+    if isinstance(result, Renderable):
         async for chunk in result._astream(ctx):
             yield chunk
         return

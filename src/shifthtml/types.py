@@ -12,7 +12,17 @@ _MISSING: object = object()
 
 
 @runtime_checkable
-class Streamable(Protocol):
+class Renderable(Protocol):
+    """Protocol for objects that can render to HTML.
+
+    Public API: render, stream, astream — used by application code.
+    Internal API: _stream, _astream — used by the rendering engine
+    to thread RenderContext through nested trees.
+    """
+
+    def render(self, *, args: dict[str, object] | None = None) -> str: ...
+    def stream(self, *, args: dict[str, object] | None = None) -> Generator[str]: ...
+    def astream(self, *, args: dict[str, object] | None = None) -> AsyncGenerator[str]: ...
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]: ...
     def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]: ...
 

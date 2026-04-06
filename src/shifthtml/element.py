@@ -151,8 +151,7 @@ class Fragment:
     ) -> str:
         if isinstance(self.root, ContentNode):
             return self.root.render(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
-        _render_vars.set(args or {})
-        return "".join(self.root._stream())
+        return self.root.render(args=args)
 
     def stream(
         self,
@@ -164,8 +163,7 @@ class Fragment:
     ) -> Generator[str]:
         if isinstance(self.root, ContentNode):
             return self.root.stream(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
-        _render_vars.set(args or {})
-        return self.root._stream()
+        return self.root.stream(args=args)
 
     def astream(
         self,
@@ -186,8 +184,7 @@ class Fragment:
                 max_depth=max_depth,
                 max_nodes=max_nodes,
             )
-        _render_vars.set(args or {})
-        return self.root._astream()
+        return self.root.astream(args=args)
 
     def compile(self) -> CompiledTemplate:
         if isinstance(self.root, ContentNode):
@@ -208,7 +205,7 @@ class Fragment:
             async for chunk in self.root._astream():
                 yield chunk
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.render()
 
     def __iter__(self) -> Iterator[Node | str | Template]:
@@ -474,9 +471,6 @@ class ContentNode(Node):
             elif isinstance(item, Template):
                 parts.append(str(item))
         return "".join(parts)
-
-    def __str__(self) -> str:
-        return self.render()
 
 
 class Comment(ContentNode):

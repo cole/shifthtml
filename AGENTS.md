@@ -14,5 +14,5 @@
 - no docstrings on tests; the test name should be descriptive enough
 - format, lint and typecheck (using ruff and ty) before committing
 - never use inline imports; import at the top of the file
-- avoid type ignores and casts
+- avoid type ignores and casts, and prefer straighforward types over duck typing
 - simplify where possible

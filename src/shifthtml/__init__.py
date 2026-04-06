@@ -129,6 +129,7 @@ from .tags import (
     wbr,
 )
 from .tree import Node
+from .types import Renderable
 
 __all__ = (
     "tags",
@@ -144,6 +145,7 @@ __all__ = (
     "Fragment",
     "ContentNode",
     "Node",
+    "Renderable",
     "VoidElement",
     "html",
     "head",

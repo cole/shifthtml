@@ -65,6 +65,25 @@ class Node:
         raise NotImplementedError  # pragma: no cover
         yield  # pragma: no cover  # noqa: RET503
 
+    def render(self, *, args: dict[str, object] | None = None) -> str:
+        """Render this node to an HTML string."""
+        _render_vars.set(args or {})
+        return "".join(self._stream())
+
+    def stream(self, *, args: dict[str, object] | None = None) -> Generator[str]:
+        """Yield HTML chunks for this node."""
+        _render_vars.set(args or {})
+        return self._stream()
+
+    async def astream(self, *, args: dict[str, object] | None = None) -> AsyncGenerator[str]:
+        """Yield HTML chunks asynchronously."""
+        _render_vars.set(args or {})
+        async for chunk in self._astream():
+            yield chunk
+
+    def __str__(self) -> str:
+        return self.render()
+
     def __replace__(self, /, **changes):
         new_obj = type(self)()
         new_children = changes.get("children", self.children)
