@@ -70,7 +70,7 @@ def _flatten_into(parent: TreeNode, items: Iterable, *, _depth: int = 0) -> None
                 root = root.clone_node(deep=True)
             root.parent_node = parent
             children.append(root)
-        elif isinstance(item, Node):
+        elif isinstance(item, TreeNode):
             if item.parent_node is not None:
                 item = item.clone_node(deep=True)
             item.parent_node = parent
@@ -104,9 +104,9 @@ class Fragment:
     __slots__ = ("root", "append_pointer")
 
     root: Node
-    append_pointer: Node
+    append_pointer: TreeNode
 
-    def __init__(self, root: Node, append_pointer: Node, /):
+    def __init__(self, root: Node, append_pointer: TreeNode, /):
         self.root = root
         self.append_pointer = append_pointer
 
@@ -119,7 +119,6 @@ class Fragment:
             raise ValueError("Pointer target not found in the tree")
         # _copy_tree preserves concrete types via copy.replace
         assert isinstance(new_root, Node)
-        assert isinstance(new_pointer, Node)
         return Fragment(new_root, new_pointer)
 
     def __replace__(self, /, **changes):
@@ -215,7 +214,7 @@ class Fragment:
             self.append(other)
             return self
 
-        if isinstance(other, Node):
+        if isinstance(other, TreeNode):
             self.append(other)
             return self
 
@@ -228,15 +227,12 @@ class Fragment:
 
         return self
 
-    def append(self, node: Node | Fragment) -> None:
+    def append(self, node: TreeNode | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
             if new_pointer is None:
                 raise ValueError("Pointer target not found in the tree")
-            # _copy_tree preserves concrete types via copy.replace
-            assert isinstance(new_root, Node)
-            assert isinstance(new_pointer, Node)
             self.append_pointer.append_child(new_root)
             self.append_pointer = new_pointer
             return
@@ -259,8 +255,8 @@ class Node(TreeNode):
     __slots__ = ()
 
     @classmethod
-    def factory(cls, contents: NodeContent) -> Node:
-        if isinstance(contents, Node):
+    def factory(cls, contents: NodeContent) -> TreeNode:
+        if isinstance(contents, TreeNode):
             return contents
         if isinstance(contents, Fragment):
             root = contents.root
@@ -445,7 +441,7 @@ class Node(TreeNode):
             new_fragment.append(other)
             return new_fragment
 
-        if isinstance(other, Node):
+        if isinstance(other, TreeNode):
             new_fragment.append(other)
             return new_fragment
 
@@ -956,8 +952,11 @@ def _compile_children(children: list, ops: list[RenderOp]) -> None:
             ops.append(_html_escape(child) if _needs_escape(child) else child)
         elif isinstance(child, Template):
             ops.append(child)
-        elif isinstance(child, Node):
-            child._compile(ops)
+        elif isinstance(child, TreeNode):
+            if isinstance(child, Node):
+                child._compile(ops)
+            else:
+                ops.append("".join(child._stream()))
 
 
 def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
@@ -970,8 +969,11 @@ def _compile_content(content: NodeContent, ops: list[RenderOp]) -> None:
         ops.append(content)
     elif isinstance(content, Fragment):
         content.root._compile(ops)
-    elif isinstance(content, Node):
-        content._compile(ops)
+    elif isinstance(content, TreeNode):
+        if isinstance(content, Node):
+            content._compile(ops)
+        else:
+            ops.append("".join(content._stream()))
     elif is_node_list(content):
         for item in content:
             _compile_content(item, ops)

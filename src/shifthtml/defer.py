@@ -15,24 +15,24 @@ class Deferred(Node):
 
     def __init__(
         self,
-        child: Node | Fragment,
+        child: TreeNode | Fragment,
         *,
         slot_name: str,
-        loading: str | Template | Node | None = None,
+        loading: str | Template | TreeNode | None = None,
     ):
         super().__init__()
         if loading is not None and not isinstance(loading, str | Template):
-            self.loading: str | Template | Node | None = Node.factory(loading)
+            self.loading: str | Template | TreeNode | None = Node.factory(loading)
         else:
             self.loading = loading
         self.slot_name = slot_name
 
         if isinstance(child, Fragment):
             self.append_child(child.root)
-        elif isinstance(child, Node):
+        elif isinstance(child, TreeNode):
             self.append_child(child)
         else:
-            raise ValueError(f"Deferred can only be initialized with a Node or Fragment, not {type(child)}")
+            raise ValueError(f"Deferred can only be initialized with a TreeNode or Fragment, not {type(child)}")
 
     def __replace__(self, /, **changes):
         child = self.children[0]
@@ -40,14 +40,14 @@ class Deferred(Node):
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
 
-def _render_loading(loading: str | Template | Node, stream) -> Generator[str]:
+def _render_loading(loading: str | Template | TreeNode, stream) -> Generator[str]:
     if isinstance(loading, str | Template):
         yield from render_string(loading)
     else:
         yield from stream(loading)
 
 
-async def _arender_loading(loading: str | Template | Node, astream) -> AsyncGenerator[str]:
+async def _arender_loading(loading: str | Template | TreeNode, astream) -> AsyncGenerator[str]:
     if isinstance(loading, str | Template):
         async for chunk in arender_string(loading):
             yield chunk
@@ -60,9 +60,9 @@ class DeferPlugin:
     def __call__(
         self,
         slot_name: str,
-        node: Node | Fragment,
+        node: TreeNode | Fragment,
         *,
-        loading: Node | str | Template | None = None,
+        loading: TreeNode | str | Template | None = None,
     ) -> Deferred:
         register(self)
         return Deferred(node, slot_name=slot_name, loading=loading)
