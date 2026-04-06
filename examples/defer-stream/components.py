@@ -1,3 +1,4 @@
+import random
 from time import sleep
 
 from shifthtml import (
@@ -101,9 +102,16 @@ def col3_content():
     )
 
 
+EMOJIS = [
+    "🚀", "🎯", "🌟", "🔥", "💎", "🎨", "🌈", "⚡", "🍕", "🎸",
+    "🐍", "🦀", "🌮", "🧩", "🎲", "🏆", "🌻", "🦊", "🍩", "🎭",
+]
+
+
 def make_item(i):
     def render():
         sleep(1)
-        return f"Item {i + 1}"
+        emoji = random.choice(EMOJIS)
+        return f"{emoji} Item {i + 1}"
 
     return render
