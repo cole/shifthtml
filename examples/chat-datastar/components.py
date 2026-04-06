@@ -42,6 +42,6 @@ def chat_input() -> form:
     send_button = button(type="submit", class_="send-button") >> "Send"
 
     return form(
-        dict(data.on("submit", "@post('/send')").prevent),
+        dict(data.on("submit", "@post('/send'); $messageInput=''").prevent),
         class_="chat-input",
     ) >> (text_input, send_button)
