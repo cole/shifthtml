@@ -9,6 +9,14 @@ from .plugin import RenderContext, register
 from .rendering import _arender_node, _render_node, arender_string, render_string
 from .tree import Node
 
+_ACTIVATE_SCRIPT = (
+    "<script>"
+    "var s=document.currentScript,e=s.previousElementSibling;"
+    "e._apply(e.querySelector('template'));"
+    "s.remove()"
+    "</script>"
+)
+
 
 class Deferred(ContentNode):
     __slots__ = ("loading", "slot_name")
@@ -88,6 +96,7 @@ class DeferPlugin:
             yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
             yield from _render_node(child, ctx)
             yield "</template></shift-update>"
+            yield _ACTIVATE_SCRIPT
 
     def apre_render_node(self, node: Node, astream, ctx: RenderContext) -> AsyncGenerator[str] | None:
         if not isinstance(node, Deferred):
@@ -114,6 +123,7 @@ class DeferPlugin:
             async for chunk in _arender_node(child, ctx):
                 yield chunk
             yield "</template></shift-update>"
+            yield _ACTIVATE_SCRIPT
 
 
 defer = DeferPlugin()

@@ -3,7 +3,7 @@ from collections.abc import Generator
 import pytest
 
 from shifthtml import Element, Fragment, div, p, span
-from shifthtml.defer import defer
+from shifthtml.defer import _ACTIVATE_SCRIPT, defer
 from shifthtml.plugin import _registry, register
 
 pytestmark = pytest.mark.anyio
@@ -175,5 +175,6 @@ async def test_async_defer():
         '<shift-update action="replace" target="slot-1"><template>'
         "<div><span>loaded</span></div>"
         "</template></shift-update>"
+        f"{_ACTIVATE_SCRIPT}"
         "</div>"
     )
