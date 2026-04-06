@@ -34,6 +34,22 @@ if TYPE_CHECKING:
 _FLATTEN_MAX_DEPTH = 100
 
 
+def _to_node(contents: NodeContent) -> TreeNode:
+    """Coerce arbitrary content into a tree node."""
+    if isinstance(contents, TreeNode):
+        return contents
+    if isinstance(contents, Fragment):
+        root = contents.root
+        if root.parent_node is not None:
+            return root.clone_node(deep=True)
+        return root
+    if is_async_content_fn(contents):
+        return Async(contents)
+    if is_sync_content_fn(contents):
+        return Lazy(contents)
+    raise ValueError(f"Unsupported type: {type(contents)}")
+
+
 def _copy_tree(old_node: TreeNode, pointer_target: TreeNode) -> tuple[TreeNode, TreeNode | None]:
     pointer_found: TreeNode | None = None
 
@@ -78,7 +94,7 @@ def _flatten_into(parent: TreeNode, items: Iterable, *, _depth: int = 0) -> None
         elif isinstance(item, Iterable):
             _flatten_into(parent, item, _depth=_depth + 1)
         else:
-            node = Node.factory(item)
+            node = _to_node(item)
             node.parent_node = parent
             children.append(node)
 
@@ -222,7 +238,7 @@ class Fragment:
             _flatten_into(self.append_pointer, other)
             return self
 
-        node = Node.factory(other)
+        node = _to_node(other)
         self.append(node)
 
         return self
@@ -254,20 +270,7 @@ class Node(TreeNode):
 
     __slots__ = ()
 
-    @classmethod
-    def factory(cls, contents: NodeContent) -> TreeNode:
-        if isinstance(contents, TreeNode):
-            return contents
-        if isinstance(contents, Fragment):
-            root = contents.root
-            if root.parent_node is not None:
-                return root.clone_node(deep=True)
-            return root
-        if is_async_content_fn(contents):
-            return Async(contents)
-        if is_sync_content_fn(contents):
-            return Lazy(contents)
-        raise ValueError(f"Unsupported type for >>: {type(contents)}")
+
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from stream_children(self.children, ctx)
@@ -449,7 +452,7 @@ class Node(TreeNode):
             _flatten_into(self, other)
             return new_fragment
 
-        node = Node.factory(other)
+        node = _to_node(other)
         new_fragment.append(node)
 
         return new_fragment

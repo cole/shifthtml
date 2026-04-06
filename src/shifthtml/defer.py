@@ -4,7 +4,7 @@ import copy
 from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
-from .element import Fragment, Node
+from .element import Fragment, Node, _to_node
 from .plugin import RenderContext, register
 from .rendering import _arender_node, _render_node, arender_string, render_string
 from .tree import TreeNode
@@ -22,7 +22,7 @@ class Deferred(Node):
     ):
         super().__init__()
         if loading is not None and not isinstance(loading, str | Template):
-            self.loading: str | Template | TreeNode | None = Node.factory(loading)
+            self.loading: str | Template | TreeNode | None = _to_node(loading)
         else:
             self.loading = loading
         self.slot_name = slot_name
