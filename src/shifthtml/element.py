@@ -300,9 +300,11 @@ class ContentNode(Node):
     ) -> str:
         _render_vars.set(args or {})
         resolved = plugins if plugins is not None else registered_plugins()
+        ctx = RenderContext(plugins=resolved, max_depth=max_depth, max_nodes=max_nodes)
         if resolved:
-            return "".join(self.stream(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes))
-        ctx = RenderContext(plugins=(), max_depth=max_depth, max_nodes=max_nodes)
+            parts = list(ctx.pre_render_all())
+            parts.extend(self._stream_root(ctx))
+            return "".join(parts)
         return "".join(_render_node(self, ctx))
 
     def stream(
