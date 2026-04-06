@@ -1,3 +1,12 @@
+# /// script
+# dependencies = [
+#   "flask",
+#   "shifthtml",
+# ]
+# [tool.uv.sources]
+# shifthtml = { path = "../.." }
+# ///
+
 import sqlite3
 from pathlib import Path
 
