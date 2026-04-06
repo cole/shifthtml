@@ -25,7 +25,7 @@ DATASTAR_CDN = "https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-RC.7/
 
 def landing_page() -> html:
     page_head = head() >> (
-        meta({"charset": "UTF-8"}),
+        meta(charset="UTF-8"),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
         title() >> "ShiftHTML Chat",
         link(rel="stylesheet", href="/static/landing.css"),
@@ -35,7 +35,7 @@ def landing_page() -> html:
         iframe(src="/chat", class_="chat-frame"),
     )
 
-    return html({"lang": "en"}) >> (page_head, page_body)
+    return html(lang="en") >> (page_head, page_body)
 
 
 def chat_page(msgs: list[Message], username: str) -> html:
@@ -50,7 +50,7 @@ def chat_page(msgs: list[Message], username: str) -> html:
         return div(class_="server-status") >> (span() >> f"Server time: {now:%H:%M:%S}",)
 
     page_head = head() >> (
-        meta({"charset": "UTF-8"}),
+        meta(charset="UTF-8"),
         meta(name="viewport", content="width=device-width, initial-scale=1.0"),
         title() >> "ShiftHTML Chat",
         script(type="module", src=DATASTAR_CDN),
@@ -71,4 +71,4 @@ def chat_page(msgs: list[Message], username: str) -> html:
 
     page_body = body(dict(data.signals(username=username, messageInput=""))) >> container
 
-    return html({"lang": "en"}) >> (page_head, page_body)
+    return html(lang="en") >> (page_head, page_body)

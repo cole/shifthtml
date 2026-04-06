@@ -5,6 +5,7 @@ from time import sleep
 from shifthtml import Lazy
 from shifthtml import tags as t
 from shifthtml.defer import defer
+from shifthtml.live import runtime
 
 FORTUNES = [
     ("The best way to predict the future is to invent it.", "Alan Kay"),
@@ -26,39 +27,39 @@ def page(*, request_count: int):
 
     sections = (
         banner(now, request_count),
-        t.hr,
+        t.hr(),
         headings_section(),
-        t.hr,
+        t.hr(),
         nav_and_article_section(),
-        t.hr,
+        t.hr(),
         blockquote_section(),
-        t.hr,
+        t.hr(),
         dynamic_stats_section(now, request_count),
-        t.hr,
+        t.hr(),
         lazy_fortune_section(),
-        t.hr,
+        t.hr(),
         deferred_section(),
-        t.hr,
+        t.hr(),
         table_section(),
-        t.hr,
+        t.hr(),
         definition_list_section(),
-        t.hr,
+        t.hr(),
         lists_section(),
-        t.hr,
+        t.hr(),
         address_section(),
-        t.hr,
+        t.hr(),
         pre_section(),
-        t.hr,
+        t.hr(),
         figure_section(),
-        t.hr,
+        t.hr(),
         details_section(),
-        t.hr,
+        t.hr(),
         form_section(),
     )
 
     return t.html(lang="en") >> (
         page_head(),
-        t.body() >> (t.main() >> sections, t.script(src="/static/theme.js")),
+        t.body() >> (t.main() >> sections, runtime(), t.script(src="/static/theme.js")),
     )
 
 
@@ -164,7 +165,7 @@ def dynamic_stats_section(now: datetime, request_count: int):
     cards = [
         ("Page Views", str(request_count)),
         ("Server Time", f"{now:%H:%M:%S}"),
-        ("Python Version", "3.13"),
+        ("Python Version", "3.14"),
         ("Uptime", f"{now:%j} days into {now:%Y}"),
     ]
 
@@ -201,7 +202,7 @@ def lazy_fortune_section():
 
 
 def deferred_section():
-    """Defer node: placeholder renders immediately, content swapped in via script at page end."""
+    """Defer node: placeholder renders immediately, content swapped in via <shift-update> at page end."""
 
     def slow_content():
         sleep(0.5)
@@ -213,9 +214,9 @@ def deferred_section():
             >> (
                 "The ",
                 t.code() >> "defer()",
-                " plugin streams a placeholder first, then injects the real content via an inline ",
-                t.code() >> "<script>",
-                " tag at the end of the response.",
+                " plugin streams a placeholder first, then swaps in the real content via a ",
+                t.code() >> "<shift-update>",
+                " custom element at the end of the response.",
             ),
         )
 
@@ -305,7 +306,7 @@ def lists_section():
             t.li() >> "List item three",
             t.li() >> "List item four",
         ),
-        t.hr,
+        t.hr(),
         t.ol()
         >> (
             t.li()
@@ -341,9 +342,9 @@ def address_section():
         t.address()
         >> (
             "1 Infinite Loop",
-            t.br,
+            t.br(),
             "Cupertino, CA 95014",
-            t.br,
+            t.br(),
             "United States",
         ),
     )

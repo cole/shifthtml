@@ -3,16 +3,16 @@ from shifthtml import body, button, div, form, h1, head, html, input_, link, met
 
 def page_head():
     return head() >> (
-        meta({"charset": "UTF-8"}),
-        meta({"name": "viewport", "content": "width=device-width, initial-scale=1.0"}),
+        meta(charset="UTF-8"),
+        meta(name="viewport", content="width=device-width, initial-scale=1.0"),
         title() >> "Todo List",
-        script({"src": "https://unpkg.com/htmx.org@1.9.10"}),
+        script(src="https://unpkg.com/htmx.org@1.9.10"),
         link(rel="stylesheet", href="/static/style.css"),
     )
 
 
 def page(todos):
-    return html({"lang": "en"}) >> (
+    return html(lang="en") >> (
         page_head(),
         body()
         >> (
@@ -46,17 +46,14 @@ def todo_item(todo):
 
     label_classes = "todo-label completed" if is_completed else "todo-label"
 
-    checkbox_attrs = {
-        "type": "checkbox",
-        "hx-put": f"/todos/{todo_id}/toggle",
-        "hx-target": f"#todo-{todo_id}",
-        "hx-swap": "outerHTML",
-        "autocomplete": "off",
-    }
-    if is_completed:
-        checkbox_attrs["checked"] = "checked"
-
-    checkbox = input_(checkbox_attrs)
+    checkbox = input_(
+        type="checkbox",
+        hx_put=f"/todos/{todo_id}/toggle",
+        hx_target=f"#todo-{todo_id}",
+        hx_swap="outerHTML",
+        autocomplete="off",
+        checked=is_completed,
+    )
     label_text = span(class_=label_classes) >> todo["title"]
     delete_btn = (
         button(

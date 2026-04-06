@@ -1,5 +1,8 @@
+from unittest.mock import patch
+
 from components import page
 
 
 def test_full_page(snapshot):
-    assert page().render() == snapshot
+    with patch("components.sleep"):
+        assert page().render() == snapshot

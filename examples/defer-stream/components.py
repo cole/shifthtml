@@ -13,12 +13,12 @@ from shifthtml import (
     meta,
     ol,
     p,
-    script,
     section,
     span,
     title,
 )
 from shifthtml.defer import defer
+from shifthtml.live import runtime
 
 LOREM_1 = (
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
@@ -49,7 +49,6 @@ def page():
     )
 
     page_body = body() >> (
-        script(src="/static/slot-filler.js"),
         header(class_="page-header") >> h1() >> "Defer Stream Demo",
         div(id="content")
         >> defer(
@@ -59,7 +58,7 @@ def page():
         ),
     )
 
-    return html(lang="en") >> (page_head, page_body)
+    return html(lang="en") >> (page_head, page_body, runtime())
 
 
 def columns():
