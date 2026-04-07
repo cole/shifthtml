@@ -56,6 +56,10 @@ class Node:
         self.parent_node = None
         self.children = []
 
+    def _collect(self, buf: list[str]) -> None:
+        """Collect HTML chunks into a buffer. Overridden by subclasses."""
+        buf.extend(self._stream())  # pragma: no cover
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         """Yield HTML chunks for this node. Overridden by subclasses."""
         raise NotImplementedError  # pragma: no cover

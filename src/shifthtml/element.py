@@ -13,6 +13,8 @@ from .plugin import RenderContext, registered_plugins
 from .rendering import (
     _arender_node,
     _astream_fn,
+    _collect_children,
+    _collect_result,
     _render_node,
     _stream_fn,
     arender_result,
@@ -196,6 +198,9 @@ class Fragment:
             async for chunk in self.root._astream():
                 yield chunk
 
+    def _collect(self, buf: list[str]) -> None:
+        self.root._collect(buf)
+
     def __str__(self) -> str:
         return self.render()
 
@@ -267,6 +272,10 @@ class ContentNode(Node):
 
     __slots__ = ()
 
+    def _collect(self, buf: list[str]) -> None:
+        """Collect rendered HTML into a buffer (non-generator fast path)."""
+        _collect_children(self.children, buf)
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from stream_children(self.children, ctx)
 
@@ -285,7 +294,9 @@ class ContentNode(Node):
         _render_vars.set(args or {})
         resolved = plugins if plugins is not None else registered_plugins()
         if not resolved and max_nodes is None and max_depth == 100:
-            return "".join(self._stream())
+            buf: list[str] = []
+            self._collect(buf)
+            return "".join(buf)
         ctx = RenderContext(plugins=resolved, max_depth=max_depth, max_nodes=max_nodes)
         if resolved:
             parts = list(ctx.pre_render_all())
@@ -498,6 +509,9 @@ class Comment(ContentNode):
         content = str(self.content)
         return content.replace("--", "- -")
 
+    def _collect(self, buf: list[str]) -> None:
+        buf.append(f"<!--{self._escape_content()}-->")
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
 
@@ -592,6 +606,17 @@ class Element(ContentNode):
         if self._style:
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
+
+    def _collect(self, buf: list[str]) -> None:
+        attrs = self._render_attrs()
+        if self.void:
+            buf.append(render_open_tag(self.tag, attrs, void=True))
+        else:
+            if self.doctype:
+                buf.append(self.doctype)
+            buf.append(render_open_tag(self.tag, attrs))
+            _collect_children(self.children, buf)
+            buf.append(self._close_tag)
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         attrs = self._render_attrs()
@@ -692,6 +717,9 @@ class Lazy(ContentNode):
     def __replace__(self, **changes):
         return type(self)(self.fn, *self.args, **self.kwargs)
 
+    def _collect(self, buf: list[str]) -> None:
+        _collect_result(self.fn(*self.args, **self.kwargs), buf)
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             if ctx._depth >= ctx.max_depth:
@@ -737,6 +765,9 @@ class Async(ContentNode):
 
     def __replace__(self, **changes):
         return type(self)(self.fn, *self.args, **self.kwargs)
+
+    def _collect(self, buf: list[str]) -> None:
+        raise TypeError("Async nodes require async rendering")
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Async nodes require async rendering")
@@ -786,6 +817,13 @@ class ConditionalNode(ContentNode):
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("ConditionalNode does not support children")
 
+    def _collect(self, buf: list[str]) -> None:
+        val = self.var()
+        branch = self.if_true if val else self.if_false
+        if branch is None:
+            return
+        _collect_result(branch, buf)
+
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         val = self.var()
         branch = self.if_true if val else self.if_false
@@ -826,6 +864,11 @@ class IterationNode(ContentNode):
 
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("IterationNode does not support children")
+
+    def _collect(self, buf: list[str]) -> None:
+        items = self.var()
+        for item in items:
+            _collect_result(self.body_fn(item), buf)
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
         items = self.var()
