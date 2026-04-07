@@ -70,3 +70,4 @@
 {"run":69,"commit":"xvuykzs","metric":1.2861,"metrics":{"compiled_ms":1.4992,"build_ms":1.2367},"status":"discard","description":"Inline 2-child path in _collect — lambda overhead offsets savings","timestamp":1775582695740,"segment":0}
 {"run":70,"commit":"f831ce6","metric":1.2546,"metrics":{"compiled_ms":1.4583,"build_ms":1.2064},"status":"keep","description":"Stable at ~1.25ms. Fully explored pure-Python optimization space.","timestamp":1775582706904,"segment":0}
 {"run":71,"commit":"f6c44cc","metric":1.2735,"metrics":{"compiled_ms":1.4621,"build_ms":1.2091},"status":"keep","description":"Add collect_string() non-generator for Template rendering in _collect paths","timestamp":1775582805854,"segment":0}
+{"run":72,"commit":"f2fe9cd","metric":1.2427,"metrics":{"compiled_ms":1.4501,"build_ms":1.2012},"status":"keep","description":"Fix ruff lint: sort imports","timestamp":1775582828305,"segment":0}

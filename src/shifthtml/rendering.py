@@ -309,7 +309,7 @@ def _collect_result(result: object, buf: list[str]) -> None:
         result._collect(buf)
         return
     if isinstance(result, Template):
-        buf.extend(render_string(result))
+        collect_string(result, buf)
         return
     if is_sync_content_fn(result):
         _collect_result(result(), buf)
