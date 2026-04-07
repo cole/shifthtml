@@ -501,7 +501,8 @@ class Comment(ContentNode):
     content: str | Template
 
     def __init__(self, content: str | Template, /):
-        super().__init__()
+        self.parent_node = None
+        self.children = []
         self.content = content
 
     def __repr__(self):
@@ -715,7 +716,8 @@ class Lazy(ContentNode):
     kwargs: dict[str, object]
 
     def __init__(self, fn: Callable[..., NodeContent], /, *args, **kwargs):
-        super().__init__()
+        self.parent_node = None
+        self.children = []
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
@@ -764,7 +766,8 @@ class Async(ContentNode):
     kwargs: dict[str, object]
 
     def __init__(self, fn: Callable[..., Awaitable[NodeContent]], /, *args, **kwargs):
-        super().__init__()
+        self.parent_node = None
+        self.children = []
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
@@ -805,7 +808,8 @@ class ConditionalNode(ContentNode):
     if_false: NodeContent | None
 
     def __init__(self, var: Var, if_true: NodeContent, if_false: NodeContent | None = None):
-        super().__init__()
+        self.parent_node = None
+        self.children = []
         self.var = var
         self.if_true = if_true
         self.if_false = if_false
@@ -861,7 +865,8 @@ class IterationNode(ContentNode):
     body_fn: Callable[[Any], NodeContent]
 
     def __init__(self, var: Var, body_fn: Callable[[Any], NodeContent]):
-        super().__init__()
+        self.parent_node = None
+        self.children = []
         self.var = var
         self.body_fn = body_fn
 

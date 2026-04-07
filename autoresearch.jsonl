@@ -13,3 +13,4 @@
 {"run":12,"commit":"7376477","metric":1.7608,"metrics":{"compiled_ms":2.0852,"build_ms":1.7002},"status":"keep","description":"Reorder _collect_result: Node first, then str, then tuple","timestamp":1775543548020,"segment":0}
 {"run":13,"commit":"acac72c","metric":1.7314,"metrics":{"compiled_ms":1.9246,"build_ms":1.7028},"status":"keep","description":"Use _collect_result in compiled _exec_ops instead of render_result","timestamp":1775543574864,"segment":0}
 {"run":14,"commit":"nxxkyrr","metric":1.7463,"metrics":{"compiled_ms":1.9213,"build_ms":1.6931},"status":"discard","description":"Cache _open_tag at init — neutral (saves render, adds to init)","timestamp":1775543725982,"segment":0}
+{"run":15,"commit":"495e4b8","metric":1.6896,"metrics":{"compiled_ms":1.9021,"build_ms":1.6547},"status":"keep","description":"Skip super().__init__() in Element, inline parent_node/children init","timestamp":1775543777441,"segment":0}
