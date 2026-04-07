@@ -1,9 +1,8 @@
 # Autoresearch Ideas
 
 ## Promising Optimizations Not Yet Pursued
-- **Cython/mypyc compilation**: The rendering hot loop is pure Python. Compiling it would yield 5-10x improvement.
-- **Specialized Element subclasses**: Auto-generate Element._collect variants at class creation time based on void/doctype status, avoiding runtime branch checks.
-- **Combine open tag + single text child into one string at build time**: Elements like `span(class_="tag") >> "text"` could eagerly compute `'<span class="tag">text</span>'` during >>, avoiding _collect entirely for leaf nodes.
+- **Cython/mypyc compilation**: The rendering hot loop is pure Python. Compiling _collect + _collect_children + _flatten_into would yield 3-5x improvement.
+- **Pre-render leaf elements at build time**: `span(class_="tag") >> "text"` could store `'<span class="tag">text</span>'` directly, skipping _collect for 74% of elements. Needs immutability contract.
 
 ## Tried and Exhausted
 - Fragment allocation avoidance — breaks chaining API
