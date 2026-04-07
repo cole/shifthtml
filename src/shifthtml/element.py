@@ -878,5 +878,3 @@ class _VarNamespace:
 
 
 args = _VarNamespace()
-
-
