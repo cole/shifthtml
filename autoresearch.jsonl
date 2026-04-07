@@ -63,3 +63,4 @@
 {"run":62,"commit":"xvuykzs","metric":1.2727,"metrics":{"compiled_ms":1.4639,"build_ms":1.2256},"status":"discard","description":"Reuse item var in _flatten_into Fragment path — within noise","timestamp":1775582352411,"segment":0}
 {"run":63,"commit":"eeb39d2","metric":1.2603,"metrics":{"compiled_ms":1.4713,"build_ms":1.232},"status":"keep","description":"Steady state: ~57% improvement, profile very flat, approaching pure-Python limits","timestamp":1775582391316,"segment":0}
 {"run":64,"commit":"697a392","metric":1.2552,"metrics":{"compiled_ms":1.4656,"build_ms":1.2208},"status":"keep","description":"Pure Python optimization exhausted. 57.4% improvement from baseline.","timestamp":1775582465309,"segment":0}
+{"run":65,"commit":"f791075","metric":1.2676,"metrics":{"compiled_ms":1.4766,"build_ms":1.2307},"status":"keep","description":"Continued searching: no further gains found, 57% improvement stable","timestamp":1775582527713,"segment":0}

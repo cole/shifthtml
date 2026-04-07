@@ -575,7 +575,11 @@ class Element(ContentNode):
             self.attributes = merged
         elif len(keyword_attributes) == 1:
             (k,) = keyword_attributes
-            self.attributes = {_convert_attribute_names(k): keyword_attributes[k]}
+            try:
+                attr_name = _attr_name_cache[k]
+            except KeyError:
+                attr_name = _convert_attribute_names(k)
+            self.attributes = {attr_name: keyword_attributes[k]}
         elif keyword_attributes:
             self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
         else:
