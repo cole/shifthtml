@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from .plugin import Plugin
 
 _FLATTEN_MAX_DEPTH = 100
+_EMPTY_ARGS: dict[str, object] = {}
 
 
 def _wrap_content(contents: NodeContent) -> Node:
@@ -79,7 +80,7 @@ def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
         if item is None or item is False:
             continue
         item_type = type(item)
-        if isinstance(item, Fragment):
+        if item_type is Fragment:
             root = item.root
             if root.parent_node is not None:
                 root = root.clone_node(deep=True)
@@ -223,19 +224,21 @@ class Fragment:
         if other is None or other is False:
             return None
 
-        if isinstance(other, tuple):
+        other_type = type(other)
+
+        if other_type is tuple:
             _flatten_into(self.append_pointer, other)
             return self
 
-        if isinstance(other, str | Template):
+        if other_type is str or isinstance(other, Template):
             self.append_pointer.children.append(other)
             return self
 
-        if isinstance(other, list):
+        if other_type is list:
             _flatten_into(self.append_pointer, other)
             return self
 
-        if isinstance(other, Fragment):
+        if other_type is Fragment:
             self.append(other)
             return self
 
@@ -298,7 +301,7 @@ class ContentNode(Node):
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
-        _render_vars.set(args or {})
+        _render_vars.set(args if args is not None else _EMPTY_ARGS)
         resolved = plugins if plugins is not None else registered_plugins()
         if not resolved and max_nodes is None and max_depth == 100:
             buf: list[str] = []
@@ -468,7 +471,7 @@ class ContentNode(Node):
             _flatten_into(self, other)
             return new_fragment
 
-        if isinstance(other, Fragment):
+        if other_type is Fragment:
             new_fragment.append(other)
             return new_fragment
 
@@ -624,8 +627,7 @@ class Element(ContentNode):
     def _collect(self, buf: list[str]) -> None:
         if self.doctype:
             buf.append(self.doctype)
-        # Inline open tag rendering to avoid function call overhead.
-        # 99% of elements have 0 or 1 simple string attributes.
+        # Inline open tag for 0-1 string attrs (99% of elements)
         tag = self.tag
         attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
         if attrs:
@@ -635,18 +637,14 @@ class Element(ContentNode):
                 if type(value) is str:
                     if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
                         value = _escape(value, quote=True)
-                    open_tag = f'<{tag} {key}="{value}" />' if self.void else f'<{tag} {key}="{value}">'
+                    buf.append(f'<{tag} {key}="{value}">')
                 else:
-                    open_tag = render_open_tag(tag, attrs, void=self.void)
+                    buf.append(render_open_tag(tag, attrs))
             else:
-                open_tag = render_open_tag(tag, attrs, void=self.void)
+                buf.append(render_open_tag(tag, attrs))
         else:
-            open_tag = f"<{tag} />" if self.void else f"<{tag}>"
-        if self.void:
-            buf.append(open_tag)
-            return
+            buf.append(f"<{tag}>")
         children = self.children
-        buf.append(open_tag)
         n_children = len(children)
         if n_children == 1:
             first = children[0]
@@ -734,6 +732,23 @@ class VoidElement(Element):
 
     def __rshift__(self, other: object) -> NoReturn:
         raise ValueError(f"Cannot add children to a void element ({self.tag})")
+
+    def _collect(self, buf: list[str]) -> None:
+        tag = self.tag
+        attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
+        if not attrs:
+            buf.append(f"<{tag} />")
+        elif len(attrs) == 1:
+            (key,) = attrs
+            value = attrs[key]
+            if type(value) is str:
+                if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                    value = _escape(value, quote=True)
+                buf.append(f'<{tag} {key}="{value}" />')
+            else:
+                buf.append(render_open_tag(tag, attrs, void=True))
+        else:
+            buf.append(render_open_tag(tag, attrs, void=True))
 
 
 class Lazy(ContentNode):

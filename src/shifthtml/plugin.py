@@ -48,8 +48,11 @@ def register(plugin: Plugin) -> None:
     _registry[type(plugin)] = plugin
 
 
+_EMPTY_PLUGINS: tuple[Plugin, ...] = ()
+
+
 def registered_plugins() -> tuple[Plugin, ...]:
-    return tuple(_registry.values())
+    return tuple(_registry.values()) if _registry else _EMPTY_PLUGINS
 
 
 def clear_registry() -> None:

@@ -268,10 +268,10 @@ def _collect_children(children: list, buf: list[str]) -> None:
                 buf.append(escape(child))
             else:
                 buf.append(child)
-        elif isinstance(child, Template):
-            buf.extend(render_string(child))
-        else:
+        elif isinstance(child, Node):
             child._collect(buf)
+        else:
+            buf.extend(render_string(child))
 
 
 def _collect_result(result: object, buf: list[str]) -> None:
