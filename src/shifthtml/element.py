@@ -631,7 +631,8 @@ class Element(ContentNode):
         if not attrs:
             open_tag = f"<{tag} />" if self.void else f"<{tag}>"
         elif len(attrs) == 1:
-            ((key, value),) = attrs.items()
+            key = next(iter(attrs))
+            value = attrs[key]
             if type(value) is str:
                 if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
                     value = _escape(value, quote=True)

@@ -29,3 +29,4 @@
 {"run":28,"commit":"36e2458","metric":1.4586,"metrics":{"compiled_ms":1.6552,"build_ms":1.417},"status":"keep","description":"Use type() is for hot type checks in __rshift__ and _flatten_into","timestamp":1775544497423,"segment":0}
 {"run":29,"commit":"0a0dadf","metric":1.4359,"metrics":{"compiled_ms":1.6232,"build_ms":1.4013},"status":"keep","description":"Use type() is str in _collect_children, _collect_result, stream_children","timestamp":1775544536607,"segment":0}
 {"run":30,"commit":"cfeff0d","metric":1.439,"metrics":{"compiled_ms":1.631,"build_ms":1.3977},"status":"keep","description":"Use type() is str in Element._collect for children/attrs checks","timestamp":1775544566023,"segment":0}
+{"run":31,"commit":"2d6a087","metric":1.4233,"metrics":{"compiled_ms":1.6086,"build_ms":1.3802},"status":"keep","description":"Skip _render_attrs() call in _collect, inline style check","timestamp":1775544630855,"segment":0}
