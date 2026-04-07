@@ -4,6 +4,12 @@ import pytest
 
 from shifthtml import span
 from shifthtml.live import replace
+from shifthtml.ws.aiohttp import websocket as aiohttp_websocket
+from shifthtml.ws.litestar import websocket as litestar_websocket
+from shifthtml.ws.quart import websocket as quart_websocket
+from shifthtml.ws.sanic import websocket as sanic_websocket
+from shifthtml.ws.starlette import websocket as starlette_websocket
+from shifthtml.ws.websockets import websocket as websockets_websocket
 
 # -- shared helpers --
 
@@ -13,6 +19,64 @@ class BaseMockWS:
         self.closed = False
         self.sent: list[str] = []
         self._incoming = list(incoming or [])
+
+
+# -- starlette --
+
+
+class MockStarletteWS(BaseMockWS):
+    def __init__(self, incoming: list[str] | None = None):
+        super().__init__(incoming)
+        self.accepted = False
+
+    async def accept(self) -> None:
+        self.accepted = True
+
+    async def close(self, code: int = 1000, reason: str | None = None) -> None:
+        self.closed = True
+
+    async def send_text(self, data: str) -> None:
+        self.sent.append(data)
+
+    async def receive_text(self) -> str:
+        if not self._incoming:
+            raise Exception("no more messages")
+        return self._incoming.pop(0)
+
+
+@pytest.mark.anyio
+async def test_starlette_accepts_and_closes():
+    ws = MockStarletteWS()
+    async with starlette_websocket(ws) as conn:
+        assert ws.accepted
+        assert conn is not None
+    assert ws.closed
+
+
+@pytest.mark.anyio
+async def test_starlette_send():
+    ws = MockStarletteWS()
+    async with starlette_websocket(ws) as conn:
+        await conn.send(replace("x", span() >> "hi"))
+    parsed = json.loads(ws.sent[0])
+    assert parsed == {"action": "replace", "target": "x", "html": "<span>hi</span>"}
+
+
+@pytest.mark.anyio
+async def test_starlette_receive():
+    ws = MockStarletteWS(
+        incoming=[
+            json.dumps({"event": "ping"}),
+            json.dumps({"event": "msg", "text": "hi"}),
+        ]
+    )
+    messages = []
+    async with starlette_websocket(ws) as conn:
+        for _ in range(2):
+            msg = await conn.__anext__()
+            messages.append(msg)
+    assert messages[0] == {"event": "ping"}
+    assert messages[1] == {"event": "msg", "text": "hi"}
 
 
 # -- aiohttp --
@@ -34,10 +98,8 @@ class MockAiohttpWS(BaseMockWS):
 
 @pytest.mark.anyio
 async def test_aiohttp_send_and_close():
-    from shifthtml.ws.aiohttp import websocket
-
     ws = MockAiohttpWS()
-    async with websocket(ws) as conn:
+    async with aiohttp_websocket(ws) as conn:
         await conn.send(replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["action"] == "replace"
@@ -45,10 +107,8 @@ async def test_aiohttp_send_and_close():
 
 @pytest.mark.anyio
 async def test_aiohttp_receive():
-    from shifthtml.ws.aiohttp import websocket
-
     ws = MockAiohttpWS(incoming=[json.dumps({"event": "ping"})])
-    async with websocket(ws) as conn:
+    async with aiohttp_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "ping"}
 
@@ -75,10 +135,8 @@ class MockQuartWS(BaseMockWS):
 
 @pytest.mark.anyio
 async def test_quart_accepts_and_sends():
-    from shifthtml.ws.quart import websocket
-
     ws = MockQuartWS()
-    async with websocket(ws) as conn:
+    async with quart_websocket(ws) as conn:
         assert ws.accepted
         await conn.send(replace("x", span() >> "hi"))
     assert json.loads(ws.sent[0])["target"] == "x"
@@ -86,10 +144,8 @@ async def test_quart_accepts_and_sends():
 
 @pytest.mark.anyio
 async def test_quart_receive():
-    from shifthtml.ws.quart import websocket
-
     ws = MockQuartWS(incoming=[json.dumps({"event": "msg", "text": "yo"})])
-    async with websocket(ws) as conn:
+    async with quart_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "msg", "text": "yo"}
 
@@ -116,10 +172,8 @@ class MockSanicWS(BaseMockWS):
 
 @pytest.mark.anyio
 async def test_sanic_send_and_close():
-    from shifthtml.ws.sanic import websocket
-
     ws = MockSanicWS()
-    async with websocket(ws) as conn:
+    async with sanic_websocket(ws) as conn:
         await conn.send(replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["html"] == "<span>hi</span>"
@@ -127,20 +181,16 @@ async def test_sanic_send_and_close():
 
 @pytest.mark.anyio
 async def test_sanic_receive_text():
-    from shifthtml.ws.sanic import websocket
-
     ws = MockSanicWS(incoming=[json.dumps({"event": "ping"})])
-    async with websocket(ws) as conn:
+    async with sanic_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "ping"}
 
 
 @pytest.mark.anyio
 async def test_sanic_receive_bytes():
-    from shifthtml.ws.sanic import websocket
-
     ws = MockSanicWS(incoming=[json.dumps({"event": "ping"}).encode()])
-    async with websocket(ws) as conn:
+    async with sanic_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "ping"}
 
@@ -170,10 +220,8 @@ class MockLitestarWS(BaseMockWS):
 
 @pytest.mark.anyio
 async def test_litestar_accepts_and_closes():
-    from shifthtml.ws.litestar import websocket
-
     ws = MockLitestarWS()
-    async with websocket(ws) as conn:
+    async with litestar_websocket(ws) as conn:
         assert ws.accepted
         await conn.send(replace("x", span() >> "hi"))
     assert ws.closed
@@ -182,10 +230,8 @@ async def test_litestar_accepts_and_closes():
 
 @pytest.mark.anyio
 async def test_litestar_receive():
-    from shifthtml.ws.litestar import websocket
-
     ws = MockLitestarWS(incoming=[json.dumps({"event": "hello"})])
-    async with websocket(ws) as conn:
+    async with litestar_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "hello"}
 
@@ -212,10 +258,8 @@ class MockWebSocketsConn(BaseMockWS):
 
 @pytest.mark.anyio
 async def test_websockets_send_and_close():
-    from shifthtml.ws.websockets import websocket
-
     ws = MockWebSocketsConn()
-    async with websocket(ws) as conn:
+    async with websockets_websocket(ws) as conn:
         await conn.send(replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["action"] == "replace"
@@ -223,19 +267,15 @@ async def test_websockets_send_and_close():
 
 @pytest.mark.anyio
 async def test_websockets_receive_text():
-    from shifthtml.ws.websockets import websocket
-
     ws = MockWebSocketsConn(incoming=[json.dumps({"event": "ping"})])
-    async with websocket(ws) as conn:
+    async with websockets_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "ping"}
 
 
 @pytest.mark.anyio
 async def test_websockets_receive_bytes():
-    from shifthtml.ws.websockets import websocket
-
     ws = MockWebSocketsConn(incoming=[json.dumps({"event": "ping"}).encode()])
-    async with websocket(ws) as conn:
+    async with websockets_websocket(ws) as conn:
         msg = await conn.__anext__()
     assert msg == {"event": "ping"}
