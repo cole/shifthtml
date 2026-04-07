@@ -456,22 +456,23 @@ class ContentNode(Node):
         if other is None or other is False:
             return None
 
-        new_fragment = Fragment(self, self)
         other_type = type(other)
 
         if other_type is tuple:
             _flatten_into(self, other)
-            return new_fragment
+            return Fragment(self, self)
 
         if other_type is str or isinstance(other, Template):
             self.children.append(other)
-            return new_fragment
+            return Fragment(self, self)
 
         if other_type is list:
             _flatten_into(self, other)
-            return new_fragment
+            return Fragment(self, self)
 
-        if other_type is Fragment:
+        new_fragment = Fragment(self, self)
+
+        if isinstance(other, Fragment):
             new_fragment.append(other)
             return new_fragment
 
