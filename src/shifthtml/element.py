@@ -514,6 +514,7 @@ class Element(ContentNode):
     _close_tag: ClassVar[str] = ""
     void: ClassVar[bool] = False
     doctype: ClassVar[str] = ""
+    _empty_attrs: ClassVar[dict[str, object]] = {}
     attributes: dict[str, object]
 
     def __init_subclass__(cls, **kwargs: object) -> None:
@@ -532,9 +533,9 @@ class Element(ContentNode):
             self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
         else:
             self.attributes = {}
-        self._style: StyleMap | None = None
-        self._class_list: ClassList | None = None
-        self._dataset: DatasetMap | None = None
+        self._style = None
+        self._class_list = None
+        self._dataset = None
 
     def __repr__(self):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
