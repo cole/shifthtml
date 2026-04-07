@@ -545,7 +545,8 @@ class Element(ContentNode):
             cls._close_tag = f"</{cls.tag}>"
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
-        super().__init__()
+        self.parent_node = None
+        self.children = []
         if attributes:
             merged: dict[str, object] = {k.lower(): v for k, v in attributes.items()}
             for k, v in keyword_attributes.items():
