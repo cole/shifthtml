@@ -20,6 +20,7 @@ from .rendering import (
     _stream_fn,
     arender_result,
     astream_children,
+    collect_string,
     render_open_tag,
     render_result,
     render_string,
@@ -681,7 +682,7 @@ class Element(ContentNode):
                 else:
                     buf.append(first)
             elif isinstance(first, Template):
-                buf.extend(render_string(first))
+                collect_string(first, buf)
             elif isinstance(first, Node):
                 first._collect(buf)
         elif n_children > 1:

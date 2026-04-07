@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from string.templatelib import Template as StdlibTemplate
 from typing import Any
 
-from .rendering import _collect_result, arender_result, arender_string, render_result, render_string
+from .rendering import _collect_result, arender_result, arender_string, collect_string, render_result, render_string
 from .tree import _resolve_var
 from .types import NodeContent
 
@@ -49,7 +49,7 @@ def _exec_ops(ops: list[RenderOp], out: list[str]) -> None:
         if type(op) is str:
             out.append(op)
         elif isinstance(op, StdlibTemplate):
-            out.extend(render_string(op))
+            collect_string(op, out)
         elif isinstance(op, Loop):
             for item in _resolve_var(op.var_name):
                 _collect_result(op.body_fn(item), out)

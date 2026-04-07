@@ -40,6 +40,23 @@ def _needs_escape(value: str, quote: bool = False) -> bool:
     return quote and ('"' in value or "'" in value)
 
 
+def collect_string(value: Template, buf: list[str], quote: bool = False) -> None:
+    """Collect rendered template string into a buffer (non-generator fast path)."""
+    for item in value:
+        match item:
+            case str() as s:
+                buf.append(s)
+            case Interpolation(v, _, conversion, format_spec):
+                if callable(v):
+                    v = v()
+                if isinstance(v, Renderable):
+                    v._collect(buf)
+                else:
+                    v = _convert(v, conversion)
+                    v = format(v, format_spec)
+                    buf.append(escape(v, quote=quote) if _needs_escape(v, quote) else v)
+
+
 def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
     if isinstance(value, Template):
         for item in value:
@@ -271,7 +288,7 @@ def _collect_children(children: list, buf: list[str]) -> None:
         elif isinstance(child, Node):
             child._collect(buf)
         else:
-            buf.extend(render_string(child))
+            collect_string(child, buf)
 
 
 def _collect_result(result: object, buf: list[str]) -> None:

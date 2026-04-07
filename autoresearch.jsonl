@@ -68,3 +68,4 @@
 {"run":67,"commit":"xvuykzs","metric":1.2612,"metrics":{"compiled_ms":1.4719,"build_ms":1.2221},"status":"discard","description":"Reorder __init__ to check keyword_attributes first — within noise","timestamp":1775582615852,"segment":0}
 {"run":68,"commit":"06fdfe2","metric":1.3406,"metrics":{"compiled_ms":1.5909,"build_ms":1.3031},"status":"keep","description":"Confirming steady state. Noisy run (1.34), best consistent ~1.25ms","timestamp":1775582652185,"segment":0}
 {"run":69,"commit":"xvuykzs","metric":1.2861,"metrics":{"compiled_ms":1.4992,"build_ms":1.2367},"status":"discard","description":"Inline 2-child path in _collect — lambda overhead offsets savings","timestamp":1775582695740,"segment":0}
+{"run":70,"commit":"f831ce6","metric":1.2546,"metrics":{"compiled_ms":1.4583,"build_ms":1.2064},"status":"keep","description":"Stable at ~1.25ms. Fully explored pure-Python optimization space.","timestamp":1775582706904,"segment":0}
