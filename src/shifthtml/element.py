@@ -78,13 +78,14 @@ def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
     for item in items:
         if item is None or item is False:
             continue
+        item_type = type(item)
         if isinstance(item, Fragment):
             root = item.root
             if root.parent_node is not None:
                 root = root.clone_node(deep=True)
             root.parent_node = parent
             children.append(root)
-        elif isinstance(item, str | Template):
+        elif item_type is str or isinstance(item, Template):
             children.append(item)
         elif isinstance(item, Node):
             if item.parent_node is not None:
@@ -453,16 +454,17 @@ class ContentNode(Node):
             return None
 
         new_fragment = Fragment(self, self)
+        other_type = type(other)
 
-        if isinstance(other, tuple):
+        if other_type is tuple:
             _flatten_into(self, other)
             return new_fragment
 
-        if isinstance(other, str | Template):
+        if other_type is str or isinstance(other, Template):
             self.children.append(other)
             return new_fragment
 
-        if isinstance(other, list):
+        if other_type is list:
             _flatten_into(self, other)
             return new_fragment
 
@@ -622,7 +624,22 @@ class Element(ContentNode):
     def _collect(self, buf: list[str]) -> None:
         if self.doctype:
             buf.append(self.doctype)
-        open_tag = render_open_tag(self.tag, self._render_attrs(), void=self.void)
+        # Inline open tag rendering to avoid function call overhead.
+        # 99% of elements have 0 or 1 simple string attributes.
+        tag = self.tag
+        attrs = self._render_attrs()
+        if not attrs:
+            open_tag = f"<{tag} />" if self.void else f"<{tag}>"
+        elif len(attrs) == 1:
+            ((key, value),) = attrs.items()
+            if isinstance(value, str):
+                if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                    value = _escape(value, quote=True)
+                open_tag = f'<{tag} {key}="{value}" />' if self.void else f'<{tag} {key}="{value}">'
+            else:
+                open_tag = render_open_tag(tag, attrs, void=self.void)
+        else:
+            open_tag = render_open_tag(tag, attrs, void=self.void)
         if self.void:
             buf.append(open_tag)
             return
