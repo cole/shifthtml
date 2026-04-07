@@ -62,7 +62,7 @@ def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]
     for child in old_node.children:
         if type(child) is str or isinstance(child, Template):
             new_node.children.append(child)
-        else:
+        elif isinstance(child, Node):
             new_child, child_pointer = _copy_tree(child, pointer_target)
             new_child.parent_node = new_node
             new_node.children.append(new_child)
