@@ -82,6 +82,7 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
         yield escape(value, quote=quote) if _needs_escape(value, quote) else value
 
 
+
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
     if not attributes:
         return f"<{tag} />" if void else f"<{tag}>"

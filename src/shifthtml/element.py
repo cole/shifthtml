@@ -618,17 +618,11 @@ class Element(ContentNode):
         return self.attributes
 
     def _collect(self, buf: list[str]) -> None:
-        attrs = self._render_attrs()
-        tag = render_open_tag(self.tag, attrs, void=self.void)
-        if self.void:
-            buf.append(tag)
-        else:
-            if self.doctype:
-                buf.append(self.doctype)
-            buf.append(tag)
-            children = self.children
-            if children:
-                _collect_children(children, buf)
+        if self.doctype:
+            buf.append(self.doctype)
+        buf.append(render_open_tag(self.tag, self._render_attrs(), void=self.void))
+        if not self.void:
+            _collect_children(self.children, buf)
             buf.append(self._close_tag)
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
