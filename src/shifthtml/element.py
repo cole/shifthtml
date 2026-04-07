@@ -267,7 +267,9 @@ class Fragment:
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
             if new_pointer is None:
                 raise ValueError("Pointer target not found in the tree")
-            self.append_pointer.append_child(new_root)
+            # Skip validation — _copy_tree always produces a fresh unparented root
+            new_root.parent_node = self.append_pointer
+            self.append_pointer.children.append(new_root)
             self.append_pointer = new_pointer
             return
 
