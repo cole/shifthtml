@@ -83,6 +83,8 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
 
 
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
+    if not attributes:
+        return f"<{tag} />" if void else f"<{tag}>"
     parts: list[str] = [f"<{tag}"]
     for key, value in attributes.items():
         if value is None or value is False:

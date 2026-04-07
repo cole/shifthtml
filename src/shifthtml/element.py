@@ -511,9 +511,15 @@ class Element(ContentNode):
     __slots__ = ("attributes", "_style", "_class_list", "_dataset")
 
     tag: ClassVar[str]
+    _close_tag: ClassVar[str] = ""
     void: ClassVar[bool] = False
     doctype: ClassVar[str] = ""
     attributes: dict[str, object]
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+        if hasattr(cls, "tag"):
+            cls._close_tag = f"</{cls.tag}>"
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         super().__init__()
@@ -587,36 +593,34 @@ class Element(ContentNode):
         return self.attributes
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
-        tag = self.tag
         attrs = self._render_attrs()
         if self.void:
-            yield render_open_tag(tag, attrs, void=True)
+            yield render_open_tag(self.tag, attrs, void=True)
         else:
             if self.doctype:
                 yield self.doctype
-            yield render_open_tag(tag, attrs)
+            yield render_open_tag(self.tag, attrs)
             yield from stream_children(self.children, ctx)
-            if ctx is not None and tag == "body":
+            if ctx is not None and self.tag == "body":
                 yield from ctx.post_render_all()
                 ctx.state["_post_rendered"] = True
-            yield f"</{tag}>"
+            yield self._close_tag
 
     async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        tag = self.tag
         attrs = self._render_attrs()
         if self.void:
-            yield render_open_tag(tag, attrs, void=True)
+            yield render_open_tag(self.tag, attrs, void=True)
         else:
             if self.doctype:
                 yield self.doctype
-            yield render_open_tag(tag, attrs)
+            yield render_open_tag(self.tag, attrs)
             async for chunk in astream_children(self.children, ctx):
                 yield chunk
-            if ctx is not None and tag == "body":
+            if ctx is not None and self.tag == "body":
                 async for chunk in ctx.apost_render_all():
                     yield chunk
                 ctx.state["_post_rendered"] = True
-            yield f"</{tag}>"
+            yield self._close_tag
 
     def _render_root_body(self, ctx: RenderContext) -> Generator[str]:
         """Element override: post_render_all goes inside the closing tag."""
@@ -629,7 +633,7 @@ class Element(ContentNode):
             yield from stream_children(self.children, ctx)
             if not ctx.state.get("_post_rendered"):
                 yield from ctx.post_render_all()
-            yield f"</{self.tag}>"
+            yield self._close_tag
 
     async def _arender_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
         """Element override: async post_render_all goes inside the closing tag."""
@@ -644,7 +648,7 @@ class Element(ContentNode):
             if not ctx.state.get("_post_rendered"):
                 async for chunk in ctx.apost_render_all():
                     yield chunk
-            yield f"</{self.tag}>"
+            yield self._close_tag
 
 
 class VoidElement(Element):
