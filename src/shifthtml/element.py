@@ -588,15 +588,22 @@ class Element(ContentNode):
         return f"{type(self)}({self.tag!r}, {self.attributes!r})"
 
     def __replace__(self, /, **changes):
-        new_obj = type(self)()
+        new_obj = object.__new__(type(self))
+        new_obj.parent_node = None
         new_obj.attributes = dict(self.attributes)
+        new_obj._style = None
+        new_obj._class_list = None
+        new_obj._dataset = None
         new_children = changes.get("children", self.children)
         if new_children:
+            new_obj.children = []
             for child in new_children:
                 if isinstance(child, Node):
                     new_obj.append_child(copy.replace(child))
                 else:
                     new_obj.children.append(child)
+        else:
+            new_obj.children = []
         return new_obj
 
     def __getitem__(self, name: str) -> object:
