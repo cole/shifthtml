@@ -21,8 +21,8 @@ from .rendering import (
     arender_result,
     astream_children,
     render_open_tag,
-    render_string,
     render_result,
+    render_string,
     stream_children,
 )
 from .tree import Node, _render_vars
@@ -657,7 +657,7 @@ class Element(ContentNode):
                     buf.append(first)
             elif isinstance(first, Template):
                 buf.extend(render_string(first))
-            else:
+            elif isinstance(first, Node):
                 first._collect(buf)
         elif n_children > 1:
             _collect_children(children, buf)

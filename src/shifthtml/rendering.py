@@ -82,7 +82,6 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
         yield escape(value, quote=quote) if _needs_escape(value, quote) else value
 
 
-
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
     if not attributes:
         return f"<{tag} />" if void else f"<{tag}>"
@@ -282,15 +281,14 @@ def _collect_result(result: object, buf: list[str]) -> None:
     if isinstance(result, Node):
         result._collect(buf)
         return
-    result_type = type(result)
-    if result_type is str:
+    if isinstance(result, str):
         buf.append(escape(result) if _needs_escape(result) else result)
         return
-    if result_type is tuple or result_type is list:
+    if isinstance(result, tuple | list):
         for item in result:
             _collect_result(item, buf)
         return
-    if hasattr(result, '_collect'):
+    if isinstance(result, Renderable):
         result._collect(buf)
         return
     if isinstance(result, Template):
