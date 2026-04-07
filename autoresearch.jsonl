@@ -19,3 +19,4 @@
 {"run":18,"commit":"aae9709","metric":1.6704,"metrics":{"compiled_ms":1.8611,"build_ms":1.6334},"status":"keep","description":"Simplify Element._collect: remove temp variable, reduce branches","timestamp":1775543881896,"segment":0}
 {"run":19,"commit":"eb7b0c8","metric":1.597,"metrics":{"compiled_ms":1.7791,"build_ms":1.5463},"status":"keep","description":"Fast-path render_open_tag for single string attribute (most common)","timestamp":1775544014347,"segment":0}
 {"run":20,"commit":"nttlzmr","metric":1.6014,"metrics":{"compiled_ms":1.7659,"build_ms":1.5414},"status":"discard","description":"Add 2-attribute fast path in render_open_tag — no improvement","timestamp":1775544041257,"segment":0}
+{"run":21,"commit":"8264d40","metric":1.5777,"metrics":{"compiled_ms":1.7718,"build_ms":1.5419},"status":"keep","description":"Inline single-child fast path in Element._collect (74% of elements)","timestamp":1775544096615,"segment":0}

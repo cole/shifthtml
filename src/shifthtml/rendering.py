@@ -88,7 +88,7 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
         return f"<{tag} />" if void else f"<{tag}>"
     # Fast path: single string attribute (most common case)
     if len(attributes) == 1:
-        key, value = next(iter(attributes.items()))
+        ((key, value),) = attributes.items()
         if isinstance(value, str):
             if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
                 value = escape(value, quote=True)
