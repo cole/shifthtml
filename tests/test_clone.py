@@ -54,3 +54,20 @@ def test_deep_clone_with_flattened_children():
     f = div() >> (span() >> "a", span() >> "b")
     clone = root(f).clone_node(deep=True)
     assert str(clone) == "<div><span>a</span><span>b</span></div>"
+
+
+def test_reuse_fragment_auto_clones():
+    inner = div(id="inner") >> (span() >> "a",)
+    outer1 = div() >> inner
+    outer2 = div() >> inner
+    assert str(outer1) == '<div><div id="inner"><span>a</span></div></div>'
+    assert str(outer2) == '<div><div id="inner"><span>a</span></div></div>'
+
+
+def test_reuse_node_in_tuple_auto_clones():
+    child = (span() >> "shared").root
+    parent1 = div()
+    parent1.append_child(child)
+    parent2 = div() >> (child,)
+    assert str(parent1) == "<div><span>shared</span></div>"
+    assert str(parent2) == "<div><span>shared</span></div>"

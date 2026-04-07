@@ -243,3 +243,61 @@ def test_compile_conditional_stream():
     compiled = compile(page)
     chunks = list(compiled.stream(args={"show": False}))
     assert "".join(chunks) == "<div><p>no</p></div>"
+
+
+def test_compile_conditional_stream_true():
+    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    compiled = compile(page)
+    chunks = list(compiled.stream(args={"show": True}))
+    assert "".join(chunks) == "<div><p>yes</p></div>"
+
+
+def test_compile_iteration_stream():
+    page = ul() >> args.items.map(lambda x: li() >> x)
+    compiled = compile(page)
+    chunks = list(compiled.stream(args={"items": ["a", "b"]}))
+    assert "".join(chunks) == "<ul><li>a</li><li>b</li></ul>"
+
+
+@pytest.mark.anyio
+async def test_compile_conditional_astream_false():
+    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    compiled = compile(page)
+    chunks = [chunk async for chunk in compiled.astream(args={"show": False})]
+    assert "".join(chunks) == "<div><p>no</p></div>"
+
+
+@pytest.mark.anyio
+async def test_compile_iteration_astream():
+    page = ul() >> args.items.map(lambda x: li() >> x)
+    compiled = compile(page)
+    chunks = [chunk async for chunk in compiled.astream(args={"items": ["x", "y"]})]
+    assert "".join(chunks) == "<ul><li>x</li><li>y</li></ul>"
+
+
+def test_compile_conditional_callable_in_branch_compiled():
+    page = div() >> (args.show & (lambda: p() >> "lazy"),)
+    compiled = compile(page)
+    assert compiled.render(args={"show": True}) == "<div><p>lazy</p></div>"
+    assert compiled.render(args={"show": False}) == "<div></div>"
+
+
+def test_compile_conditional_callable_stream():
+    page = div() >> (args.show & (lambda: p() >> "lazy"),)
+    compiled = compile(page)
+    chunks = list(compiled.stream(args={"show": True}))
+    assert "".join(chunks) == "<div><p>lazy</p></div>"
+
+
+@pytest.mark.anyio
+async def test_compile_conditional_callable_astream():
+    page = div() >> (args.show & (lambda: p() >> "lazy"),)
+    compiled = compile(page)
+    chunks = [chunk async for chunk in compiled.astream(args={"show": True})]
+    assert "".join(chunks) == "<div><p>lazy</p></div>"
+
+
+def test_compile_conditional_with_list_content():
+    page = div() >> (args.show & (p() >> "a", p() >> "b"),)
+    compiled = compile(page)
+    assert compiled.render(args={"show": True}) == "<div><p>a</p><p>b</p></div>"

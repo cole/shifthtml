@@ -26,3 +26,15 @@ def test_render_nesting():
         "<div><h1>Welcome to the Test Page</h1>"
         "<p>This is a paragraph on the test page.</p></div></body></html>"
     )
+
+
+def test_tstring_repr_conversion():
+    val = "hello"
+    tag = div() >> t"{val!r}"
+    assert str(tag) == "<div>'hello'</div>"
+
+
+def test_tstring_ascii_conversion():
+    val = "café"
+    tag = div() >> t"{val!a}"
+    assert "\\xe9" in str(tag)

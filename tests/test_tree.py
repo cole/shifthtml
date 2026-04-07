@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from shifthtml import div
+from shifthtml import div, h1, li, p, span, ul
 from shifthtml.element import Fragment
 from shifthtml.tree import Node
 
@@ -153,3 +153,249 @@ def test_fragment_rshift_mutates_in_place():
     f2 = f >> "text"
     assert f2 is f
     assert "text" in str(f)
+
+
+# -- DOM mutation methods --
+
+
+def test_remove():
+    parent = div()
+    c1 = (p() >> "keep").root
+    c2 = (p() >> "remove").root
+    c3 = (p() >> "keep2").root
+    parent.append_child(c1)
+    parent.append_child(c2)
+    parent.append_child(c3)
+    c2.remove()
+    assert str(parent) == "<div><p>keep</p><p>keep2</p></div>"
+
+
+def test_remove_no_parent():
+    el = div()
+    with pytest.raises(ValueError, match="no parent"):
+        el.remove()
+
+
+def test_replace_with_single():
+    f = div() >> (p() >> "old",)
+    old = f.root.first_child
+    assert isinstance(old, Node)
+    new = (span() >> "new").root
+    old.replace_with(new)
+    assert str(f) == "<div><span>new</span></div>"
+
+
+def test_replace_with_multiple():
+    f = div() >> (p() >> "target",)
+    target = f.root.first_child
+    assert isinstance(target, Node)
+    a = (span() >> "a").root
+    b = (span() >> "b").root
+    target.replace_with(a, b)
+    assert str(f) == "<div><span>a</span><span>b</span></div>"
+
+
+def test_replace_with_no_parent():
+    el = div()
+    with pytest.raises(ValueError, match="no parent"):
+        el.replace_with(p())
+
+
+def test_before():
+    f = ul() >> (li() >> "second",)
+    second = f.root.first_child
+    assert isinstance(second, Node)
+    first = (li() >> "first").root
+    second.before(first)
+    assert str(f) == "<ul><li>first</li><li>second</li></ul>"
+
+
+def test_before_multiple():
+    f = ul() >> (li() >> "third",)
+    third = f.root.first_child
+    assert isinstance(third, Node)
+    first = (li() >> "first").root
+    second = (li() >> "second").root
+    third.before(first, second)
+    assert str(f) == "<ul><li>first</li><li>second</li><li>third</li></ul>"
+
+
+def test_before_no_parent():
+    el = div()
+    with pytest.raises(ValueError, match="no parent"):
+        el.before(p())
+
+
+def test_after():
+    f = ul() >> (li() >> "first",)
+    first = f.root.first_child
+    assert isinstance(first, Node)
+    second = (li() >> "second").root
+    first.after(second)
+    assert str(f) == "<ul><li>first</li><li>second</li></ul>"
+
+
+def test_after_multiple():
+    f = ul() >> (li() >> "first",)
+    first = f.root.first_child
+    assert isinstance(first, Node)
+    second = (li() >> "second").root
+    third = (li() >> "third").root
+    first.after(second, third)
+    assert str(f) == "<ul><li>first</li><li>second</li><li>third</li></ul>"
+
+
+def test_after_no_parent():
+    el = div()
+    with pytest.raises(ValueError, match="no parent"):
+        el.after(p())
+
+
+def test_prepend():
+    f = ul() >> (li() >> "second",)
+    first = (li() >> "first").root
+    f.root.prepend(first)
+    assert str(f) == "<ul><li>first</li><li>second</li></ul>"
+
+
+def test_prepend_multiple():
+    f = ul() >> (li() >> "third",)
+    first = (li() >> "first").root
+    second = (li() >> "second").root
+    f.root.prepend(first, second)
+    assert str(f) == "<ul><li>first</li><li>second</li><li>third</li></ul>"
+
+
+def test_prepend_to_empty():
+    el = ul()
+    item = (li() >> "only").root
+    el.prepend(item)
+    assert str(el) == "<ul><li>only</li></ul>"
+
+
+def test_insert_before():
+    parent = ul()
+    first = (li() >> "first").root
+    third = (li() >> "third").root
+    parent.append_child(first)
+    parent.append_child(third)
+    second = (li() >> "second").root
+    parent.insert_before(second, third)
+    assert str(parent) == "<ul><li>first</li><li>second</li><li>third</li></ul>"
+
+
+def test_insert_before_invalid_reference():
+    f = ul() >> (li() >> "first",)
+    orphan = (li() >> "orphan").root
+    new = (li() >> "new").root
+    with pytest.raises(ValueError, match="not a child"):
+        f.root.insert_before(new, orphan)
+
+
+def test_replace_child():
+    f = div() >> (p() >> "old",)
+    old = f.root.first_child
+    assert isinstance(old, Node)
+    new = (span() >> "new").root
+    returned = f.root.replace_child(new, old)
+    assert returned is old
+    assert old.parent_node is None
+    assert str(f) == "<div><span>new</span></div>"
+
+
+def test_replace_child_not_found():
+    f = div() >> (p() >> "child",)
+    orphan = p()
+    new = span()
+    with pytest.raises(ValueError, match="not a child"):
+        f.root.replace_child(new, orphan)
+
+
+def test_contains():
+    f = div() >> p() >> span() >> "deep"
+    root = f.root
+    first = root.first_child
+    assert isinstance(first, Node)
+    deep_span = first.first_child
+    assert isinstance(deep_span, Node)
+    assert root.contains(deep_span) is True
+    assert root.contains(root) is True
+
+    orphan = h1()
+    assert root.contains(orphan) is False
+
+
+def test_last_child():
+    parent = div()
+    a = (p() >> "a").root
+    b = (p() >> "b").root
+    parent.append_child(a)
+    parent.append_child(b)
+    assert parent.last_child is b
+
+
+def test_last_child_empty():
+    el = div()
+    assert el.last_child is None
+
+
+def test_first_child_empty():
+    el = div()
+    assert el.first_child is None
+
+
+def test_previous_sibling():
+    parent = ul()
+    a = (li() >> "a").root
+    b = (li() >> "b").root
+    c = (li() >> "c").root
+    parent.append_child(a)
+    parent.append_child(b)
+    parent.append_child(c)
+    assert b.previous_sibling is a
+    assert a.previous_sibling is None
+
+
+def test_next_sibling():
+    parent = ul()
+    a = (li() >> "a").root
+    b = (li() >> "b").root
+    parent.append_child(a)
+    parent.append_child(b)
+    assert a.next_sibling is b
+    assert b.next_sibling is None
+
+
+def test_sibling_no_parent():
+    el = div()
+    assert el.next_sibling is None
+    assert el.previous_sibling is None
+
+
+def test_remove_child_direct():
+    parent = div()
+    child = (p() >> "x").root
+    parent.append_child(child)
+    parent.remove_child(child)
+    assert child not in parent.children
+    assert child.parent_node is None
+
+
+def test_remove_child_not_found():
+    parent = div()
+    orphan = p()
+    with pytest.raises(ValueError, match="not a child"):
+        parent.remove_child(orphan)
+
+
+def test_dom_mutation_preserves_siblings():
+    parent = ul()
+    a = (li() >> "a").root
+    b = (li() >> "b").root
+    c = (li() >> "c").root
+    parent.append_child(a)
+    parent.append_child(b)
+    parent.append_child(c)
+    b.remove()
+    assert a.next_sibling is c
+    assert c.previous_sibling is a

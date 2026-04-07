@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ..live import Mutation
+    from ..mutations import Mutation
 
 type SendText = Callable[[str], Awaitable[None]]
 type ReceiveText = Callable[[], Awaitable[str]]

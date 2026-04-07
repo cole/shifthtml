@@ -103,6 +103,14 @@ async def test_astream():
     assert "".join(chunks) == "<div><p>no</p></div>"
 
 
+def test_conditional_node_replace():
+    cond = args.show & (p() >> "yes")
+    clone = cond.__replace__()
+    assert isinstance(clone, ConditionalNode)
+    assert clone is not cond
+    assert clone.var.name == "show"
+
+
 @pytest.mark.anyio
 async def test_async_callable_in_branch():
     async def fetch():

@@ -3,8 +3,8 @@ import json
 import pytest
 
 from shifthtml import li, span
-from shifthtml.live import Mutation, append, replace
-from shifthtml.ws import Connection
+from shifthtml.mutations import Mutation, append, replace
+from shifthtml.socket import Connection
 
 
 @pytest.fixture

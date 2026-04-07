@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Protocol
 
@@ -12,9 +12,9 @@ __all__ = ("websocket",)
 class QuartWebSocket(Protocol):
     """Protocol matching the Quart Websocket interface."""
 
-    accept: Callable[[], Awaitable[None]]
-    send: Callable[[str], Awaitable[None]]
-    receive: Callable[[], Awaitable[str]]
+    async def accept(self) -> None: ...
+    async def send(self, data: str) -> None: ...
+    async def receive(self) -> str: ...
 
 
 @asynccontextmanager

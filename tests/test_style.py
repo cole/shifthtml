@@ -125,6 +125,21 @@ def test_element_style_not_materialized_without_access():
     assert str(el) == '<div id="test"></div>'
 
 
+def test_style_repr():
+    style = StyleMap()
+    style.color = "red"
+    assert repr(style) == "StyleMap({'color': 'red'})"
+
+
+def test_style_delitem_bracket():
+    style = StyleMap()
+    style["color"] = "red"
+    style["font-size"] = "16px"
+    del style["color"]
+    assert "color" not in style
+    assert "font-size" in style
+
+
 def test_render_twice_consistent():
     el = div()
     el.style.color = "red"

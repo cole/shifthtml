@@ -119,3 +119,15 @@ def test_args_namespace_in_lazy():
 def test_args_namespace_repr():
     assert repr(args) == "args"
     assert repr(args.title) == "Var('title')"
+
+
+def test_var_default_used_when_missing():
+    v = Var("missing", default="fallback")
+    page = h1() >> t"{v}"
+    assert page.render() == "<h1>fallback</h1>"
+
+
+def test_var_default_overridden():
+    v = Var("x", default="fallback")
+    page = h1() >> t"{v}"
+    assert page.render(args={"x": "provided"}) == "<h1>provided</h1>"

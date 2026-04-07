@@ -2,7 +2,9 @@ import pytest
 
 from shifthtml import (
     Comment,
+    Fragment,
     Lazy,
+    Var,
     aside,
     body,
     button,
@@ -20,6 +22,7 @@ from shifthtml import (
     title,
     ul,
 )
+from shifthtml.element import ContentNode, _flatten_into
 
 
 def test_render_h1_string():
@@ -260,10 +263,40 @@ def test_none_still_suppressed():
 
 
 def test_zero_not_suppressed():
+    node = ContentNode()
     with pytest.raises(ValueError, match="Unsupported type"):
-        div() >> (0,)
+        _flatten_into(node, (0,))
 
 
 def test_empty_string_not_suppressed():
     tag = div() >> ""
     assert str(tag) == "<div></div>"
+
+
+def test_fragment_repr():
+    d = div(id="test")
+    f = Fragment(d, d)
+    assert "Fragment(" in repr(f)
+
+
+def test_fragment_stream():
+    f = div() >> (p() >> "hello", p() >> "world")
+    chunks = list(f.stream())
+    assert "".join(chunks) == "<div><p>hello</p><p>world</p></div>"
+
+
+def test_fragment_stream_with_args():
+    title = Var("title")
+    f = div() >> t"{title}"
+    chunks = list(f.stream(args={"title": "hi"}))
+    assert "".join(chunks) == "<div>hi</div>"
+
+
+def test_attribute_numeric_value():
+    tag = div(tabindex=0)
+    assert str(tag) == '<div tabindex="0"></div>'
+
+
+def test_attribute_numeric_value_escapes():
+    tag = div(data_value=42)
+    assert str(tag) == '<div data-value="42"></div>'

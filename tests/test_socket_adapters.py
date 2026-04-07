@@ -3,13 +3,13 @@ import json
 import pytest
 
 from shifthtml import span
-from shifthtml.live import replace
-from shifthtml.ws.aiohttp import websocket as aiohttp_websocket
-from shifthtml.ws.litestar import websocket as litestar_websocket
-from shifthtml.ws.quart import websocket as quart_websocket
-from shifthtml.ws.sanic import websocket as sanic_websocket
-from shifthtml.ws.starlette import websocket as starlette_websocket
-from shifthtml.ws.websockets import websocket as websockets_websocket
+from shifthtml.mutations import replace
+from shifthtml.socket.aiohttp import websocket as aiohttp_websocket
+from shifthtml.socket.litestar import websocket as litestar_websocket
+from shifthtml.socket.quart import websocket as quart_websocket
+from shifthtml.socket.sanic import websocket as sanic_websocket
+from shifthtml.socket.starlette import websocket as starlette_websocket
+from shifthtml.socket.websockets import websocket as websockets_websocket
 
 # -- shared helpers --
 

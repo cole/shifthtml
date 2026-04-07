@@ -1,9 +1,6 @@
 from shifthtml import div, li, span, ul
-from shifthtml.live import (
-    _APPLY_JS,
-    _CUSTOM_ELEMENT_JS,
-    _SSE_JS,
-    _WS_JS,
+from shifthtml.element import ContentNode
+from shifthtml.mutations import (
     Mutation,
     after,
     append,
@@ -11,10 +8,10 @@ from shifthtml.live import (
     prepend,
     remove,
     replace,
-    runtime,
+    sse,
 )
 
-# -- fragment output (page streaming, layer 1) --
+# -- fragment output (page streaming) --
 
 
 def test_replace_fragment():
@@ -105,7 +102,7 @@ def test_fragments_compose_in_tree():
     )
 
 
-# -- JSON output (WebSocket / SSE, layers 2 & 3) --
+# -- JSON output (WebSocket / SSE) --
 
 
 def test_json_replace():
@@ -123,21 +120,21 @@ def test_json_remove_omits_html():
     assert m.json() == '{"action": "remove", "target": "old"}'
 
 
-# -- SSE output (layer 2) --
+# -- Mutation.sse() --
 
 
-def test_sse_basic():
+def test_mutation_sse_basic():
     m = replace("x", span() >> "hi")
     assert m.sse() == f"data: {m.json()}\n\n"
 
 
-def test_sse_with_event():
+def test_mutation_sse_with_event():
     m = append("feed", div() >> "item")
     result = m.sse(event="update")
     assert result == f"event: update\ndata: {m.json()}\n\n"
 
 
-def test_sse_with_event_and_id():
+def test_mutation_sse_with_event_and_id():
     m = replace("status", span() >> "ok")
     result = m.sse(event="update", id="42")
     assert result == f"event: update\nid: 42\ndata: {m.json()}\n\n"
@@ -164,29 +161,54 @@ def test_mutation_html_defaults_to_none():
     assert m.html is None
 
 
-# -- runtime --
+# -- sse() for renderables --
 
 
-def test_runtime_renders_core_js():
-    result = runtime().render()
-    assert result == f"<script>{_APPLY_JS}{_CUSTOM_ELEMENT_JS}</script>"
+def test_sse_formats_simple_node():
+    assert sse(div() >> "hi") == "data: <div>hi</div>\n\n"
 
 
-def test_runtime_with_stream_includes_sse():
-    result = runtime(stream="/events").render()
-    assert _SSE_JS in result
-    assert 'connectSSE("/events");' in result
+def test_sse_with_event_name():
+    result = sse(div() >> "hi", event="update")
+    assert result == "event: update\ndata: <div>hi</div>\n\n"
 
 
-def test_runtime_with_socket_includes_ws():
-    result = runtime(socket="/ws").render()
-    assert _WS_JS in result
-    assert 'connectWS("/ws");' in result
+def test_sse_with_id():
+    result = sse(div() >> "hi", id="42")
+    assert result == "id: 42\ndata: <div>hi</div>\n\n"
 
 
-def test_runtime_with_stream_and_socket():
-    result = runtime(stream="/events", socket="/ws").render()
-    assert _SSE_JS in result
-    assert _WS_JS in result
-    assert 'connectSSE("/events");' in result
-    assert 'connectWS("/ws");' in result
+def test_sse_with_event_and_id():
+    result = sse(div() >> "hi", event="update", id="42")
+    assert result == "event: update\nid: 42\ndata: <div>hi</div>\n\n"
+
+
+def test_sse_multiline_content():
+    result = sse(div() >> (span() >> "a\nb"))
+    assert result == "data: <div><span>a\ndata: b</span></div>\n\n"
+
+
+def test_sse_with_mutation_fragment():
+    result = sse(replace("x", div(id="x") >> "new").fragment())
+    assert result == (
+        'data: <shift-update action="replace" target="x">'
+        '<template><div id="x">new</div></template>'
+        "<shift-done></shift-done></shift-update>\n\n"
+    )
+
+
+def test_sse_with_multiple_mutation_fragments():
+    wrapper = ContentNode()
+    wrapper.append_child(replace("a", span() >> "1").fragment().root)
+    wrapper.append_child(replace("b", li() >> "2").fragment().root)
+    result = sse(wrapper)
+    assert result == (
+        "data: "
+        '<shift-update action="replace" target="a">'
+        "<template><span>1</span></template>"
+        "<shift-done></shift-done></shift-update>"
+        '<shift-update action="replace" target="b">'
+        "<template><li>2</li></template>"
+        "<shift-done></shift-done></shift-update>"
+        "\n\n"
+    )

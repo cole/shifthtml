@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Protocol
 
@@ -12,9 +12,9 @@ __all__ = ("websocket",)
 class AiohttpWebSocket(Protocol):
     """Protocol matching aiohttp's WebSocketResponse after prepare()."""
 
-    send_str: Callable[[str], Awaitable[None]]
-    receive_str: Callable[[], Awaitable[str]]
-    close: Callable[[], Awaitable[bool]]
+    async def send_str(self, data: str) -> None: ...
+    async def receive_str(self) -> str: ...
+    async def close(self) -> bool: ...
 
 
 @asynccontextmanager

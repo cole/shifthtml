@@ -1,6 +1,6 @@
 import pytest
 
-from shifthtml import args, div, li, ul
+from shifthtml import IterationNode, args, div, li, ul
 
 
 def test_renders_per_item():
@@ -35,6 +35,14 @@ def test_repr():
     node = args.items.map(fn)
     assert "IterationNode" in repr(node)
     assert "Var('items')" in repr(node)
+
+
+def test_iteration_node_replace():
+    node = args.items.map(lambda x: li() >> x)
+    clone = node.__replace__()
+    assert isinstance(clone, IterationNode)
+    assert clone is not node
+    assert clone.var.name == "items"
 
 
 @pytest.mark.anyio

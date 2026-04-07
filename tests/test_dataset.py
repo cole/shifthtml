@@ -52,6 +52,12 @@ def test_dataset_overwrites_existing():
     assert el.dataset.count == "2"
 
 
+def test_dataset_repr():
+    el = div(data_user_id="42")
+    assert "user_id" in repr(el.dataset)
+    assert "42" in repr(el.dataset)
+
+
 def test_dataset_stores_lowercase():
     el = div()
     el.dataset.User_Name = "cole"

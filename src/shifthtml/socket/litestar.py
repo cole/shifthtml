@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Protocol
 
@@ -12,10 +12,10 @@ __all__ = ("websocket",)
 class LitestarWebSocket(Protocol):
     """Protocol matching the Litestar WebSocket interface."""
 
-    accept: Callable[[], Awaitable[None]]
-    close: Callable[[], Awaitable[None]]
-    send_data: Callable[[str], Awaitable[None]]
-    receive_data: Callable[[], Awaitable[str]]
+    async def accept(self) -> None: ...
+    async def close(self) -> None: ...
+    async def send_data(self, data: str) -> None: ...
+    async def receive_data(self) -> str: ...
 
 
 @asynccontextmanager

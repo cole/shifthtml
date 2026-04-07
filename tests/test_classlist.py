@@ -87,13 +87,23 @@ def test_classlist_iteration():
     assert list(el.class_list) == ["a", "b", "c"]
 
 
-def test_classlist_in_operator():
-    el = div(class_="foo bar")
-    assert "foo" in el.class_list
-    assert "baz" not in el.class_list
+def test_classlist_repr():
+    el = div(class_="a b")
+    assert repr(el.class_list) == "ClassList(['a', 'b'])"
 
 
 def test_classlist_from_list_attribute():
     el = div(class_=["foo", "bar", "baz"])
     el.class_list.remove("bar")
     assert str(el) == '<div class="foo baz"></div>'
+
+
+def test_classlist_from_tuple_attribute():
+    el = div(class_=("a", "b"))
+    assert list(el.class_list) == ["a", "b"]
+
+
+def test_classlist_from_set_attribute():
+    el = div(class_={"x", "y"})
+    tokens = list(el.class_list)
+    assert sorted(tokens) == ["x", "y"]

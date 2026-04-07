@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Protocol
 
@@ -12,10 +12,10 @@ __all__ = ("websocket",)
 class StarletteWebSocket(Protocol):
     """Protocol matching the Starlette/FastAPI WebSocket interface."""
 
-    accept: Callable[[], Awaitable[None]]
-    close: Callable[[], Awaitable[None]]
-    send_text: Callable[[str], Awaitable[None]]
-    receive_text: Callable[[], Awaitable[str]]
+    async def accept(self) -> None: ...
+    async def close(self) -> None: ...
+    async def send_text(self, data: str) -> None: ...
+    async def receive_text(self) -> str: ...
 
 
 @asynccontextmanager

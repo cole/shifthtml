@@ -3,8 +3,8 @@ import time
 import anyio
 import pytest
 
-from shifthtml import Async, div, h1, li, p, span, ul
-from shifthtml.defer import defer
+from shifthtml import Async, Var, div, h1, li, p, span, ul
+from shifthtml.stream import defer
 
 pytestmark = pytest.mark.anyio
 
@@ -169,3 +169,34 @@ async def test_async_with_keyword_args():
 
     result = await render_str(div() >> Async(fetch_user, user_id=42))
     assert result == "<div><span>user-42</span></div>"
+
+
+def test_async_repr():
+    async def my_fn():
+        return "data"
+
+    node = Async(my_fn, "a", key="val")
+    assert "Async(" in repr(node)
+    assert "'a'" in repr(node)
+    assert "key='val'" in repr(node)
+
+
+def test_async_repr_no_args():
+    async def my_fn():
+        return "data"
+
+    node = Async(my_fn)
+    assert "Async(" in repr(node)
+
+
+async def test_fragment_astream():
+    f = div() >> (p() >> "hello", p() >> "world")
+    chunks = [chunk async for chunk in f.astream(min_chunk_size=None)]
+    assert "".join(chunks) == "<div><p>hello</p><p>world</p></div>"
+
+
+async def test_fragment_astream_with_args():
+    title = Var("title")
+    f = div() >> t"{title}"
+    chunks = [chunk async for chunk in f.astream(args={"title": "hi"}, min_chunk_size=None)]
+    assert "".join(chunks) == "<div>hi</div>"
