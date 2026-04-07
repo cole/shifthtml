@@ -53,3 +53,4 @@
 {"run":52,"commit":"1d7ff12","metric":1.3102,"metrics":{"compiled_ms":1.5149,"build_ms":1.2678},"status":"keep","description":"Skip append_child validation in Fragment.append after _copy_tree (fresh root)","timestamp":1775581897402,"segment":0}
 {"run":53,"commit":"aec5ddd","metric":1.3072,"metrics":{"compiled_ms":1.5277,"build_ms":1.2682},"status":"keep","description":"Skip append_child validation in _copy_tree (fresh copies have no parent)","timestamp":1775581932402,"segment":0}
 {"run":54,"commit":"df12506","metric":1.3098,"metrics":{"compiled_ms":1.5019,"build_ms":1.267},"status":"keep","description":"Use __replace__ directly instead of copy.replace in _copy_tree","timestamp":1775582017991,"segment":0}
+{"run":55,"commit":"e110275","metric":1.2866,"metrics":{"compiled_ms":1.5038,"build_ms":1.24},"status":"keep","description":"Use object.__new__ in Element.__replace__ to skip __init__ overhead","timestamp":1775582048547,"segment":0}

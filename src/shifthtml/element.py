@@ -590,7 +590,7 @@ class Element(ContentNode):
     def __replace__(self, /, **changes):
         new_obj = object.__new__(type(self))
         new_obj.parent_node = None
-        new_obj.attributes = dict(self.attributes)
+        new_obj.attributes = {**self.attributes}
         new_obj._style = None
         new_obj._class_list = None
         new_obj._dataset = None
