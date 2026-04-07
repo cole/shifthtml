@@ -58,12 +58,16 @@ Optimize the shifthtml library's rendering speed — the time to build a tree of
 - Batch leaf elements into single f-string — within noise
 - Inline _needs_escape — within noise
 
-## Hot Path Analysis (from profiling)
-1. `_render_node` + `stream_children` — deepest call stack, most cumulative time
-2. `Element._stream` — called per-element, renders open/close tags + children
-3. `__rshift__` — tree building operator, called per element
-4. `render_open_tag` — attribute serialization
-5. `_flatten_into` — child list normalization
-6. `isinstance` — ~600k calls in 100 iterations, type dispatch overhead
-7. `render_string` — text/template content rendering
-8. `_needs_escape` — HTML escape check on every string
+## Hot Path Analysis (latest profile, 100 iterations)
+Total: 0.377s, 1.28M function calls
+1. `Element._collect` — 0.085s (87.6k calls, inlined open tag rendering)
+2. `_product_card` — 0.052s (benchmark code, can't optimize)
+3. `Element.__init__` — 0.051s (92.8k calls)
+4. `__rshift__` — 0.045s (87.6k calls, Fragment creation + isinstance chain)
+5. `list.append` — 0.030s (irreducible)
+6. `_collect_children` — 0.024s (22.3k calls)
+7. `_flatten_into` — 0.019s (25.7k calls)
+8. `len` — 0.011s, `isinstance` — 0.011s, `dict.items` — 0.007s
+
+Build is now 75% of total time, render only 25%. Further gains require
+reducing object creation or function call count.

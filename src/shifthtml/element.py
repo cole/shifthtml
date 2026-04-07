@@ -206,6 +206,12 @@ class Fragment:
         self.root._collect(buf)
 
     def __str__(self) -> str:
+        # Fast path: bypass render() indirection for the common no-plugins case
+        root = self.root
+        if isinstance(root, ContentNode) and not registered_plugins():
+            buf: list[str] = []
+            root._collect(buf)
+            return "".join(buf)
         return self.render()
 
     def __iter__(self) -> Iterator[Node | str | Template]:
@@ -544,6 +550,7 @@ class Element(ContentNode):
     tag: ClassVar[str]
     _close_tag: ClassVar[str] = ""
     _bare_open: ClassVar[str] = ""
+    _tag_prefix: ClassVar[str] = ""
     void: ClassVar[bool] = False
     doctype: ClassVar[str] = ""
     attributes: dict[str, object]
@@ -553,6 +560,7 @@ class Element(ContentNode):
         if hasattr(cls, "tag"):
             cls._close_tag = f"</{cls.tag}>"
             cls._bare_open = f"<{cls.tag}>"
+            cls._tag_prefix = f"<{cls.tag} "
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         self.parent_node = None
@@ -563,12 +571,11 @@ class Element(ContentNode):
                 merged[_convert_attribute_names(k)] = v
             self.attributes = merged
         elif keyword_attributes:
-            n = len(keyword_attributes)
-            if n == 1:
-                (k,) = keyword_attributes
-                self.attributes = {_convert_attribute_names(k): keyword_attributes[k]}
-            else:
-                self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
+            cache = _attr_name_cache
+            self.attributes = {
+                cache[k] if k in cache else _convert_attribute_names(k): v
+                for k, v in keyword_attributes.items()
+            }
         else:
             self.attributes = {}
         self._style = None
@@ -635,7 +642,6 @@ class Element(ContentNode):
         if self.doctype:
             buf.append(self.doctype)
         # Inline open tag for 0-1 string attrs (99% of elements)
-        tag = self.tag
         attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
         if attrs:
             if len(attrs) == 1:
@@ -644,11 +650,11 @@ class Element(ContentNode):
                 if type(value) is str:
                     if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
                         value = _escape(value, quote=True)
-                    buf.append(f'<{tag} {key}="{value}">')
+                    buf.append(f'{self._tag_prefix}{key}="{value}">')
                 else:
-                    buf.append(render_open_tag(tag, attrs))
+                    buf.append(render_open_tag(self.tag, attrs))
             else:
-                buf.append(render_open_tag(tag, attrs))
+                buf.append(render_open_tag(self.tag, attrs))
         else:
             buf.append(self._bare_open)
         children = self.children
