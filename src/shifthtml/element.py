@@ -76,14 +76,14 @@ def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
     for item in items:
         if item is None or item is False:
             continue
-        if isinstance(item, str | Template):
-            children.append(item)
-        elif isinstance(item, Fragment):
+        if isinstance(item, Fragment):
             root = item.root
             if root.parent_node is not None:
                 root = root.clone_node(deep=True)
             root.parent_node = parent
             children.append(root)
+        elif isinstance(item, str | Template):
+            children.append(item)
         elif isinstance(item, Node):
             if item.parent_node is not None:
                 item = item.clone_node(deep=True)
@@ -448,11 +448,15 @@ class ContentNode(Node):
 
         new_fragment = Fragment(self, self)
 
+        if isinstance(other, tuple):
+            _flatten_into(self, other)
+            return new_fragment
+
         if isinstance(other, str | Template):
             self.children.append(other)
             return new_fragment
 
-        if isinstance(other, tuple | list):
+        if isinstance(other, list):
             _flatten_into(self, other)
             return new_fragment
 
@@ -609,13 +613,16 @@ class Element(ContentNode):
 
     def _collect(self, buf: list[str]) -> None:
         attrs = self._render_attrs()
+        tag = render_open_tag(self.tag, attrs, void=self.void)
         if self.void:
-            buf.append(render_open_tag(self.tag, attrs, void=True))
+            buf.append(tag)
         else:
             if self.doctype:
                 buf.append(self.doctype)
-            buf.append(render_open_tag(self.tag, attrs))
-            _collect_children(self.children, buf)
+            buf.append(tag)
+            children = self.children
+            if children:
+                _collect_children(children, buf)
             buf.append(self._close_tag)
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:

@@ -256,7 +256,10 @@ def _collect_children(children: list, buf: list[str]) -> None:
     """Collect rendered HTML for children into a buffer (non-generator fast path)."""
     for child in children:
         if isinstance(child, str):
-            buf.append(escape(child) if _needs_escape(child) else child)
+            if "&" in child or "<" in child or ">" in child:
+                buf.append(escape(child))
+            else:
+                buf.append(child)
         elif isinstance(child, Template):
             buf.extend(render_string(child))
         else:
@@ -293,7 +296,10 @@ def stream_children(children: list, ctx: RenderContext | None = None) -> Generat
     """Render a list of children to HTML chunks."""
     for child in children:
         if isinstance(child, str):
-            yield escape(child) if _needs_escape(child) else child
+            if "&" in child or "<" in child or ">" in child:
+                yield escape(child)
+            else:
+                yield child
         elif isinstance(child, Template):
             yield from render_string(child)
         elif ctx is not None:
