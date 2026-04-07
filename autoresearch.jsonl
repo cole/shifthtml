@@ -59,3 +59,5 @@
 {"run":58,"commit":"xvuykzs","metric":1.2917,"metrics":{"compiled_ms":1.5038,"build_ms":1.2446},"status":"discard","description":"Reorder __rshift__: str before tuple — within noise","timestamp":1775582185606,"segment":0}
 {"run":59,"commit":"d2646be","metric":1.3037,"metrics":{"compiled_ms":1.4911,"build_ms":1.247},"status":"keep","description":"Steady state confirmation: 56% improvement, all checks clean","timestamp":1775582215040,"segment":0}
 {"run":60,"commit":"14ffb80","metric":1.3068,"metrics":{"compiled_ms":1.5086,"build_ms":1.2513},"status":"keep","description":"Simplify Element.__init__: remove inlined cache, use _convert_attribute_names","timestamp":1775582246557,"segment":0}
+{"run":61,"commit":"50da2d2","metric":1.257,"metrics":{"compiled_ms":1.4599,"build_ms":1.232},"status":"keep","description":"Fast-path single-kwarg in Element.__init__: avoid dict comprehension","timestamp":1775582312178,"segment":0}
+{"run":62,"commit":"xvuykzs","metric":1.2727,"metrics":{"compiled_ms":1.4639,"build_ms":1.2256},"status":"discard","description":"Reuse item var in _flatten_into Fragment path — within noise","timestamp":1775582352411,"segment":0}

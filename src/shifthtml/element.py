@@ -82,11 +82,11 @@ def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
             continue
         item_type = type(item)
         if item_type is Fragment:
-            root = item.root
-            if root.parent_node is not None:
-                root = root.clone_node(deep=True)
-            root.parent_node = parent
-            children.append(root)
+            item = item.root
+            if item.parent_node is not None:
+                item = item.clone_node(deep=True)
+            item.parent_node = parent
+            children.append(item)
         elif item_type is str or isinstance(item, Template):
             children.append(item)
         elif isinstance(item, Node):
