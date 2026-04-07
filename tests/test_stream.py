@@ -27,8 +27,8 @@ def test_sse_multiline_content():
     assert result == "data: <div><span>a\ndata: b</span></div>\n\n"
 
 
-def test_sse_with_live_mutation():
-    result = sse(replace("x", div(id="x") >> "new"))
+def test_sse_with_live_mutation_fragment():
+    result = sse(replace("x", div(id="x") >> "new").fragment())
     assert result == (
         'data: <shift-update action="replace" target="x">'
         '<template><div id="x">new</div></template>'
@@ -36,12 +36,12 @@ def test_sse_with_live_mutation():
     )
 
 
-def test_sse_with_multiple_mutations():
+def test_sse_with_multiple_mutation_fragments():
     from shifthtml.element import ContentNode
 
     wrapper = ContentNode()
-    wrapper.append_child(replace("a", span() >> "1").root)
-    wrapper.append_child(replace("b", li() >> "2").root)
+    wrapper.append_child(replace("a", span() >> "1").fragment().root)
+    wrapper.append_child(replace("b", li() >> "2").fragment().root)
     result = sse(wrapper)
     assert result == (
         "data: "

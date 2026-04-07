@@ -1,10 +1,17 @@
 from __future__ import annotations
 
-from typing import ClassVar
+import json
+from collections.abc import AsyncGenerator, Generator
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, ClassVar
 
-from .element import Element, Fragment
+from .element import ContentNode, Element, Fragment
 from .tags import script, template
+from .tree import Node
 from .types import NodeContent
+
+if TYPE_CHECKING:
+    from .plugin import RenderContext
 
 
 class ShiftUpdateElement(Element):
@@ -13,6 +20,25 @@ class ShiftUpdateElement(Element):
 
 class ShiftDoneElement(Element):
     tag: ClassVar[str] = "shift-done"
+
+
+class _RawText(Node):
+    """Yields pre-rendered HTML without escaping."""
+
+    __slots__ = ("_html",)
+
+    def __init__(self, html: str):
+        super().__init__()
+        self._html = html
+
+    def __replace__(self, /, **changes):
+        return _RawText(self._html)
+
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield self._html
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        yield self._html
 
 
 _RUNTIME_JS = (
@@ -58,28 +84,69 @@ _SSE_JS = (
 _MARKER = ShiftDoneElement()
 
 
-def replace(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="replace", target=target) >> (template() >> content, _MARKER)
+def _render(*content: NodeContent) -> str:
+    """Render content to an HTML string."""
+    return (ContentNode() >> content).render()
 
 
-def append(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="append", target=target) >> (template() >> content, _MARKER)
+@dataclass(slots=True)
+class Mutation:
+    """A DOM mutation that can be delivered over any transport layer."""
+
+    action: str
+    target: str
+    html: str | None = None
+
+    def json(self) -> str:
+        """JSON string for SSE/WebSocket delivery."""
+        d: dict[str, str] = {"action": self.action, "target": self.target}
+        if self.html is not None:
+            d["html"] = self.html
+        return json.dumps(d)
+
+    def sse(self, *, event: str | None = None, id: str | None = None) -> str:
+        """SSE-formatted event wrapping the JSON payload."""
+        parts: list[str] = []
+        if event is not None:
+            parts.append(f"event: {event}")
+        if id is not None:
+            parts.append(f"id: {id}")
+        parts.append(f"data: {self.json()}")
+        parts.append("")
+        parts.append("")
+        return "\n".join(parts)
+
+    def fragment(self) -> Fragment:
+        """<shift-update> fragment for inline page streaming."""
+        el = ShiftUpdateElement(action=self.action, target=self.target)
+        if self.action == "remove":
+            return el >> ""
+        html = self.html if self.html is not None else ""
+        return el >> (template() >> _RawText(html), _MARKER)
 
 
-def prepend(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="prepend", target=target) >> (template() >> content, _MARKER)
+def replace(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("replace", target, _render(*content))
 
 
-def before(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="before", target=target) >> (template() >> content, _MARKER)
+def append(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("append", target, _render(*content))
 
 
-def after(target: str, *content: NodeContent) -> Fragment:
-    return ShiftUpdateElement(action="after", target=target) >> (template() >> content, _MARKER)
+def prepend(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("prepend", target, _render(*content))
 
 
-def remove(target: str) -> Fragment:
-    return ShiftUpdateElement(action="remove", target=target) >> ""
+def before(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("before", target, _render(*content))
+
+
+def after(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("after", target, _render(*content))
+
+
+def remove(target: str) -> Mutation:
+    return Mutation("remove", target)
 
 
 def runtime(stream: str | None = None) -> Fragment:
@@ -94,4 +161,4 @@ def runtime(stream: str | None = None) -> Fragment:
     return script() >> js
 
 
-__all__ = ("replace", "append", "prepend", "before", "after", "remove", "runtime")
+__all__ = ("Mutation", "replace", "append", "prepend", "before", "after", "remove", "runtime")

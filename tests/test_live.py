@@ -2,6 +2,7 @@ from shifthtml import div, li, span, ul
 from shifthtml.live import (
     _RUNTIME_JS,
     _SSE_JS,
+    Mutation,
     after,
     append,
     before,
@@ -11,9 +12,11 @@ from shifthtml.live import (
     runtime,
 )
 
+# -- fragment output (page streaming, layer 1) --
 
-def test_replace_renders_shift_update_element():
-    result = replace("counter", div(id="counter") >> "42").render()
+
+def test_replace_fragment():
+    result = replace("counter", div(id="counter") >> "42").fragment().render()
     assert result == (
         '<shift-update action="replace" target="counter">'
         '<template><div id="counter">42</div></template>'
@@ -21,8 +24,8 @@ def test_replace_renders_shift_update_element():
     )
 
 
-def test_append_renders_shift_update_element():
-    result = append("messages", li() >> "Hello").render()
+def test_append_fragment():
+    result = append("messages", li() >> "Hello").fragment().render()
     assert result == (
         '<shift-update action="append" target="messages">'
         "<template><li>Hello</li></template>"
@@ -30,8 +33,8 @@ def test_append_renders_shift_update_element():
     )
 
 
-def test_prepend_renders_shift_update_element():
-    result = prepend("list", li() >> "First").render()
+def test_prepend_fragment():
+    result = prepend("list", li() >> "First").fragment().render()
     assert result == (
         '<shift-update action="prepend" target="list">'
         "<template><li>First</li></template>"
@@ -39,8 +42,8 @@ def test_prepend_renders_shift_update_element():
     )
 
 
-def test_before_renders_shift_update_element():
-    result = before("item", span() >> "Before").render()
+def test_before_fragment():
+    result = before("item", span() >> "Before").fragment().render()
     assert result == (
         '<shift-update action="before" target="item">'
         "<template><span>Before</span></template>"
@@ -48,8 +51,8 @@ def test_before_renders_shift_update_element():
     )
 
 
-def test_after_renders_shift_update_element():
-    result = after("item", span() >> "After").render()
+def test_after_fragment():
+    result = after("item", span() >> "After").fragment().render()
     assert result == (
         '<shift-update action="after" target="item">'
         "<template><span>After</span></template>"
@@ -57,17 +60,35 @@ def test_after_renders_shift_update_element():
     )
 
 
-def test_remove_renders_without_template():
-    result = remove("old-banner").render()
+def test_remove_fragment():
+    result = remove("old-banner").fragment().render()
     assert result == '<shift-update action="remove" target="old-banner"></shift-update>'
 
 
-def test_mutation_commands_compose_in_tree():
+def test_fragment_with_multiple_children():
+    result = replace("box", span() >> "a", span() >> "b").fragment().render()
+    assert result == (
+        '<shift-update action="replace" target="box">'
+        "<template><span>a</span><span>b</span></template>"
+        "<shift-done></shift-done></shift-update>"
+    )
+
+
+def test_fragment_with_nested_tree():
+    result = replace("nav", ul(id="nav") >> (li() >> "Home", li() >> "About")).fragment().render()
+    assert result == (
+        '<shift-update action="replace" target="nav">'
+        '<template><ul id="nav"><li>Home</li><li>About</li></ul></template>'
+        "<shift-done></shift-done></shift-update>"
+    )
+
+
+def test_fragments_compose_in_tree():
     result = (
         div()
         >> (
-            replace("a", span() >> "new-a"),
-            append("b", li() >> "item"),
+            replace("a", span() >> "new-a").fragment(),
+            append("b", li() >> "item").fragment(),
         )
     ).render()
     assert result == (
@@ -82,6 +103,68 @@ def test_mutation_commands_compose_in_tree():
     )
 
 
+# -- JSON output (WebSocket / SSE, layers 2 & 3) --
+
+
+def test_json_replace():
+    m = replace("chat", div(id="chat") >> "hello")
+    assert m.json() == '{"action": "replace", "target": "chat", "html": "<div id=\\"chat\\">hello</div>"}'
+
+
+def test_json_append():
+    m = append("messages", li() >> "new")
+    assert m.json() == '{"action": "append", "target": "messages", "html": "<li>new</li>"}'
+
+
+def test_json_remove_omits_html():
+    m = remove("old")
+    assert m.json() == '{"action": "remove", "target": "old"}'
+
+
+# -- SSE output (layer 2) --
+
+
+def test_sse_basic():
+    m = replace("x", span() >> "hi")
+    assert m.sse() == f"data: {m.json()}\n\n"
+
+
+def test_sse_with_event():
+    m = append("feed", div() >> "item")
+    result = m.sse(event="update")
+    assert result == f"event: update\ndata: {m.json()}\n\n"
+
+
+def test_sse_with_event_and_id():
+    m = replace("status", span() >> "ok")
+    result = m.sse(event="update", id="42")
+    assert result == f"event: update\nid: 42\ndata: {m.json()}\n\n"
+
+
+# -- Mutation dataclass --
+
+
+def test_mutation_fields():
+    m = Mutation("replace", "target", "<div>hi</div>")
+    assert m.action == "replace"
+    assert m.target == "target"
+    assert m.html == "<div>hi</div>"
+
+
+def test_mutation_equality():
+    a = Mutation("replace", "x", "<p>hi</p>")
+    b = Mutation("replace", "x", "<p>hi</p>")
+    assert a == b
+
+
+def test_mutation_html_defaults_to_none():
+    m = Mutation("remove", "x")
+    assert m.html is None
+
+
+# -- runtime --
+
+
 def test_runtime_renders_script_tag():
     result = runtime().render()
     assert result == f"<script>{_RUNTIME_JS}</script>"
@@ -90,21 +173,3 @@ def test_runtime_renders_script_tag():
 def test_runtime_with_stream_includes_sse_listener():
     result = runtime(stream="/events").render()
     assert result == f"<script>{_RUNTIME_JS}{_SSE_JS}</script>"
-
-
-def test_replace_with_multiple_children():
-    result = replace("box", span() >> "a", span() >> "b").render()
-    assert result == (
-        '<shift-update action="replace" target="box">'
-        "<template><span>a</span><span>b</span></template>"
-        "<shift-done></shift-done></shift-update>"
-    )
-
-
-def test_mutation_with_nested_tree():
-    result = replace("nav", ul(id="nav") >> (li() >> "Home", li() >> "About")).render()
-    assert result == (
-        '<shift-update action="replace" target="nav">'
-        '<template><ul id="nav"><li>Home</li><li>About</li></ul></template>'
-        "<shift-done></shift-done></shift-update>"
-    )
