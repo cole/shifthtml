@@ -627,7 +627,7 @@ class Element(ContentNode):
         # Inline open tag rendering to avoid function call overhead.
         # 99% of elements have 0 or 1 simple string attributes.
         tag = self.tag
-        attrs = self._render_attrs()
+        attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
         if not attrs:
             open_tag = f"<{tag} />" if self.void else f"<{tag}>"
         elif len(attrs) == 1:
