@@ -32,3 +32,5 @@
 {"run":31,"commit":"2d6a087","metric":1.4233,"metrics":{"compiled_ms":1.6086,"build_ms":1.3802},"status":"keep","description":"Skip _render_attrs() call in _collect, inline style check","timestamp":1775544630855,"segment":0}
 {"run":32,"commit":"fa86d4a","metric":1.4048,"metrics":{"compiled_ms":1.5868,"build_ms":1.3585},"status":"keep","description":"Use iter(d)+d[k] instead of items() unpack for single-attr dicts","timestamp":1775544701815,"segment":0}
 {"run":33,"commit":"qpvrvrs","metric":1.409,"metrics":{"compiled_ms":1.5954,"build_ms":1.3621},"status":"discard","description":"Reorder attr count checks (1-attr first) — within noise","timestamp":1775544751022,"segment":0}
+{"run":34,"commit":"6b7c4dc","metric":1.4101,"metrics":{"compiled_ms":1.5865,"build_ms":1.3667},"status":"keep","description":"Use type() is str + isinstance in _exec_ops, reorder Loop before Branch","timestamp":1775544792202,"segment":0}
+{"run":35,"commit":"qpvrvrs","metric":1.4884,"metrics":{"compiled_ms":1.6837,"build_ms":1.3803},"status":"discard","description":"Concat open+text+close for leaf elements — f-string overhead worse","timestamp":1775544817192,"segment":0}

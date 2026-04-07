@@ -647,20 +647,20 @@ class Element(ContentNode):
             return
         children = self.children
         buf.append(open_tag)
-        if children:
+        n_children = len(children)
+        if n_children == 1:
             first = children[0]
-            if type(first) is str and len(children) == 1:
+            if type(first) is str:
                 if "&" in first or "<" in first or ">" in first:
                     buf.append(_escape(first))
                 else:
                     buf.append(first)
-            elif len(children) == 1:
-                if isinstance(first, Template):
-                    buf.extend(render_string(first))
-                else:
-                    first._collect(buf)
+            elif isinstance(first, Template):
+                buf.extend(render_string(first))
             else:
-                _collect_children(children, buf)
+                first._collect(buf)
+        elif n_children > 1:
+            _collect_children(children, buf)
         buf.append(self._close_tag)
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
