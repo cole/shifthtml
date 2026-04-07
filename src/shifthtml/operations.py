@@ -46,19 +46,18 @@ type RenderOp = str | StdlibTemplate | Branch | Loop | LazySlot
 
 def _exec_ops(ops: list[RenderOp], out: list[str]) -> None:
     for op in ops:
-        match op:
-            case str() as html:
-                out.append(html)
-            case StdlibTemplate() as tpl:
-                out.extend(render_string(tpl))
-            case Branch(var_name, if_true, if_false):
-                branch = if_true if _resolve_var(var_name) else if_false
-                _exec_ops(branch, out)
-            case Loop(var_name, body_fn):
-                for item in _resolve_var(var_name):
-                    _collect_result(body_fn(item), out)
-            case LazySlot(fn):
-                _collect_result(fn(), out)
+        if type(op) is str:
+            out.append(op)
+        elif isinstance(op, StdlibTemplate):
+            out.extend(render_string(op))
+        elif isinstance(op, Loop):
+            for item in _resolve_var(op.var_name):
+                _collect_result(op.body_fn(item), out)
+        elif isinstance(op, Branch):
+            branch = op.if_true if _resolve_var(op.var_name) else op.if_false
+            _exec_ops(branch, out)
+        elif isinstance(op, LazySlot):
+            _collect_result(op.fn(), out)
 
 
 def _stream_ops(ops: list[RenderOp]) -> Generator[str]:

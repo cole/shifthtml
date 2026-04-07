@@ -628,19 +628,20 @@ class Element(ContentNode):
         # 99% of elements have 0 or 1 simple string attributes.
         tag = self.tag
         attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
-        if not attrs:
-            open_tag = f"<{tag} />" if self.void else f"<{tag}>"
-        elif len(attrs) == 1:
-            key = next(iter(attrs))
-            value = attrs[key]
-            if type(value) is str:
-                if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
-                    value = _escape(value, quote=True)
-                open_tag = f'<{tag} {key}="{value}" />' if self.void else f'<{tag} {key}="{value}">'
+        if attrs:
+            if len(attrs) == 1:
+                key = next(iter(attrs))
+                value = attrs[key]
+                if type(value) is str:
+                    if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                        value = _escape(value, quote=True)
+                    open_tag = f'<{tag} {key}="{value}" />' if self.void else f'<{tag} {key}="{value}">'
+                else:
+                    open_tag = render_open_tag(tag, attrs, void=self.void)
             else:
                 open_tag = render_open_tag(tag, attrs, void=self.void)
         else:
-            open_tag = render_open_tag(tag, attrs, void=self.void)
+            open_tag = f"<{tag} />" if self.void else f"<{tag}>"
         if self.void:
             buf.append(open_tag)
             return

@@ -32,7 +32,31 @@ Optimize the shifthtml library's rendering speed — the time to build a tree of
 - Correctness: rendered output must remain identical
 
 ## What's Been Tried
-*Nothing yet — establishing baseline.*
+
+### Wins (kept)
+1. Skip RenderContext when no plugins/max_nodes/max_depth (-15%)
+2. Inline plain string escape in stream_children (-25%)
+3. Cache close tags as ClassVar, fast-path empty attrs (-26.5%)
+4. Add _collect() non-generator fast path for render() (-33%)
+5. Reorder isinstance: tuple first in __rshift__, Fragment first in _flatten_into (-39%)
+6. Reorder _collect_result: Node first, then str, then tuple (-40%)
+7. Use _collect_result in compiled _exec_ops (-41%)
+8. Skip super().__init__() in Element and other nodes (-43%)
+9. Fast-path render_open_tag for single string attribute (-46%)
+10. Inline single-child fast path in Element._collect (-47%)
+11. Use type() is for hot type checks (str, tuple, list) (-51%)
+12. Inline _render_attrs and render_open_tag in _collect (-52%)
+13. Use iter(d)+d[k] for single-attr dict unpacking (-52.4%)
+
+### Dead ends (discarded)
+- Frozenset attr escape check — slower than inline 'in' checks
+- Cache buf.append — no improvement
+- Extract _render_attr_pair + genexpr — worse
+- 2-attribute fast path in render_open_tag — no improvement
+- Cache _open_tag at init — neutral (saves render, adds to init)
+- Replace match/case with isinstance in _exec_ops — within noise
+- Batch leaf elements into single f-string — within noise
+- Inline _needs_escape — within noise
 
 ## Hot Path Analysis (from profiling)
 1. `_render_node` + `stream_children` — deepest call stack, most cumulative time
