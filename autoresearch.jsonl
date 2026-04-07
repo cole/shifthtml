@@ -35,3 +35,4 @@
 {"run":34,"commit":"6b7c4dc","metric":1.4101,"metrics":{"compiled_ms":1.5865,"build_ms":1.3667},"status":"keep","description":"Use type() is str + isinstance in _exec_ops, reorder Loop before Branch","timestamp":1775544792202,"segment":0}
 {"run":35,"commit":"qpvrvrs","metric":1.4884,"metrics":{"compiled_ms":1.6837,"build_ms":1.3803},"status":"discard","description":"Concat open+text+close for leaf elements — f-string overhead worse","timestamp":1775544817192,"segment":0}
 {"run":36,"commit":"2a954d7","metric":1.402,"metrics":{"compiled_ms":1.5842,"build_ms":1.3618},"status":"keep","description":"Cache len(children) in _collect, reduce branch count","timestamp":1775544852858,"segment":0}
+{"run":37,"commit":"fde9818","metric":1.4204,"metrics":{"compiled_ms":1.6015,"build_ms":1.374},"status":"keep","description":"Fix ty errors: add _collect to Renderable, fix type narrowing","timestamp":1775544986877,"segment":0}

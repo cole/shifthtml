@@ -630,7 +630,7 @@ class Element(ContentNode):
         attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
         if attrs:
             if len(attrs) == 1:
-                key = next(iter(attrs))
+                (key,) = attrs
                 value = attrs[key]
                 if type(value) is str:
                     if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
