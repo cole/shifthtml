@@ -1,4 +1,5 @@
 from shifthtml import div, li, span
+from shifthtml.element import ContentNode
 from shifthtml.live import replace
 from shifthtml.stream import sse
 
@@ -37,8 +38,6 @@ def test_sse_with_live_mutation_fragment():
 
 
 def test_sse_with_multiple_mutation_fragments():
-    from shifthtml.element import ContentNode
-
     wrapper = ContentNode()
     wrapper.append_child(replace("a", span() >> "1").fragment().root)
     wrapper.append_child(replace("b", li() >> "2").fragment().root)
