@@ -86,6 +86,13 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
 def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = False) -> str:
     if not attributes:
         return f"<{tag} />" if void else f"<{tag}>"
+    # Fast path: single string attribute (most common case)
+    if len(attributes) == 1:
+        key, value = next(iter(attributes.items()))
+        if isinstance(value, str):
+            if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
+                value = escape(value, quote=True)
+            return f'<{tag} {key}="{value}" />' if void else f'<{tag} {key}="{value}">'
     parts: list[str] = [f"<{tag}"]
     for key, value in attributes.items():
         if value is None or value is False:
