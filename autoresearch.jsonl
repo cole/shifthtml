@@ -10,3 +10,4 @@
 {"run":9,"commit":"nxxkyrr","metric":2.0565,"metrics":{"compiled_ms":2.357,"build_ms":1.9318},"status":"discard","description":"Inline _needs_escape in stream_children and _collect_children","timestamp":1775543445240,"segment":0}
 {"run":10,"commit":"c60ee7f","metric":1.7904,"metrics":{"compiled_ms":2.1448,"build_ms":1.711},"status":"keep","description":"Reorder isinstance checks: tuple first in __rshift__, Fragment first in _flatten_into","timestamp":1775543496126,"segment":0}
 {"run":11,"commit":"nxxkyrr","metric":1.8251,"metrics":{"compiled_ms":2.2251,"build_ms":1.8955},"status":"discard","description":"Reorder Fragment.__rshift__ isinstance checks — within noise","timestamp":1775543517221,"segment":0}
+{"run":12,"commit":"7376477","metric":1.7608,"metrics":{"compiled_ms":2.0852,"build_ms":1.7002},"status":"keep","description":"Reorder _collect_result: Node first, then str, then tuple","timestamp":1775543548020,"segment":0}

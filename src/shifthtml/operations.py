@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from string.templatelib import Template as StdlibTemplate
 from typing import Any
 
-from .rendering import arender_result, arender_string, render_result, render_string
+from .rendering import _collect_result, arender_result, arender_string, render_result, render_string
 from .tree import _resolve_var
 from .types import NodeContent
 
@@ -56,9 +56,9 @@ def _exec_ops(ops: list[RenderOp], out: list[str]) -> None:
                 _exec_ops(branch, out)
             case Loop(var_name, body_fn):
                 for item in _resolve_var(var_name):
-                    out.extend(render_result(body_fn(item), None))
+                    _collect_result(body_fn(item), out)
             case LazySlot(fn):
-                out.extend(render_result(fn(), None))
+                _collect_result(fn(), out)
 
 
 def _stream_ops(ops: list[RenderOp]) -> Generator[str]:
