@@ -8,7 +8,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
 
-from .compile import Branch, CompiledTemplate, LazySlot, Loop, RenderOp, _merge_ops
+from .compile import CompiledTemplate
+from .operations import Branch, LazySlot, Loop, RenderOp, _merge_ops
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .plugin import RenderContext, registered_plugins
