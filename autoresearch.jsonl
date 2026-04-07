@@ -50,3 +50,4 @@
 {"run":49,"commit":"yooxnxm","metric":1.3311,"metrics":{"compiled_ms":1.5397,"build_ms":1.2907},"status":"checks_failed","description":"Fast-path _collect_children for all-Node children — breaks mixed children","timestamp":1775581222193,"segment":0}
 {"run":50,"commit":"dd773dd","metric":1.3254,"metrics":{"compiled_ms":1.543,"build_ms":1.2875},"status":"keep","description":"Move doctype handling to HTMLRootElement._collect, skip check on 877 other elements","timestamp":1775581595812,"segment":0}
 {"run":51,"commit":"985d684","metric":1.3383,"metrics":{"compiled_ms":1.5384,"build_ms":1.3621},"status":"keep","description":"Fix unused import in tags.py","timestamp":1775581780556,"segment":0}
+{"run":52,"commit":"1d7ff12","metric":1.3102,"metrics":{"compiled_ms":1.5149,"build_ms":1.2678},"status":"keep","description":"Skip append_child validation in Fragment.append after _copy_tree (fresh root)","timestamp":1775581897402,"segment":0}
