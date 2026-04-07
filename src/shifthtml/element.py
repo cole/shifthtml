@@ -54,7 +54,7 @@ def _wrap_content(contents: NodeContent) -> Node:
 def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
     pointer_found: Node | None = None
 
-    new_node = copy.replace(old_node, children=[])
+    new_node = old_node.__replace__(children=[])
 
     if old_node is pointer_target:
         pointer_found = new_node
@@ -64,7 +64,6 @@ def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]
             new_node.children.append(child)
         else:
             new_child, child_pointer = _copy_tree(child, pointer_target)
-            # Skip validation — new_child is fresh from copy.replace, no parent
             new_child.parent_node = new_node
             new_node.children.append(new_child)
             if child_pointer is not None:

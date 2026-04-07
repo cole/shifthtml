@@ -59,15 +59,14 @@ Optimize the shifthtml library's rendering speed — the time to build a tree of
 - Inline _needs_escape — within noise
 
 ## Hot Path Analysis (latest profile, 100 iterations)
-Total: 0.377s, 1.28M function calls
-1. `Element._collect` — 0.085s (87.6k calls, inlined open tag rendering)
-2. `_product_card` — 0.052s (benchmark code, can't optimize)
-3. `Element.__init__` — 0.051s (92.8k calls)
-4. `__rshift__` — 0.045s (87.6k calls, Fragment creation + isinstance chain)
-5. `list.append` — 0.030s (irreducible)
-6. `_collect_children` — 0.024s (22.3k calls)
-7. `_flatten_into` — 0.019s (25.7k calls)
-8. `len` — 0.011s, `isinstance` — 0.011s, `dict.items` — 0.007s
+Total: 0.353s, 1.25M function calls (down from 6.2M at baseline)
+1. `Element._collect` — 0.078s (22%, inlined open tag, single-child fast path)
+2. `_product_card` — 0.051s (14%, benchmark code, immutable)
+3. `Element.__init__` — 0.049s (14%, 92.8k calls)
+4. `__rshift__` — 0.044s (12%, deferred Fragment creation)
+5. `list.append` — 0.029s (8%, irreducible)
+6. `_collect_children` — 0.023s, `_flatten_into` — 0.019s
+7. builtins: `len` 0.010s, `isinstance` 0.010s, `dict.items` 0.007s
 
-Build is now 75% of total time, render only 25%. Further gains require
-reducing object creation or function call count.
+Profile is very flat — no single function > 22%. Build is 61%, render 39%.
+Further gains require C extension or fundamentally fewer objects.
