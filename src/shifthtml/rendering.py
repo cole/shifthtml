@@ -253,7 +253,9 @@ def _astream_fn(ctx: RenderContext) -> AStreamFn:
 def stream_children(children: list, ctx: RenderContext | None = None) -> Generator[str]:
     """Render a list of children to HTML chunks."""
     for child in children:
-        if isinstance(child, str | Template):
+        if isinstance(child, str):
+            yield escape(child) if _needs_escape(child) else child
+        elif isinstance(child, Template):
             yield from render_string(child)
         elif ctx is not None:
             yield from _render_node(child, ctx)

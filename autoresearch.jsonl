@@ -1,2 +1,3 @@
 {"type":"config","name":"Optimize shifthtml rendering performance","metricName":"render_ms","metricUnit":"ms","bestDirection":"lower"}
 {"run":1,"commit":"725dbcf","metric":2.9511,"metrics":{"compiled_ms":2.6817,"build_ms":2.9655},"status":"keep","description":"Baseline: shifthtml render performance","timestamp":1775542936289,"segment":0}
+{"run":2,"commit":"61b67b2","metric":2.508,"metrics":{"compiled_ms":2.6715,"build_ms":2.4827},"status":"keep","description":"Skip RenderContext when no plugins/max_nodes/max_depth","timestamp":1775543031941,"segment":0}
