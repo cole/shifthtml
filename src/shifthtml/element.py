@@ -542,15 +542,16 @@ class Element(ContentNode):
 
     tag: ClassVar[str]
     _close_tag: ClassVar[str] = ""
+    _bare_open: ClassVar[str] = ""
     void: ClassVar[bool] = False
     doctype: ClassVar[str] = ""
-    _empty_attrs: ClassVar[dict[str, object]] = {}
     attributes: dict[str, object]
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)
         if hasattr(cls, "tag"):
             cls._close_tag = f"</{cls.tag}>"
+            cls._bare_open = f"<{cls.tag}>"
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         self.parent_node = None
@@ -561,7 +562,12 @@ class Element(ContentNode):
                 merged[_convert_attribute_names(k)] = v
             self.attributes = merged
         elif keyword_attributes:
-            self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
+            n = len(keyword_attributes)
+            if n == 1:
+                (k,) = keyword_attributes
+                self.attributes = {_convert_attribute_names(k): keyword_attributes[k]}
+            else:
+                self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
         else:
             self.attributes = {}
         self._style = None
@@ -643,7 +649,7 @@ class Element(ContentNode):
             else:
                 buf.append(render_open_tag(tag, attrs))
         else:
-            buf.append(f"<{tag}>")
+            buf.append(self._bare_open)
         children = self.children
         n_children = len(children)
         if n_children == 1:
