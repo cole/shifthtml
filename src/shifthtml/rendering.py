@@ -270,21 +270,21 @@ def _collect_result(result: object, buf: list[str]) -> None:
     """Collect the return value of a Lazy callable into a buffer."""
     if result is None or result is False:
         return
-    if isinstance(result, str):
-        buf.append(escape(result) if _needs_escape(result) else result)
-        return
-    if isinstance(result, Template):
-        buf.extend(render_string(result))
-        return
     if isinstance(result, Node):
         result._collect(buf)
         return
-    if hasattr(result, '_collect'):
-        result._collect(buf)
+    if isinstance(result, str):
+        buf.append(escape(result) if _needs_escape(result) else result)
         return
     if isinstance(result, tuple | list):
         for item in result:
             _collect_result(item, buf)
+        return
+    if hasattr(result, '_collect'):
+        result._collect(buf)
+        return
+    if isinstance(result, Template):
+        buf.extend(render_string(result))
         return
     if is_sync_content_fn(result):
         _collect_result(result(), buf)

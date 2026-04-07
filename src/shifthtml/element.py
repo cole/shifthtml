@@ -220,11 +220,15 @@ class Fragment:
         if other is None or other is False:
             return None
 
+        if isinstance(other, tuple):
+            _flatten_into(self.append_pointer, other)
+            return self
+
         if isinstance(other, str | Template):
             self.append_pointer.children.append(other)
             return self
 
-        if isinstance(other, tuple | list):
+        if isinstance(other, list):
             _flatten_into(self.append_pointer, other)
             return self
 
