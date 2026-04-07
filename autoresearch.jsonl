@@ -1,1 +1,2 @@
 {"type":"config","name":"Optimize shifthtml rendering performance","metricName":"render_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":1,"commit":"725dbcf","metric":2.9511,"metrics":{"compiled_ms":2.6817,"build_ms":2.9655},"status":"keep","description":"Baseline: shifthtml render performance","timestamp":1775542936289,"segment":0}
