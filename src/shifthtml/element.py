@@ -632,7 +632,7 @@ class Element(ContentNode):
             open_tag = f"<{tag} />" if self.void else f"<{tag}>"
         elif len(attrs) == 1:
             ((key, value),) = attrs.items()
-            if isinstance(value, str):
+            if type(value) is str:
                 if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
                     value = _escape(value, quote=True)
                 open_tag = f'<{tag} {key}="{value}" />' if self.void else f'<{tag} {key}="{value}">'
@@ -647,7 +647,7 @@ class Element(ContentNode):
         buf.append(open_tag)
         if children:
             first = children[0]
-            if isinstance(first, str) and len(children) == 1:
+            if type(first) is str and len(children) == 1:
                 if "&" in first or "<" in first or ">" in first:
                     buf.append(_escape(first))
                 else:

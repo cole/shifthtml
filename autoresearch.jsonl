@@ -27,3 +27,4 @@
 {"run":26,"commit":"rnlkzzw","metric":1.5828,"metrics":{"compiled_ms":1.7804,"build_ms":1.5482},"status":"discard","description":"Cache _open_tag at init (v2) — neutral for build+render","timestamp":1775544374370,"segment":0}
 {"run":27,"commit":"rnlkzzw","metric":1.5748,"metrics":{"compiled_ms":1.7882,"build_ms":1.535},"status":"discard","description":"Inline render_open_tag in _collect — within noise","timestamp":1775544456199,"segment":0}
 {"run":28,"commit":"36e2458","metric":1.4586,"metrics":{"compiled_ms":1.6552,"build_ms":1.417},"status":"keep","description":"Use type() is for hot type checks in __rshift__ and _flatten_into","timestamp":1775544497423,"segment":0}
+{"run":29,"commit":"0a0dadf","metric":1.4359,"metrics":{"compiled_ms":1.6232,"build_ms":1.4013},"status":"keep","description":"Use type() is str in _collect_children, _collect_result, stream_children","timestamp":1775544536607,"segment":0}
