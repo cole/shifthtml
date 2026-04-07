@@ -23,7 +23,6 @@ from .rendering import (
     collect_string,
     render_open_tag,
     render_result,
-    render_string,
     stream_children,
 )
 from .tree import Node, _render_vars
