@@ -263,7 +263,7 @@ def _astream_fn(ctx: RenderContext) -> AStreamFn:
 def _collect_children(children: list, buf: list[str]) -> None:
     """Collect rendered HTML for children into a buffer (non-generator fast path)."""
     for child in children:
-        if isinstance(child, str):
+        if type(child) is str:
             if "&" in child or "<" in child or ">" in child:
                 buf.append(escape(child))
             else:
@@ -281,10 +281,11 @@ def _collect_result(result: object, buf: list[str]) -> None:
     if isinstance(result, Node):
         result._collect(buf)
         return
-    if isinstance(result, str):
+    result_type = type(result)
+    if result_type is str:
         buf.append(escape(result) if _needs_escape(result) else result)
         return
-    if isinstance(result, tuple | list):
+    if result_type is tuple or result_type is list:
         for item in result:
             _collect_result(item, buf)
         return
@@ -303,7 +304,7 @@ def _collect_result(result: object, buf: list[str]) -> None:
 def stream_children(children: list, ctx: RenderContext | None = None) -> Generator[str]:
     """Render a list of children to HTML chunks."""
     for child in children:
-        if isinstance(child, str):
+        if type(child) is str:
             if "&" in child or "<" in child or ">" in child:
                 yield escape(child)
             else:
