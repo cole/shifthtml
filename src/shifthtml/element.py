@@ -574,10 +574,7 @@ class Element(ContentNode):
                 merged[_convert_attribute_names(k)] = v
             self.attributes = merged
         elif keyword_attributes:
-            cache = _attr_name_cache
-            self.attributes = {
-                cache[k] if k in cache else _convert_attribute_names(k): v for k, v in keyword_attributes.items()
-            }
+            self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
         else:
             self.attributes = {}
         self._style = None

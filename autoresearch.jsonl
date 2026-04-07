@@ -57,3 +57,4 @@
 {"run":56,"commit":"68103ea","metric":1.2934,"metrics":{"compiled_ms":1.5188,"build_ms":1.2549},"status":"keep","description":"Use {**d} instead of dict(d) for attr copy in __replace__","timestamp":1775582073838,"segment":0}
 {"run":57,"commit":"ca6afb4","metric":1.2875,"metrics":{"compiled_ms":1.524,"build_ms":1.2522},"status":"keep","description":"Fix ty error: add isinstance(Node) guard in _copy_tree","timestamp":1775582109187,"segment":0}
 {"run":58,"commit":"xvuykzs","metric":1.2917,"metrics":{"compiled_ms":1.5038,"build_ms":1.2446},"status":"discard","description":"Reorder __rshift__: str before tuple — within noise","timestamp":1775582185606,"segment":0}
+{"run":59,"commit":"d2646be","metric":1.3037,"metrics":{"compiled_ms":1.4911,"build_ms":1.247},"status":"keep","description":"Steady state confirmation: 56% improvement, all checks clean","timestamp":1775582215040,"segment":0}
