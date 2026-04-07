@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import ClassVar
 
 from .element import Element, VoidElement
-from .rendering import _collect_children
 
 # -- Root --
 

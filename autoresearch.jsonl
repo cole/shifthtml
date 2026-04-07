@@ -48,3 +48,4 @@
 {"run":47,"commit":"yooxnxm","metric":1.3505,"metrics":{"compiled_ms":1.5733,"build_ms":1.3181},"status":"discard","description":"Short-circuit Fragment.__str__ to bypass render() — within noise","timestamp":1775578084244,"segment":0}
 {"run":48,"commit":"2cdff70","metric":1.338,"metrics":{"compiled_ms":1.5526,"build_ms":1.2964},"status":"keep","description":"Cache tag prefix as ClassVar, reduce f-string interpolations in _collect","timestamp":1775581120603,"segment":0}
 {"run":49,"commit":"yooxnxm","metric":1.3311,"metrics":{"compiled_ms":1.5397,"build_ms":1.2907},"status":"checks_failed","description":"Fast-path _collect_children for all-Node children — breaks mixed children","timestamp":1775581222193,"segment":0}
+{"run":50,"commit":"dd773dd","metric":1.3254,"metrics":{"compiled_ms":1.543,"build_ms":1.2875},"status":"keep","description":"Move doctype handling to HTMLRootElement._collect, skip check on 877 other elements","timestamp":1775581595812,"segment":0}
