@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
+from html import escape as _escape
 from string.templatelib import Template
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
 
@@ -20,6 +21,7 @@ from .rendering import (
     arender_result,
     astream_children,
     render_open_tag,
+    render_string,
     render_result,
     stream_children,
 )
@@ -620,9 +622,36 @@ class Element(ContentNode):
     def _collect(self, buf: list[str]) -> None:
         if self.doctype:
             buf.append(self.doctype)
-        buf.append(render_open_tag(self.tag, self._render_attrs(), void=self.void))
-        if not self.void:
-            _collect_children(self.children, buf)
+        open_tag = render_open_tag(self.tag, self._render_attrs(), void=self.void)
+        if self.void:
+            buf.append(open_tag)
+            return
+        children = self.children
+        n = len(children)
+        if n == 0:
+            buf.append(open_tag)
+            buf.append(self._close_tag)
+        elif n == 1:
+            child = children[0]
+            if isinstance(child, str):
+                if "&" in child or "<" in child or ">" in child:
+                    buf.append(open_tag)
+                    buf.append(_escape(child))
+                    buf.append(self._close_tag)
+                else:
+                    buf.append(open_tag)
+                    buf.append(child)
+                    buf.append(self._close_tag)
+            else:
+                buf.append(open_tag)
+                if isinstance(child, Template):
+                    buf.extend(render_string(child))
+                else:
+                    child._collect(buf)
+                buf.append(self._close_tag)
+        else:
+            buf.append(open_tag)
+            _collect_children(children, buf)
             buf.append(self._close_tag)
 
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
