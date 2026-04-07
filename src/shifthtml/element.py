@@ -573,8 +573,7 @@ class Element(ContentNode):
         elif keyword_attributes:
             cache = _attr_name_cache
             self.attributes = {
-                cache[k] if k in cache else _convert_attribute_names(k): v
-                for k, v in keyword_attributes.items()
+                cache[k] if k in cache else _convert_attribute_names(k): v for k, v in keyword_attributes.items()
             }
         else:
             self.attributes = {}
@@ -639,8 +638,6 @@ class Element(ContentNode):
         return self.attributes
 
     def _collect(self, buf: list[str]) -> None:
-        if self.doctype:
-            buf.append(self.doctype)
         # Inline open tag for 0-1 string attrs (99% of elements)
         attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
         if attrs:

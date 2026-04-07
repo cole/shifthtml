@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import ClassVar
 
 from .element import Element, VoidElement
+from .rendering import _collect_children
 
 # -- Root --
 
@@ -10,6 +11,10 @@ from .element import Element, VoidElement
 class HTMLRootElement(Element):
     tag: ClassVar[str] = "html"
     doctype: ClassVar[str] = "<!DOCTYPE html>"
+
+    def _collect(self, buf: list[str]) -> None:
+        buf.append(self.doctype)
+        super()._collect(buf)
 
 
 class HTMLHeadElement(Element):
