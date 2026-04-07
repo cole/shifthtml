@@ -499,6 +499,7 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
         a,
         args,
         body,
+        compile,
         div,
         footer,
         h1,
@@ -539,7 +540,7 @@ def bench_shifthtml_compiled(iterations: int, num_products: int) -> dict[str, An
             footer() >> t"\u00a9 {args.year} {args.site_name}",
         ),
     )
-    compiled = shell.compile()
+    compiled = compile(shell)
 
     def render_page(ctx: dict[str, Any]) -> str:
         return compiled.render(

@@ -1,5 +1,5 @@
 from . import tags
-from .compile import CompiledTemplate
+from .compile import CompiledTemplate, compile
 from .element import (
     Async,
     Comment,
@@ -134,6 +134,7 @@ from .types import Renderable
 
 __all__ = (
     "tags",
+    "compile",
     "CompiledTemplate",
     "Async",
     "Comment",

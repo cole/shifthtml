@@ -19,6 +19,7 @@ import time
 
 from shifthtml import (
     args,
+    compile,
     div,
     footer,
     h1,
@@ -129,7 +130,7 @@ def main() -> None:
     cli = parser.parse_args()
 
     page = build_page()
-    compiled = page.compile()
+    compiled = compile(page)
 
     # Verify output parity
     assert page.render(args=RENDER_ARGS) == compiled.render(args=RENDER_ARGS), "Output mismatch!"
