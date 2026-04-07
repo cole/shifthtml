@@ -568,20 +568,23 @@ class Element(ContentNode):
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         self.parent_node = None
         self.children = []
-        if attributes:
-            merged: dict[str, object] = {k.lower(): v for k, v in attributes.items()}
-            for k, v in keyword_attributes.items():
-                merged[_convert_attribute_names(k)] = v
-            self.attributes = merged
-        elif len(keyword_attributes) == 1:
-            (k,) = keyword_attributes
-            try:
-                attr_name = _attr_name_cache[k]
-            except KeyError:
-                attr_name = _convert_attribute_names(k)
-            self.attributes = {attr_name: keyword_attributes[k]}
-        elif keyword_attributes:
-            self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
+        if keyword_attributes:
+            if attributes:
+                merged: dict[str, object] = {k.lower(): v for k, v in attributes.items()}
+                for k, v in keyword_attributes.items():
+                    merged[_convert_attribute_names(k)] = v
+                self.attributes = merged
+            elif len(keyword_attributes) == 1:
+                (k,) = keyword_attributes
+                try:
+                    attr_name = _attr_name_cache[k]
+                except KeyError:
+                    attr_name = _convert_attribute_names(k)
+                self.attributes = {attr_name: keyword_attributes[k]}
+            else:
+                self.attributes = {_convert_attribute_names(k): v for k, v in keyword_attributes.items()}
+        elif attributes:
+            self.attributes = {k.lower(): v for k, v in attributes.items()}
         else:
             self.attributes = {}
         self._style = None
