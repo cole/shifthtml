@@ -303,7 +303,7 @@ class ContentNode(Node):
         ctx = RenderContext(plugins=resolved, max_depth=max_depth, max_nodes=max_nodes)
         if resolved:
             parts = list(ctx.pre_render_all())
-            parts.extend(self._stream_root(ctx))
+            parts.extend(self._render_root(ctx))
             return "".join(parts)
         return "".join(_render_node(self, ctx))
 
@@ -320,7 +320,7 @@ class ContentNode(Node):
         if resolved:
             ctx = RenderContext(plugins=resolved, max_depth=max_depth, max_nodes=max_nodes)
             yield from ctx.pre_render_all()
-            yield from self._stream_root(ctx)
+            yield from self._render_root(ctx)
         else:
             yield from self._stream()
 
@@ -369,13 +369,13 @@ class ContentNode(Node):
             ctx = RenderContext(plugins=resolved, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes)
             async for chunk in ctx.apre_render_all():
                 yield chunk
-            async for chunk in self._astream_root(ctx):
+            async for chunk in self._arender_root(ctx):
                 yield chunk
         else:
             async for chunk in self._astream():
                 yield chunk
 
-    def _stream_root(self, ctx: RenderContext) -> Generator[str]:
+    def _render_root(self, ctx: RenderContext) -> Generator[str]:
         """Render this node as root with plugin dispatch and post_render_all."""
         stream_fn = _stream_fn(ctx)
         for plugin in ctx.plugins:
@@ -386,16 +386,16 @@ class ContentNode(Node):
                 if not ctx.state.get("_post_rendered"):
                     yield from ctx.post_render_all()
                 return
-        yield from self._stream_root_body(ctx)
+        yield from self._render_root_body(ctx)
         yield from ctx._post_render_node(self)
 
-    def _stream_root_body(self, ctx: RenderContext) -> Generator[str]:
+    def _render_root_body(self, ctx: RenderContext) -> Generator[str]:
         """Render this node's own content as root (no plugin dispatch)."""
         yield from self._stream(ctx)
         if not ctx.state.get("_post_rendered"):
             yield from ctx.post_render_all()
 
-    async def _astream_root(self, ctx: RenderContext) -> AsyncGenerator[str]:
+    async def _arender_root(self, ctx: RenderContext) -> AsyncGenerator[str]:
         """Async render this node as root with plugin dispatch and post_render_all."""
         async_fn = _astream_fn(ctx)
         sync_fn = _stream_fn(ctx)
@@ -423,12 +423,12 @@ class ContentNode(Node):
                         async for chunk in ctx.apost_render_all():
                             yield chunk
                     return
-        async for chunk in self._astream_root_body(ctx):
+        async for chunk in self._arender_root_body(ctx):
             yield chunk
         async for chunk in ctx._apost_render_node(self):
             yield chunk
 
-    async def _astream_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
+    async def _arender_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
         """Async render this node's own content as root (no plugin dispatch)."""
         async for chunk in self._astream(ctx):
             yield chunk
@@ -643,7 +643,7 @@ class Element(ContentNode):
                 ctx.state["_post_rendered"] = True
             yield f"</{tag}>"
 
-    def _stream_root_body(self, ctx: RenderContext) -> Generator[str]:
+    def _render_root_body(self, ctx: RenderContext) -> Generator[str]:
         """Element override: post_render_all goes inside the closing tag."""
         if self.void:
             yield render_open_tag(self.tag, self._render_attrs(), void=True)
@@ -656,7 +656,7 @@ class Element(ContentNode):
                 yield from ctx.post_render_all()
             yield f"</{self.tag}>"
 
-    async def _astream_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
+    async def _arender_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
         """Element override: async post_render_all goes inside the closing tag."""
         if self.void:
             yield render_open_tag(self.tag, self._render_attrs(), void=True)
