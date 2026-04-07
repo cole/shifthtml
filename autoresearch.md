@@ -47,6 +47,11 @@ Optimize the shifthtml library's rendering speed — the time to build a tree of
 11. Use type() is for hot type checks (str, tuple, list) (-51%)
 12. Inline _render_attrs and render_open_tag in _collect (-52%)
 13. Use iter(d)+d[k] for single-attr dict unpacking (-52.4%)
+14. Defer Fragment creation in __rshift__ for tuple/str/list (-55.2%)
+15. Cache bare open tag and tag prefix as ClassVars (-54.7%)
+16. Move doctype to HTMLRootElement._collect override (-55.1%)
+17. Skip append_child validation after _copy_tree (-55.6%)
+18. Use object.__new__ + {**d} in Element.__replace__ (-56.4%)
 
 ### Dead ends (discarded)
 - Frozenset attr escape check — slower than inline 'in' checks
@@ -57,6 +62,11 @@ Optimize the shifthtml library's rendering speed — the time to build a tree of
 - Replace match/case with isinstance in _exec_ops — within noise
 - Batch leaf elements into single f-string — within noise
 - Inline _needs_escape — within noise
+- Cache empty plugins/args — within noise
+- Single-kwarg fast path in __init__ — extra branch offsets savings
+- Fast-path _collect_children for all-Node — breaks mixed children
+- Fragment __new__ instead of __init__ — actually slower
+- Reorder str before tuple in __rshift__ — within noise
 
 ## Hot Path Analysis (latest profile, 100 iterations)
 Total: 0.353s, 1.25M function calls (down from 6.2M at baseline)
