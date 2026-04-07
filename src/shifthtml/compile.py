@@ -1,8 +1,8 @@
 """Compile a ShiftHTML tree into a CompiledTemplate for fast repeated rendering.
 
 Partially evaluates the tree: static HTML and eagerly-resolved Lazy nodes
-become string ops, while Var slots, conditionals, and loops become IR ops
-that are evaluated at render time.
+become string ops, while Var slots, conditionals, and loops become intermediate
+representation ops that are evaluated at render time.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from .rendering import arender_result, arender_string, render_result, render_str
 from .tree import _render_vars, _resolve_var
 from .types import NodeContent
 
-# -- IR types --
+# -- Intermediate representation types --
 
 
 @dataclass(slots=True)
