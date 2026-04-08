@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from html import escape as _escape
-from string.templatelib import Template
+from string.templatelib import Interpolation, Template
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
@@ -114,20 +114,95 @@ def _convert_attribute_names(name: str) -> str:
         return result
 
 
+# -- Render cache helpers --
+
+
+def _is_static_template(template: Template) -> bool:
+    return not any(callable(item.value) for item in template if isinstance(item, Interpolation))
+
+
+def _build_render_buf(node: Node, buf: list) -> None:
+    """Walk a tree and build a reusable render buffer.
+
+    Static content is pre-rendered as strings. Dynamic content (Var-bound
+    Templates, Lazy/Async nodes) is stored as refs resolved at each render.
+    """
+    if isinstance(node, Element):
+        if node.doctype:
+            buf.append(node.doctype)
+        buf.append(render_open_tag(node.tag, node._render_attrs(), void=node.void))
+        if not node.void:
+            _build_children(node.children, buf)
+            buf.append(f"</{node.tag}>")
+    elif isinstance(node, IterationNode):
+        buf.append(node)
+    elif isinstance(node, Lazy | Async | ConditionalNode):
+        buf.append(node)  # Dynamic — resolved at render time
+    elif isinstance(node, Comment):
+        buf.append(f"<!--{node._escape_content()}-->")
+    elif isinstance(node, ContentNode):
+        _build_children(node.children, buf)
+    else:
+        buf.append(node)
+
+
+def _build_children(children: list, buf: list) -> None:
+    for child in children:
+        if type(child) is str:
+            buf.append(_escape(child) if ("&" in child or "<" in child or ">" in child) else child)
+        elif isinstance(child, Node):
+            _build_render_buf(child, buf)
+        elif isinstance(child, Template):
+            if _is_static_template(child):
+                collect_string(child, buf)
+            else:
+                buf.append(child)
+
+
+def _compact_render_buf(buf: list) -> list:
+    """Merge adjacent strings in a render buffer."""
+    result: list = []
+    pending: list[str] = []
+    for item in buf:
+        if type(item) is str:
+            pending.append(item)
+        else:
+            if pending:
+                result.append("".join(pending) if len(pending) > 1 else pending[0])
+                pending.clear()
+            result.append(item)
+    if pending:
+        result.append("".join(pending) if len(pending) > 1 else pending[0])
+    return result
+
+
+def _resolve_render_buf(buf: list, out: list[str]) -> None:
+    """Resolve a render buffer into output strings."""
+    for item in buf:
+        if type(item) is str:
+            out.append(item)
+        elif isinstance(item, Template):
+            collect_string(item, out)
+        else:  # Node — has _collect
+            item._collect(out)
+
+
 # -- Fragment --
 
 
 class Fragment:
     """A document fragment — a builder wrapper around a DOM tree."""
 
-    __slots__ = ("root", "append_pointer")
+    __slots__ = ("root", "append_pointer", "_render_cache")
 
     root: Node
     append_pointer: Node
+    _render_cache: list | None
 
     def __init__(self, root: Node, append_pointer: Node, /):
         self.root = root
         self.append_pointer = append_pointer
+        self._render_cache = None
 
     def __copy__(self) -> Fragment:
         return Fragment(self.root, self.append_pointer)
@@ -152,6 +227,19 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
+        # Fast path: use reusable render buffer (no plugins, no limits)
+        resolved = plugins if plugins is not None else registered_plugins()
+        if not resolved and max_nodes is None and max_depth == 100 and isinstance(self.root, ContentNode):
+            _render_vars.set(args if args is not None else _EMPTY_ARGS)
+            render_cache = self._render_cache
+            if render_cache is None:
+                raw: list = []
+                _build_render_buf(self.root, raw)
+                render_cache = _compact_render_buf(raw)
+                self._render_cache = render_cache
+            out: list[str] = []
+            _resolve_render_buf(render_cache, out)
+            return "".join(out)
         if isinstance(self.root, ContentNode):
             return self.root.render(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
         return self.root.render(args=args)
@@ -207,12 +295,11 @@ class Fragment:
         self.root._collect(buf)
 
     def __str__(self) -> str:
-        # Fast path: bypass render() indirection for the common no-plugins case
         root = self.root
         if isinstance(root, ContentNode) and not registered_plugins():
-            buf: list[str] = []
-            root._collect(buf)
-            return "".join(buf)
+            result_buf: list[str] = []
+            root._collect(result_buf)
+            return "".join(result_buf)
         return self.render()
 
     def __iter__(self) -> Iterator[Node | str | Template]:
@@ -231,17 +318,18 @@ class Fragment:
         if other is None or other is False:
             return None
 
+        self._render_cache = None
         other_type = type(other)
 
-        if other_type is tuple:
-            _flatten_into(self.append_pointer, other)
-            return self
-
-        if other_type is str or isinstance(other, Template):
+        if other_type is str:
             self.append_pointer.children.append(other)
             return self
 
-        if other_type is list:
+        if isinstance(other, Template):
+            self.append_pointer.children.append(other)
+            return self
+
+        if other_type is tuple or other_type is list:
             _flatten_into(self.append_pointer, other)
             return self
 
@@ -259,11 +347,11 @@ class Fragment:
 
         node = _wrap_content(other)
         self.append(node)
-
         return self
 
     def append(self, node: Node | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
+        self._render_cache = None
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
             if new_pointer is None:
@@ -464,39 +552,7 @@ class ContentNode(Node):
     def __rshift__(self, other):
         if other is None or other is False:
             return None
-
-        other_type = type(other)
-
-        if other_type is tuple:
-            _flatten_into(self, other)
-            return Fragment(self, self)
-
-        if other_type is str or isinstance(other, Template):
-            self.children.append(other)
-            return Fragment(self, self)
-
-        if other_type is list:
-            _flatten_into(self, other)
-            return Fragment(self, self)
-
-        new_fragment = Fragment(self, self)
-
-        if isinstance(other, Fragment):
-            new_fragment.append(other)
-            return new_fragment
-
-        if isinstance(other, Node):
-            new_fragment.append(other)
-            return new_fragment
-
-        if isinstance(other, Iterable):
-            _flatten_into(self, other)
-            return new_fragment
-
-        node = _wrap_content(other)
-        new_fragment.append(node)
-
-        return new_fragment
+        return Fragment(self, self).__rshift__(other)
 
     @property
     def text_content(self) -> str:
