@@ -554,6 +554,7 @@ class Element(ContentNode):
     _close_tag: ClassVar[str] = ""
     _bare_open: ClassVar[str] = ""
     _tag_prefix: ClassVar[str] = ""
+    _class_prefix: ClassVar[str] = ""
     void: ClassVar[bool] = False
     doctype: ClassVar[str] = ""
     attributes: dict[str, object]
@@ -564,6 +565,7 @@ class Element(ContentNode):
             cls._close_tag = f"</{cls.tag}>"
             cls._bare_open = f"<{cls.tag}>"
             cls._tag_prefix = f"<{cls.tag} "
+            cls._class_prefix = f'<{cls.tag} class="'
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         self.parent_node = None
@@ -664,7 +666,10 @@ class Element(ContentNode):
                 if type(value) is str:
                     if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
                         value = _escape(value, quote=True)
-                    buf.append(f'{self._tag_prefix}{key}="{value}">')
+                    if key == "class":
+                        buf.append(f'{self._class_prefix}{value}">')
+                    else:
+                        buf.append(f'{self._tag_prefix}{key}="{value}">')
                 else:
                     buf.append(render_open_tag(self.tag, attrs))
             else:
