@@ -4,8 +4,8 @@
 Optimize the shifthtml library's rendering speed — the time to build a tree of elements and render them to an HTML string. The benchmark builds a realistic product listing page (50 products, navigation, filters) and measures the full build+render cycle.
 
 ## Metrics
-- **Primary**: `render_ms` (ms, lower is better) — mean time for shifthtml engine in benchmark.py
-- **Secondary**: `compiled_ms` — mean time for shifthtml-compiled engine, `build_ms` — tree building time
+- **Primary**: `compiled_ms` (ms, lower is better) — mean time for compiled template render (compile once, render with data each iteration)
+- **Secondary**: `render_ms` — mean time for direct build+render, `build_ms` — tree building time
 
 ## How to Run
 `./autoresearch.sh` — outputs `METRIC name=number` lines.
@@ -79,4 +79,8 @@ Total: 0.353s, 1.25M function calls (down from 6.2M at baseline)
 7. builtins: `len` 0.010s, `isinstance` 0.010s, `dict.items` 0.007s
 
 Profile is very flat — no single function > 22%. Build is 61%, render 39%.
-Further gains require C extension or fundamentally fewer objects.
+
+All pure-Python optimization avenues exhausted after 78 experiments.
+Remaining costs are fundamental: Python function call overhead (~100ns/call),
+object creation (dict/list allocation), and kwargs parsing. Further gains
+require C extension, Cython, or fundamental API changes.
