@@ -52,7 +52,8 @@ def collect_string(value: Template, buf: list[str], quote: bool = False) -> None
                 if isinstance(v, Renderable):
                     v._collect(buf)
                 else:
-                    v = str(v) if conversion is None and format_spec == "" else format(_convert(v, conversion), format_spec)
+                    v = _convert(v, conversion)
+                    v = format(v, format_spec)
                     buf.append(escape(v, quote=quote) if _needs_escape(v, quote) else v)
 
 

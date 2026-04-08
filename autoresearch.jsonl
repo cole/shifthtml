@@ -83,3 +83,4 @@
 {"run":3,"commit":"oxytpzt","metric":1.3111,"metrics":{"render_ms":1.2721,"build_ms":1.4347},"status":"discard","description":"Inline Loop body dispatch — no improvement over subclasshook alone","timestamp":1775615951794,"segment":0}
 {"run":4,"commit":"3317312","metric":1.3562,"metrics":{"render_ms":1.3169,"build_ms":1.4969},"status":"keep","description":"Confirmed subclasshook impact: best 1.30ms, noisy runs 1.31-1.38ms","timestamp":1775616008071,"segment":0}
 {"run":5,"commit":"oxytpzt","metric":1.4015,"metrics":{"render_ms":1.3074,"build_ms":1.4568},"status":"discard","description":"Optimize collect_string conversion — conditional expr slower","timestamp":1775616039550,"segment":0}
+{"run":6,"commit":"c81a525","metric":1.3943,"metrics":{"render_ms":1.306,"build_ms":1.5723},"status":"keep","description":"Compiled path bottleneck is Loop body (same as direct). __subclasshook__ is the main compiled-specific win.","timestamp":1775616101654,"segment":0}
