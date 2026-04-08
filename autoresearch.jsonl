@@ -75,3 +75,4 @@
 {"run":74,"commit":"xvtrttr","metric":1.2976,"metrics":{"compiled_ms":1.5104,"build_ms":1.2478},"status":"discard","description":"Inline _flatten_into in __rshift__ tuple path — larger bytecode hurts","timestamp":1775614846128,"segment":0}
 {"run":75,"commit":"xvtrttr","metric":1.2885,"metrics":{"compiled_ms":1.548,"build_ms":1.222},"status":"discard","description":"Use try/except instead of len() for single-attr check — try setup cost offsets","timestamp":1775614922069,"segment":0}
 {"run":76,"commit":"xvtrttr","metric":1.2891,"metrics":{"compiled_ms":1.5201,"build_ms":1.2328},"status":"discard","description":"Pre-compute class_prefix ClassVar — branch cost offsets f-string savings","timestamp":1775615020002,"segment":0}
+{"run":77,"commit":"b60bc08","metric":1.2676,"metrics":{"compiled_ms":1.4936,"build_ms":1.2343},"status":"keep","description":"Steady state 1.27ms. All experiments in this session below noise threshold.","timestamp":1775615035676,"segment":0}
