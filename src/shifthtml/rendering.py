@@ -298,10 +298,10 @@ def _collect_result(result: object, buf: list[str]) -> None:
     if isinstance(result, Node):
         result._collect(buf)
         return
-    if isinstance(result, str):
+    if type(result) is str:
         buf.append(escape(result) if _needs_escape(result) else result)
         return
-    if isinstance(result, tuple | list):
+    if type(result) is tuple or type(result) is list:
         for item in result:
             _collect_result(item, buf)
         return

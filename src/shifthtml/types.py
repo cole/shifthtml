@@ -27,6 +27,12 @@ class Renderable(Protocol):
     def _stream(self, ctx: RenderContext | None = None) -> Generator[str]: ...
     def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]: ...
 
+    @classmethod
+    def __subclasshook__(cls, other: type) -> bool:
+        if cls is Renderable:
+            return hasattr(other, "_collect")
+        return NotImplemented  # type: ignore[return-value]
+
 
 type NodeContent = (
     Node

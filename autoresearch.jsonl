@@ -78,3 +78,4 @@
 {"run":77,"commit":"b60bc08","metric":1.2676,"metrics":{"compiled_ms":1.4936,"build_ms":1.2343},"status":"keep","description":"Steady state 1.27ms. All experiments in this session below noise threshold.","timestamp":1775615035676,"segment":0}
 {"run":78,"commit":"2d81840","metric":1.3005,"metrics":{"compiled_ms":1.4689,"build_ms":1.2327},"status":"keep","description":"No further pure-Python optimizations found. Final: ~57% improvement.","timestamp":1775615110817,"segment":0}
 {"type":"config","name":"Optimize shifthtml compiled template render time","metricName":"compiled_ms","metricUnit":"ms","bestDirection":"lower"}
+{"run":1,"commit":"fbd0f8c","metric":1.33,"metrics":{"render_ms":1.2658,"build_ms":1.474},"status":"keep","description":"Baseline: compiled template render time","timestamp":1775615643044,"segment":0}
