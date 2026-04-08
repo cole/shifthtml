@@ -32,13 +32,21 @@ class Loop:
 
 
 @dataclass(slots=True)
+class LoopCollect:
+    """Fast-path iteration: body_fn returns objects with _collect (Node/Fragment)."""
+
+    var_name: str
+    body_fn: Callable[[Any], Any]
+
+
+@dataclass(slots=True)
 class LazySlot:
     """Opaque callable evaluated at render time (escape hatch)."""
 
     fn: Callable[..., NodeContent]
 
 
-type RenderOp = str | StdlibTemplate | Branch | Loop | LazySlot
+type RenderOp = str | StdlibTemplate | Branch | Loop | LoopCollect | LazySlot
 
 
 # -- Op execution --
@@ -50,6 +58,10 @@ def _exec_ops(ops: list[RenderOp], out: list[str]) -> None:
             out.append(op)
         elif isinstance(op, StdlibTemplate):
             collect_string(op, out)
+        elif isinstance(op, LoopCollect):
+            body_fn = op.body_fn
+            for item in _resolve_var(op.var_name):
+                body_fn(item)._collect(out)
         elif isinstance(op, Loop):
             for item in _resolve_var(op.var_name):
                 _collect_result(op.body_fn(item), out)
@@ -70,6 +82,9 @@ def _stream_ops(ops: list[RenderOp]) -> Generator[str]:
             case Branch(var_name, if_true, if_false):
                 branch = if_true if _resolve_var(var_name) else if_false
                 yield from _stream_ops(branch)
+            case LoopCollect(var_name, body_fn):
+                for item in _resolve_var(var_name):
+                    yield from body_fn(item)._stream()
             case Loop(var_name, body_fn):
                 for item in _resolve_var(var_name):
                     yield from render_result(body_fn(item), None)
@@ -89,6 +104,10 @@ async def _astream_ops(ops: list[RenderOp]) -> AsyncGenerator[str]:
                 branch = if_true if _resolve_var(var_name) else if_false
                 async for chunk in _astream_ops(branch):
                     yield chunk
+            case LoopCollect(var_name, body_fn):
+                for item in _resolve_var(var_name):
+                    async for chunk in body_fn(item)._astream():
+                        yield chunk
             case Loop(var_name, body_fn):
                 for item in _resolve_var(var_name):
                     async for chunk in arender_result(body_fn(item), None):

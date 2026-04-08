@@ -26,6 +26,7 @@ from .operations import (
     Branch,
     LazySlot,
     Loop,
+    LoopCollect,
     RenderOp,
     _astream_ops,
     _exec_ops,
@@ -104,7 +105,7 @@ def _compile_node(node: ContentNode, ops: list[RenderOp]) -> None:
     elif isinstance(node, ConditionalNode):
         _compile_conditional(node, ops)
     elif isinstance(node, IterationNode):
-        ops.append(Loop(node.var.name, node.body_fn))
+        ops.append(LoopCollect(node.var.name, node.body_fn))
     else:
         _compile_children(node.children, ops)
 
