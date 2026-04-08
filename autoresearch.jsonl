@@ -79,3 +79,5 @@
 {"run":78,"commit":"2d81840","metric":1.3005,"metrics":{"compiled_ms":1.4689,"build_ms":1.2327},"status":"keep","description":"No further pure-Python optimizations found. Final: ~57% improvement.","timestamp":1775615110817,"segment":0}
 {"type":"config","name":"Optimize shifthtml compiled template render time","metricName":"compiled_ms","metricUnit":"ms","bestDirection":"lower"}
 {"run":1,"commit":"fbd0f8c","metric":1.33,"metrics":{"render_ms":1.2658,"build_ms":1.474},"status":"keep","description":"Baseline: compiled template render time","timestamp":1775615643044,"segment":0}
+{"run":2,"commit":"97685b8","metric":1.2996,"metrics":{"render_ms":1.2772,"build_ms":1.4545},"status":"keep","description":"Add __subclasshook__ to Renderable — fast isinstance via _collect check only","timestamp":1775615864036,"segment":0}
+{"run":3,"commit":"oxytpzt","metric":1.3111,"metrics":{"render_ms":1.2721,"build_ms":1.4347},"status":"discard","description":"Inline Loop body dispatch — no improvement over subclasshook alone","timestamp":1775615951794,"segment":0}
