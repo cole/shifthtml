@@ -5,8 +5,6 @@ from collections.abc import AsyncGenerator, Generator, Iterable, Iterator
 from string.templatelib import Template
 from typing import ClassVar, Literal, NoReturn, overload
 
-import anyio
-
 from . import tree as _tree_module
 from .errors import RenderLimitExceeded
 from .lazy import Lazy
@@ -129,40 +127,24 @@ class Fragment:
     def __repr__(self):
         return f"Fragment({self.root!r}, {self.append_pointer!r})"
 
-    def render(
+    async def render(
         self,
         *,
         args: dict[str, object] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
-        return self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
+        return await self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
 
-    def stream(
+    async def stream(
         self,
         *,
         args: dict[str, object] | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> Generator[str]:
-        return self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes)
-
-    def astream(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        min_chunk_size: int | None = 4096,
-        cancel_scope: anyio.CancelScope | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
-        return self.root.astream(
-            args=args,
-            min_chunk_size=min_chunk_size,
-            cancel_scope=cancel_scope,
-            max_depth=max_depth,
-            max_nodes=max_nodes,
-        )
+        async for chunk in self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes):
+            yield chunk
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from self.root._chunks(ctx)
@@ -175,7 +157,9 @@ class Fragment:
         self.root._collect(buf)
 
     def __str__(self) -> str:
-        return self.render()
+        buf: list[str] = []
+        self.root._collect(buf)
+        return "".join(buf)
 
     def __iter__(self) -> Iterator[Node | str | Template]:
         return iter(self.root.children)

@@ -28,13 +28,12 @@ if TYPE_CHECKING:
 @dataclass(slots=True)
 class RenderContext:
     state: dict[Any, Any] = field(default_factory=dict)
-    cancel_scope: anyio.CancelScope | None = None
     max_depth: int = 100
     max_nodes: int | None = None
     _depth: int = field(default=0, repr=False)
     _node_count: int = field(default=0, repr=False)
     _deferred: list[Deferred] = field(default_factory=list, repr=False)
-    _root_node: Renderable | None = field(default=None, repr=False)
+    _root_node: object | None = field(default=None, repr=False)
 
 
 # -- Low-level string / tag helpers --
@@ -231,8 +230,6 @@ def flush_deferred(ctx: RenderContext) -> Generator[str]:
 async def aflush_deferred(ctx: RenderContext) -> AsyncGenerator[str]:
     """Async flush accumulated deferred nodes as <shift-update> elements."""
     while ctx._deferred:
-        if ctx.cancel_scope is not None and ctx.cancel_scope.cancel_called:
-            return
         node = ctx._deferred.pop(0)
         child = node.children[0]
         assert isinstance(child, Renderable)
@@ -326,3 +323,18 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
             await ready[i].wait()
             for chunk in results[i]:
                 yield chunk
+
+
+async def buffer_chunks(source: AsyncGenerator[str], min_size: int = 4096) -> AsyncGenerator[str]:
+    """Buffer an async chunk stream, flushing when accumulated size reaches min_size."""
+    buf: list[str] = []
+    buf_size = 0
+    async for chunk in source:
+        buf.append(chunk)
+        buf_size += len(chunk)
+        if buf_size >= min_size:
+            yield "".join(buf)
+            buf.clear()
+            buf_size = 0
+    if buf:
+        yield "".join(buf)

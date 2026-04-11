@@ -2,20 +2,22 @@ import pytest
 
 from shifthtml import IterationNode, args, div, li, ul
 
+pytestmark = pytest.mark.anyio
 
-def test_renders_per_item():
+
+async def test_renders_per_item():
     tree = div() >> args.items.map(lambda x: li() >> x)
-    assert tree.render(args={"items": ["a", "b", "c"]}) == "<div><li>a</li><li>b</li><li>c</li></div>"
+    assert await tree.render(args={"items": ["a", "b", "c"]}) == "<div><li>a</li><li>b</li><li>c</li></div>"
 
 
-def test_empty_iterable():
+async def test_empty_iterable():
     tree = div() >> args.items.map(lambda x: li() >> x)
-    assert tree.render(args={"items": []}) == "<div></div>"
+    assert await tree.render(args={"items": []}) == "<div></div>"
 
 
-def test_inside_element():
+async def test_inside_element():
     tree = ul() >> args.items.map(lambda x: li() >> x)
-    assert tree.render(args={"items": ["a", "b"]}) == "<ul><li>a</li><li>b</li></ul>"
+    assert await tree.render(args={"items": ["a", "b"]}) == "<ul><li>a</li><li>b</li></ul>"
 
 
 def test_rshift_raises():
@@ -45,8 +47,7 @@ def test_iteration_node_replace():
     assert clone.var.name == "items"
 
 
-@pytest.mark.anyio
-async def test_astream():
+async def test_stream():
     tree = ul() >> args.items.map(lambda x: li() >> x)
-    chunks = [chunk async for chunk in tree.astream(args={"items": ["a", "b"]}, min_chunk_size=None)]
+    chunks = [chunk async for chunk in tree.stream(args={"items": ["a", "b"]})]
     assert "".join(chunks) == "<ul><li>a</li><li>b</li></ul>"

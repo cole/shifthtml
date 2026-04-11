@@ -1,31 +1,33 @@
 import time
+from functools import partial
 
 import anyio
 import pytest
 
 from shifthtml import div, footer, h1, header, li, main, p, span, ul
 from shifthtml.deferred import Deferred, defer
+from shifthtml.rendering import buffer_chunks
 
 pytestmark = pytest.mark.anyio
 
 
-# -- defer plugin (sync) --
+# -- defer (async) --
 
 
-def test_render_deferred_paragraph():
+async def test_render_deferred_paragraph():
     tag = div() >> (
         p() >> "Paragraph 1",
         defer("para-2", p() >> "Paragraph 2", loading="Loading..."),
         p() >> "Paragraph 3",
     )
-    assert tag.render() == (
+    assert await tag.render() == (
         '<div><p>Paragraph 1</p><div id="para-2">Loading...</div><p>Paragraph 3</p>'
         '<shift-update action="replace" target="para-2">'
         "<template><p>Paragraph 2</p></template><shift-done></shift-done></shift-update></div>"
     )
 
 
-def test_render_deferred_list_and_nested_items():
+async def test_render_deferred_list_and_nested_items():
     tag = div() >> (
         header() >> h1() >> "Deferred streaming",
         main()
@@ -36,7 +38,7 @@ def test_render_deferred_list_and_nested_items():
         ),
         footer() >> "Footer content",
     )
-    assert tag.render() == (
+    assert await tag.render() == (
         "<div><header><h1>Deferred streaming</h1></header>"
         '<main><div id="list">Loading...</div></main>'
         "<footer>Footer content</footer>"
@@ -69,7 +71,7 @@ async def test_early_siblings_flush_before_slow_siblings():
 
     page = div() >> (p() >> "fast", slow)
 
-    async for chunk in page.astream(min_chunk_size=None):
+    async for chunk in page.stream():
         now = time.monotonic() - start
         if "fast" in chunk:
             flush_times.append(("fast", now))
@@ -89,7 +91,7 @@ async def test_flush_preserves_document_order():
 
     page = div() >> (p() >> "first", slow, p() >> "last")
     chunks: list[str] = []
-    async for chunk in page.astream():
+    async for chunk in buffer_chunks(page.stream()):
         chunks.append(chunk)
 
     result = "".join(chunks)
@@ -97,37 +99,32 @@ async def test_flush_preserves_document_order():
 
 
 async def test_cancel_scope_stops_deferred_rendering():
-    render_count = 0
-
-    async def track_render():
-        nonlocal render_count
-        render_count += 1
+    async def track_render(label: str):
         await anyio.sleep(0.05)
-        return span() >> f"result-{render_count}"
+        return span() >> label
 
     page = div() >> (
-        defer("a", div() >> track_render),
-        defer("b", div() >> track_render),
+        defer("a", div() >> partial(track_render, "result-1")),
+        defer("b", div() >> partial(track_render, "result-2")),
     )
 
-    scope = anyio.CancelScope()
     chunks: list[str] = []
-    async for chunk in page.astream(min_chunk_size=None, cancel_scope=scope):
-        chunks.append(chunk)
-        if "result-1" in chunk:
-            scope.cancel()
+    with anyio.CancelScope() as scope:
+        async for chunk in page.stream():
+            chunks.append(chunk)
+            if "result-1" in chunk:
+                scope.cancel()
 
     result = "".join(chunks)
     assert "result-1" in result
     assert "result-2" not in result
-    assert render_count == 1
 
 
 async def test_default_batching_coalesces_small_chunks():
     page = div() >> (p() >> "hello", p() >> "world")
 
     chunks: list[str] = []
-    async for chunk in page.astream():
+    async for chunk in buffer_chunks(page.stream()):
         chunks.append(chunk)
 
     assert len(chunks) == 1
@@ -138,7 +135,7 @@ async def test_batching_splits_at_threshold():
     page = div() >> [p() >> f"paragraph-{i}" for i in range(50)]
 
     chunks: list[str] = []
-    async for chunk in page.astream(min_chunk_size=64):
+    async for chunk in buffer_chunks(page.stream(), min_size=64):
         chunks.append(chunk)
 
     assert len(chunks) > 1
@@ -149,21 +146,21 @@ async def test_batching_splits_at_threshold():
     assert "paragraph-49" in result
 
 
-async def test_unbuffered_with_zero_min_chunk_size():
+async def test_unbuffered_stream():
     page = div() >> (p() >> "a", p() >> "b")
 
     chunks: list[str] = []
-    async for chunk in page.astream(min_chunk_size=None):
+    async for chunk in page.stream():
         chunks.append(chunk)
 
     assert len(chunks) > 2
     assert "".join(chunks) == "<div><p>a</p><p>b</p></div>"
 
 
-def test_defer_with_node_loading():
+async def test_defer_with_node_loading():
     loading = (span() >> "Loading...").root
     tag = div() >> defer("slot", p() >> "Content", loading=loading)
-    result = tag.render()
+    result = await tag.render()
     assert '<div id="slot"><span>Loading...</span></div>' in result
     assert "<p>Content</p>" in result
 
@@ -174,7 +171,7 @@ async def test_async_defer_with_node_loading():
 
     loading = (span() >> "please wait").root
     page = div() >> defer("slot", div() >> get_content, loading=loading)
-    chunks = [chunk async for chunk in page.astream(min_chunk_size=None)]
+    chunks = [chunk async for chunk in page.stream()]
     result = "".join(chunks)
     assert '<div id="slot"><span>please wait</span></div>' in result
     assert "<span>loaded</span>" in result

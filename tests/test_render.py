@@ -25,6 +25,8 @@ from shifthtml import (
 )
 from shifthtml.element import _flatten_into
 
+pytestmark = pytest.mark.anyio
+
 
 def test_render_h1_string():
     tag = h1() >> "Hello, World!"
@@ -179,7 +181,7 @@ def test_render_attribute_none_omitted():
 
 
 def test_comment_render():
-    assert Comment("hello").render() == "<!--hello-->"
+    assert str(Comment("hello")) == "<!--hello-->"
 
 
 def test_comment_in_tree():
@@ -188,11 +190,11 @@ def test_comment_in_tree():
 
 
 def test_comment_escapes_double_dash():
-    assert Comment("bad-->stuff").render() == "<!--bad- ->stuff-->"
+    assert str(Comment("bad-->stuff")) == "<!--bad- ->stuff-->"
 
 
 def test_comment_escapes_double_dash_middle():
-    assert Comment("a--b").render() == "<!--a- -b-->"
+    assert str(Comment("a--b")) == "<!--a- -b-->"
 
 
 def test_comment_clone():
@@ -254,7 +256,7 @@ def test_conditional_pattern_false():
 
 def test_false_in_lazy_return():
     tag = div() >> Lazy(lambda: False)
-    assert tag.render() == "<div></div>"
+    assert str(tag) == "<div></div>"
 
 
 def test_none_still_suppressed():
@@ -280,16 +282,16 @@ def test_fragment_repr():
     assert "Fragment(" in repr(f)
 
 
-def test_fragment_stream():
+async def test_fragment_stream():
     f = div() >> (p() >> "hello", p() >> "world")
-    chunks = list(f.stream())
+    chunks = [chunk async for chunk in f.stream()]
     assert "".join(chunks) == "<div><p>hello</p><p>world</p></div>"
 
 
-def test_fragment_stream_with_args():
+async def test_fragment_stream_with_args():
     title = Var("title")
     f = div() >> t"{title}"
-    chunks = list(f.stream(args={"title": "hi"}))
+    chunks = [chunk async for chunk in f.stream(args={"title": "hi"})]
     assert "".join(chunks) == "<div>hi</div>"
 
 

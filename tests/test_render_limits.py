@@ -3,31 +3,33 @@ import pytest
 from shifthtml import Lazy, Node, RenderLimitExceeded, div, li, p, ul
 from shifthtml.element import _flatten_into
 
+pytestmark = pytest.mark.anyio
+
 
 def _recursive_lazy(depth: int = 0):
     return Lazy(lambda d=depth: _recursive_lazy(d + 1))
 
 
-def test_max_depth_lazy_recursion():
+async def test_max_depth_lazy_recursion():
     tag = div() >> _recursive_lazy()
     with pytest.raises(RenderLimitExceeded, match="max render depth"):
-        tag.render(max_depth=5)
+        await tag.render(max_depth=5)
 
 
-def test_max_depth_default():
+async def test_max_depth_default():
     tag = div() >> (ul() >> (li() >> (p() >> "deep")))
-    assert "deep" in tag.render()
+    assert "deep" in await tag.render()
 
 
-def test_max_nodes_exceeded():
+async def test_max_nodes_exceeded():
     tag = div() >> tuple(p() >> f"item {i}" for i in range(20))
     with pytest.raises(RenderLimitExceeded, match="max node count"):
-        tag.render(max_nodes=5)
+        await tag.render(max_nodes=5)
 
 
-def test_max_nodes_unlimited():
+async def test_max_nodes_unlimited():
     tag = div() >> tuple(p() >> f"item {i}" for i in range(200))
-    result = tag.render()
+    result = await tag.render()
     assert "item 199" in result
 
 
@@ -40,7 +42,7 @@ def test_flatten_into_depth_limit():
         _flatten_into(node, (nested,))
 
 
-def test_depth_resets_after_lazy():
+async def test_depth_resets_after_lazy():
     call_count = 0
 
     def counting_fn():
@@ -49,43 +51,44 @@ def test_depth_resets_after_lazy():
         return f"call {call_count}"
 
     tag = div() >> (Lazy(counting_fn), Lazy(counting_fn), Lazy(counting_fn))
-    result = tag.render(max_depth=2)
+    result = await tag.render(max_depth=2)
     assert "call 1" in result
     assert "call 3" in result
 
 
-def test_limits_on_fast_path():
+async def test_limits_on_render_path():
     tag = div() >> _recursive_lazy()
     with pytest.raises(RenderLimitExceeded, match="max render depth"):
-        tag.render(max_depth=3)
+        await tag.render(max_depth=3)
 
 
-def test_limits_on_stream_path():
+async def test_limits_on_stream_path():
     tag = div() >> _recursive_lazy()
     with pytest.raises(RenderLimitExceeded, match="max render depth"):
-        list(tag.stream(max_depth=3))
+        async for _ in tag.stream(max_depth=3):
+            pass
 
 
-@pytest.mark.anyio
 async def test_limits_on_async_path():
     tag = div() >> _recursive_lazy()
     with pytest.raises(RenderLimitExceeded, match="max render depth"):
         chunks = []
-        async for chunk in tag.astream(max_depth=3, min_chunk_size=None):
+        async for chunk in tag.stream(max_depth=3):
             chunks.append(chunk)
 
 
-def test_normal_tree_within_limits():
+async def test_normal_tree_within_limits():
     tag = div() >> (
         ul() >> tuple(li() >> f"item {i}" for i in range(50)),
         p() >> "footer",
     )
-    result = tag.render()
+    result = await tag.render()
     assert "item 49" in result
     assert "footer" in result
 
 
-def test_max_nodes_on_stream_path():
+async def test_max_nodes_on_stream_path():
     tag = div() >> tuple(p() >> f"item {i}" for i in range(20))
     with pytest.raises(RenderLimitExceeded, match="max node count"):
-        list(tag.stream(max_nodes=5))
+        async for _ in tag.stream(max_nodes=5):
+            pass

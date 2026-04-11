@@ -2,30 +2,32 @@ import pytest
 
 from shifthtml import ConditionalNode, args, div, h1, p
 
+pytestmark = pytest.mark.anyio
 
-def test_truthy_renders_content():
+
+async def test_truthy_renders_content():
     tree = div() >> (args.show & (p() >> "yes"),)
-    assert tree.render(args={"show": True}) == "<div><p>yes</p></div>"
+    assert await tree.render(args={"show": True}) == "<div><p>yes</p></div>"
 
 
-def test_falsy_renders_nothing():
+async def test_falsy_renders_nothing():
     tree = div() >> (args.show & (p() >> "yes"),)
-    assert tree.render(args={"show": False}) == "<div></div>"
+    assert await tree.render(args={"show": False}) == "<div></div>"
 
 
-def test_with_else_truthy():
+async def test_with_else_truthy():
     cond = (args.show & (p() >> "yes")) | (p() >> "no")
     tree = div() >> (cond,)
-    assert tree.render(args={"show": True}) == "<div><p>yes</p></div>"
+    assert await tree.render(args={"show": True}) == "<div><p>yes</p></div>"
 
 
-def test_with_else_falsy():
+async def test_with_else_falsy():
     cond = (args.show & (p() >> "yes")) | (p() >> "no")
     tree = div() >> (cond,)
-    assert tree.render(args={"show": False}) == "<div><p>no</p></div>"
+    assert await tree.render(args={"show": False}) == "<div><p>no</p></div>"
 
 
-def test_callable_only_invoked_when_branch_taken():
+async def test_callable_only_invoked_when_branch_taken():
     calls: list[int] = []
 
     def make_content():
@@ -34,25 +36,25 @@ def test_callable_only_invoked_when_branch_taken():
 
     tree = div() >> (args.show & make_content,)
 
-    tree.render(args={"show": False})
+    await tree.render(args={"show": False})
     assert calls == []
 
-    tree.render(args={"show": True})
+    await tree.render(args={"show": True})
     assert calls == [1]
 
 
-def test_inside_element_with_siblings():
+async def test_inside_element_with_siblings():
     tree = div() >> (h1() >> "Title", args.show & (p() >> "visible"))
-    assert tree.render(args={"show": True}) == "<div><h1>Title</h1><p>visible</p></div>"
-    assert tree.render(args={"show": False}) == "<div><h1>Title</h1></div>"
+    assert await tree.render(args={"show": True}) == "<div><h1>Title</h1><p>visible</p></div>"
+    assert await tree.render(args={"show": False}) == "<div><h1>Title</h1></div>"
 
 
-def test_nested_conditionals():
+async def test_nested_conditionals():
     cond = args.a & (args.b & (p() >> "both"))
     tree = div() >> (cond,)
-    assert tree.render(args={"a": True, "b": True}) == "<div><p>both</p></div>"
-    assert tree.render(args={"a": True, "b": False}) == "<div></div>"
-    assert tree.render(args={"a": False, "b": True}) == "<div></div>"
+    assert await tree.render(args={"a": True, "b": True}) == "<div><p>both</p></div>"
+    assert await tree.render(args={"a": True, "b": False}) == "<div></div>"
+    assert await tree.render(args={"a": False, "b": True}) == "<div></div>"
 
 
 def test_double_else_raises():
@@ -91,15 +93,14 @@ def test_or_is_immutable():
     assert isinstance(cond_else, ConditionalNode)
 
 
-@pytest.mark.anyio
-async def test_astream():
+async def test_stream():
     cond = (args.show & (p() >> "yes")) | (p() >> "no")
     tree = div() >> (cond,)
 
-    chunks = [chunk async for chunk in tree.astream(args={"show": True}, min_chunk_size=None)]
+    chunks = [chunk async for chunk in tree.stream(args={"show": True})]
     assert "".join(chunks) == "<div><p>yes</p></div>"
 
-    chunks = [chunk async for chunk in tree.astream(args={"show": False}, min_chunk_size=None)]
+    chunks = [chunk async for chunk in tree.stream(args={"show": False})]
     assert "".join(chunks) == "<div><p>no</p></div>"
 
 
@@ -111,12 +112,11 @@ def test_conditional_node_replace():
     assert clone.var.name == "show"
 
 
-@pytest.mark.anyio
 async def test_async_callable_in_branch():
     async def fetch():
         return p() >> "fetched"
 
     tree = div() >> (args.show & fetch,)
 
-    chunks = [chunk async for chunk in tree.astream(args={"show": True}, min_chunk_size=None)]
+    chunks = [chunk async for chunk in tree.stream(args={"show": True})]
     assert "".join(chunks) == "<div><p>fetched</p></div>"

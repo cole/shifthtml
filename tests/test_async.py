@@ -10,16 +10,12 @@ from shifthtml.deferred import defer
 pytestmark = pytest.mark.anyio
 
 
-async def render_str(page) -> str:
-    return "".join([chunk async for chunk in page.astream()])
-
-
 async def test_async_callable_rendering():
     async def get_content():
         return "hello async"
 
     page = div() >> get_content
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<div>hello async</div>"
 
 
@@ -28,7 +24,7 @@ async def test_async_callable_returning_node():
         return p() >> "async paragraph"
 
     page = div() >> get_content
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<div><p>async paragraph</p></div>"
 
 
@@ -40,7 +36,7 @@ async def test_multiple_async_siblings():
         return p() >> "main"
 
     page = div() >> (sidebar, main_content)
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<div><ul><li>item 1</li><li>item 2</li></ul><p>main</p></div>"
 
 
@@ -55,7 +51,7 @@ async def test_parallel_sibling_rendering():
 
     start = time.monotonic()
     page = div() >> (slow_a, slow_b)
-    result = await render_str(page)
+    result = await page.render()
     elapsed = time.monotonic() - start
 
     assert result == "<div><span>A</span><span>B</span></div>"
@@ -67,7 +63,7 @@ async def test_async_template_interpolation():
         return "World"
 
     page = h1() >> t"Hello, {get_name}"
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<h1>Hello, World</h1>"
 
 
@@ -79,7 +75,7 @@ async def test_async_template_with_sync_and_async():
         return "sync"
 
     page = p() >> t"{get_sync} and {get_async}"
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<p>sync and async</p>"
 
 
@@ -92,7 +88,7 @@ async def test_async_with_deferred():
         defer("slot-1", div() >> get_content, loading="Loading..."),
         p() >> "after",
     )
-    result = "".join([chunk async for chunk in page.astream()])
+    result = await page.render()
     assert result == (
         "<div>"
         "<p>before</p>"
@@ -105,13 +101,13 @@ async def test_async_with_deferred():
     )
 
 
-async def test_async_node_sync_render_raises():
+def test_async_node_sync_str_raises():
     async def get_content():
         return "hello"
 
     node = Lazy(get_content)
     with pytest.raises(TypeError, match="Async Lazy nodes require async rendering"):
-        node.render()
+        str(node)
 
 
 async def test_nested_async_callables():
@@ -122,7 +118,7 @@ async def test_nested_async_callables():
         return div() >> inner
 
     page = div() >> outer
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<div><div>inner content</div></div>"
 
 
@@ -131,7 +127,7 @@ async def test_mixed_sync_and_async_children():
         return span() >> "async"
 
     page = div() >> (p() >> "sync", async_child, p() >> "also sync")
-    result = await render_str(page)
+    result = await page.render()
     assert result == "<div><p>sync</p><span>async</span><p>also sync</p></div>"
 
 
@@ -144,7 +140,7 @@ async def test_async_callable_returning_tuple():
     async def multi():
         return (p() >> "one", p() >> "two")
 
-    result = await render_str(div() >> multi)
+    result = await (div() >> multi).render()
     assert result == "<div><p>one</p><p>two</p></div>"
 
 
@@ -152,7 +148,7 @@ async def test_async_callable_returning_list():
     async def multi():
         return [span() >> "a", span() >> "b"]
 
-    result = await render_str(div() >> multi)
+    result = await (div() >> multi).render()
     assert result == "<div><span>a</span><span>b</span></div>"
 
 
@@ -160,7 +156,7 @@ async def test_async_with_partial():
     async def fetch_greeting(name):
         return p() >> f"Hello, {name}"
 
-    result = await render_str(div() >> Lazy(partial(fetch_greeting, "World")))
+    result = await (div() >> Lazy(partial(fetch_greeting, "World"))).render()
     assert result == "<div><p>Hello, World</p></div>"
 
 
@@ -168,7 +164,7 @@ async def test_async_with_keyword_partial():
     async def fetch_user(user_id=0):
         return span() >> f"user-{user_id}"
 
-    result = await render_str(div() >> Lazy(partial(fetch_user, user_id=42)))
+    result = await (div() >> Lazy(partial(fetch_user, user_id=42))).render()
     assert result == "<div><span>user-42</span></div>"
 
 
@@ -181,14 +177,14 @@ def test_async_repr():
     assert "my_fn" in repr(node)
 
 
-async def test_fragment_astream():
+async def test_fragment_stream():
     f = div() >> (p() >> "hello", p() >> "world")
-    chunks = [chunk async for chunk in f.astream(min_chunk_size=None)]
+    chunks = [chunk async for chunk in f.stream()]
     assert "".join(chunks) == "<div><p>hello</p><p>world</p></div>"
 
 
-async def test_fragment_astream_with_args():
+async def test_fragment_stream_with_args():
     title = Var("title")
     f = div() >> t"{title}"
-    chunks = [chunk async for chunk in f.astream(args={"title": "hi"}, min_chunk_size=None)]
+    chunks = [chunk async for chunk in f.stream(args={"title": "hi"})]
     assert "".join(chunks) == "<div>hi</div>"

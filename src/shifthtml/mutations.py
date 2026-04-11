@@ -12,7 +12,6 @@ from .types import NodeContent
 
 if TYPE_CHECKING:
     from .rendering import RenderContext
-    from .types import Renderable
 
 
 class ShiftUpdateElement(Element):
@@ -47,7 +46,7 @@ _MARKER = ShiftDoneElement()
 
 def _render(*content: NodeContent) -> str:
     """Render content to an HTML string."""
-    return (Node() >> content).render()
+    return str(Node() >> content)
 
 
 @dataclass(slots=True)
@@ -110,9 +109,9 @@ def remove(target: str) -> Mutation:
     return Mutation("remove", target)
 
 
-def sse(node: Renderable, *, event: str | None = None, id: str | None = None) -> str:
+def sse(node: Node | Fragment, *, event: str | None = None, id: str | None = None) -> str:
     """Format a renderable node as a Server-Sent Event string."""
-    html = node.render()
+    html = str(node)
     parts: list[str] = []
     if event is not None:
         parts.append(f"event: {event}")

@@ -176,7 +176,7 @@ class _CodeGen:
         if isinstance(node.fn, Var):
             self._emit_var_interpolation(node.fn)
         else:
-            self._add_static(node.render())
+            self._add_static(str(node))
 
     def _visit_conditional(self, node: ConditionalNode) -> None:
         self._emit(f"if _vars[{node.var.name!r}]:")

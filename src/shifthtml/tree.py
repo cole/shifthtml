@@ -10,13 +10,10 @@ from contextvars import ContextVar
 from string.templatelib import Template
 from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
-import anyio
-
 from .rendering import (
     RenderContext,
     aflush_deferred,
     astream_children,
-    flush_deferred,
     stream_children,
 )
 from .types import _MISSING
@@ -74,7 +71,7 @@ class Node:
         async for chunk in astream_children(self.children, ctx):
             yield chunk
 
-    def render(
+    async def render(
         self,
         *,
         args: dict[str, object] | None = None,
@@ -84,63 +81,23 @@ class Node:
         """Render this node to an HTML string."""
         _render_vars.set(args if args is not None else _EMPTY_ARGS)
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        parts = list(self._chunks(ctx))
-        parts.extend(flush_deferred(ctx))
+        parts: list[str] = []
+        async for chunk in self._achunks(ctx):
+            parts.append(chunk)
+        async for chunk in aflush_deferred(ctx):
+            parts.append(chunk)
         return "".join(parts)
 
-    def stream(
+    async def stream(
         self,
         *,
         args: dict[str, object] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
-    ) -> Generator[str]:
-        """Yield HTML chunks for this node."""
+    ) -> AsyncGenerator[str]:
+        """Yield HTML chunks asynchronously for this node."""
         _render_vars.set(args or {})
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        yield from self._chunks(ctx)
-        yield from flush_deferred(ctx)
-
-    async def astream(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        min_chunk_size: int | None = 4096,
-        cancel_scope: anyio.CancelScope | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> AsyncGenerator[str]:
-        """Yield HTML chunks asynchronously with optional batching."""
-        _render_vars.set(args or {})
-        if min_chunk_size is None:
-            async for chunk in self._achunks_unbuffered(
-                cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-            ):
-                yield chunk
-            return
-
-        buf: list[str] = []
-        buf_size = 0
-        async for chunk in self._achunks_unbuffered(
-            cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-        ):
-            buf.append(chunk)
-            buf_size += len(chunk)
-            if buf_size >= min_chunk_size:
-                yield "".join(buf)
-                buf.clear()
-                buf_size = 0
-        if buf:
-            yield "".join(buf)
-
-    async def _achunks_unbuffered(
-        self,
-        *,
-        cancel_scope: anyio.CancelScope | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> AsyncGenerator[str]:
-        ctx = RenderContext(cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
         async for chunk in self._achunks(ctx):
             yield chunk
         async for chunk in aflush_deferred(ctx):
@@ -174,7 +131,9 @@ class Node:
         return "".join(parts)
 
     def __str__(self) -> str:
-        return self.render()
+        buf: list[str] = []
+        self._collect(buf)
+        return "".join(buf)
 
     def __replace__(self, /, **changes):
         new_obj = type(self)()

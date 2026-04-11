@@ -42,12 +42,12 @@ def test_render_single_callable_nested_return():
 
 def test_lazy_node_renders():
     node = Lazy(lambda: p() >> "lazy content")
-    assert node.render() == "<p>lazy content</p>"
+    assert str(node) == "<p>lazy content</p>"
 
 
 def test_lazy_node_none_renders_empty():
     node = Lazy(lambda: None)
-    assert node.render() == ""
+    assert str(node) == ""
 
 
 def test_callable_returning_tuple():
@@ -125,4 +125,4 @@ def test_lazy_repr():
 
 def test_lazy_no_args_unchanged():
     node = Lazy(lambda: p() >> "text")
-    assert node.render() == "<p>text</p>"
+    assert str(node) == "<p>text</p>"

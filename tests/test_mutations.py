@@ -14,7 +14,7 @@ from shifthtml.mutations import (
 
 
 def test_replace_fragment():
-    result = replace("counter", div(id="counter") >> "42").fragment().render()
+    result = str(replace("counter", div(id="counter") >> "42").fragment())
     assert result == (
         '<shift-update action="replace" target="counter">'
         '<template><div id="counter">42</div></template>'
@@ -23,7 +23,7 @@ def test_replace_fragment():
 
 
 def test_append_fragment():
-    result = append("messages", li() >> "Hello").fragment().render()
+    result = str(append("messages", li() >> "Hello").fragment())
     assert result == (
         '<shift-update action="append" target="messages">'
         "<template><li>Hello</li></template>"
@@ -32,7 +32,7 @@ def test_append_fragment():
 
 
 def test_prepend_fragment():
-    result = prepend("list", li() >> "First").fragment().render()
+    result = str(prepend("list", li() >> "First").fragment())
     assert result == (
         '<shift-update action="prepend" target="list">'
         "<template><li>First</li></template>"
@@ -41,7 +41,7 @@ def test_prepend_fragment():
 
 
 def test_before_fragment():
-    result = before("item", span() >> "Before").fragment().render()
+    result = str(before("item", span() >> "Before").fragment())
     assert result == (
         '<shift-update action="before" target="item">'
         "<template><span>Before</span></template>"
@@ -50,7 +50,7 @@ def test_before_fragment():
 
 
 def test_after_fragment():
-    result = after("item", span() >> "After").fragment().render()
+    result = str(after("item", span() >> "After").fragment())
     assert result == (
         '<shift-update action="after" target="item">'
         "<template><span>After</span></template>"
@@ -59,12 +59,12 @@ def test_after_fragment():
 
 
 def test_remove_fragment():
-    result = remove("old-banner").fragment().render()
+    result = str(remove("old-banner").fragment())
     assert result == '<shift-update action="remove" target="old-banner"></shift-update>'
 
 
 def test_fragment_with_multiple_children():
-    result = replace("box", span() >> "a", span() >> "b").fragment().render()
+    result = str(replace("box", span() >> "a", span() >> "b").fragment())
     assert result == (
         '<shift-update action="replace" target="box">'
         "<template><span>a</span><span>b</span></template>"
@@ -73,7 +73,7 @@ def test_fragment_with_multiple_children():
 
 
 def test_fragment_with_nested_tree():
-    result = replace("nav", ul(id="nav") >> (li() >> "Home", li() >> "About")).fragment().render()
+    result = str(replace("nav", ul(id="nav") >> (li() >> "Home", li() >> "About")).fragment())
     assert result == (
         '<shift-update action="replace" target="nav">'
         '<template><ul id="nav"><li>Home</li><li>About</li></ul></template>'
@@ -82,13 +82,13 @@ def test_fragment_with_nested_tree():
 
 
 def test_fragments_compose_in_tree():
-    result = (
+    result = str(
         div()
         >> (
             replace("a", span() >> "new-a").fragment(),
             append("b", li() >> "item").fragment(),
         )
-    ).render()
+    )
     assert result == (
         "<div>"
         '<shift-update action="replace" target="a">'

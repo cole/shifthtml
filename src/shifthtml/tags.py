@@ -11,10 +11,6 @@ class HTMLRootElement(Element):
     tag: ClassVar[str] = "html"
     doctype: ClassVar[str] = "<!DOCTYPE html>"
 
-    def _collect(self, buf: list[str]) -> None:
-        buf.append(self.doctype)
-        super()._collect(buf)
-
 
 class HTMLHeadElement(Element):
     tag: ClassVar[str] = "head"

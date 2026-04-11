@@ -24,7 +24,7 @@ from shifthtml import (
 def test_compile_static_tree():
     tree = div() >> (h1() >> "Hello", p() >> "World")
     compiled = compile(tree)
-    assert compiled.render() == tree.render()
+    assert compiled.render() == str(tree)
 
 
 def test_compile_with_vars():
@@ -110,10 +110,11 @@ def test_compile_html_doctype():
     compiled = compile(tree)
     result = compiled.render()
     assert result.startswith("<!DOCTYPE html><html>")
-    assert result == tree.render()
+    assert result == str(tree)
 
 
-def test_compile_render_parity():
+@pytest.mark.anyio
+async def test_compile_render_parity():
     page = div() >> (
         h1() >> t"{args.title}",
         args.content,
@@ -121,7 +122,7 @@ def test_compile_render_parity():
     )
     test_args: dict[str, object] = {"title": "Test", "content": "hello", "idx": "1"}
 
-    assert compile(page).render(args=test_args) == page.render(args=test_args)
+    assert compile(page).render(args=test_args) == await page.render(args=test_args)
 
 
 def test_compile_var_returning_node():
@@ -206,12 +207,13 @@ def test_compile_conditional_callable_branch():
     assert calls == [1]
 
 
-def test_compile_conditional_render_parity():
+@pytest.mark.anyio
+async def test_compile_conditional_render_parity():
     page = div() >> (h1() >> "Title", args.show & (p() >> "visible"))
     compiled = compile(page)
     for show in (True, False):
         test_args: dict[str, object] = {"show": show}
-        assert compiled.render(args=test_args) == page.render(args=test_args)
+        assert compiled.render(args=test_args) == await page.render(args=test_args)
 
 
 def test_compile_iteration():
@@ -221,12 +223,13 @@ def test_compile_iteration():
     assert compiled.render(args={"items": []}) == "<ul></ul>"
 
 
-def test_compile_iteration_render_parity():
+@pytest.mark.anyio
+async def test_compile_iteration_render_parity():
     page = ul() >> args.items.map(lambda x: li() >> x)
     compiled = compile(page)
     for items in (["a", "b", "c"], [], ["x"]):
         test_args: dict[str, object] = {"items": items}
-        assert compiled.render(args=test_args) == page.render(args=test_args)
+        assert compiled.render(args=test_args) == await page.render(args=test_args)
 
 
 @pytest.mark.anyio
