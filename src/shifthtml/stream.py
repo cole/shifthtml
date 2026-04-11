@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
 from .element import Fragment, _wrap_content
-from .rendering import RenderContext, arender_string, collect_string, render_string
+from .rendering import RenderContext, arender_string, render_string
 from .tree import Node
 
 
@@ -40,12 +40,6 @@ class Deferred(Node):
         assert isinstance(child, Node)
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
-    def _collect(self, buf: list[str]) -> None:
-        buf.append(f'<div id="{self.slot_name}">')
-        if self.loading is not None:
-            _collect_loading(self.loading, buf)
-        buf.append("</div>")
-
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             ctx._deferred.append(self)
@@ -62,15 +56,6 @@ class Deferred(Node):
             async for chunk in _arender_loading(self.loading):
                 yield chunk
         yield "</div>"
-
-
-def _collect_loading(loading: str | Template | Node, buf: list[str]) -> None:
-    if isinstance(loading, Template):
-        collect_string(loading, buf)
-    elif isinstance(loading, str):
-        buf.append(loading)
-    else:
-        loading._collect(buf)
 
 
 def _render_loading(loading: str | Template | Node) -> Generator[str]:

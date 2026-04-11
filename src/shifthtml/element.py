@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
-from html import escape as _escape
 from string.templatelib import Template
 from typing import Any, ClassVar, Literal, NoReturn, overload
 
@@ -13,12 +12,9 @@ from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
     RenderContext,
-    _collect_children,
-    _collect_result,
     aflush_deferred,
     arender_result,
     astream_children,
-    collect_string,
     flush_deferred,
     render_open_tag,
     render_result,
@@ -278,9 +274,6 @@ class Comment(Node):
         content = str(self.content)
         return content.replace("--", "- -")
 
-    def _collect(self, buf: list[str]) -> None:
-        buf.append(f"<!--{self._escape_content()}-->")
-
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
 
@@ -399,43 +392,6 @@ class Element(Node):
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
 
-    def _collect(self, buf: list[str]) -> None:
-        # Inline open tag for 0-1 string attrs (99% of elements)
-        attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
-        if attrs:
-            if len(attrs) == 1:
-                (key,) = attrs
-                value = attrs[key]
-                if type(value) is str:
-                    if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
-                        value = _escape(value, quote=True)
-                    if key == "class":
-                        buf.append(f'{self._class_prefix}{value}">')
-                    else:
-                        buf.append(f'{self._tag_prefix}{key}="{value}">')
-                else:
-                    buf.append(render_open_tag(self.tag, attrs))
-            else:
-                buf.append(render_open_tag(self.tag, attrs))
-        else:
-            buf.append(self._bare_open)
-        children = self.children
-        n_children = len(children)
-        if n_children == 1:
-            first = children[0]
-            if type(first) is str:
-                if "&" in first or "<" in first or ">" in first:
-                    buf.append(_escape(first))
-                else:
-                    buf.append(first)
-            elif isinstance(first, Template):
-                collect_string(first, buf)
-            elif isinstance(first, Node):
-                first._collect(buf)
-        elif n_children > 1:
-            _collect_children(children, buf)
-        buf.append(self._close_tag)
-
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         attrs = self._render_attrs()
         if self.void:
@@ -482,23 +438,6 @@ class VoidElement(Element):
     def __rshift__(self, other: object) -> NoReturn:
         raise ValueError(f"Cannot add children to a void element ({self.tag})")
 
-    def _collect(self, buf: list[str]) -> None:
-        tag = self.tag
-        attrs = {**self.attributes, "style": self._style.css_text} if self._style else self.attributes
-        if not attrs:
-            buf.append(f"<{tag} />")
-        elif len(attrs) == 1:
-            (key,) = attrs
-            value = attrs[key]
-            if type(value) is str:
-                if "&" in value or "<" in value or ">" in value or '"' in value or "'" in value:
-                    value = _escape(value, quote=True)
-                buf.append(f'<{tag} {key}="{value}" />')
-            else:
-                buf.append(render_open_tag(tag, attrs, void=True))
-        else:
-            buf.append(render_open_tag(tag, attrs, void=True))
-
 
 class Lazy(Node):
     """Wraps a zero-arg sync callable, resolved during rendering."""
@@ -519,9 +458,6 @@ class Lazy(Node):
 
     def __replace__(self, **changes):
         return type(self)(self.fn)
-
-    def _collect(self, buf: list[str]) -> None:
-        _collect_result(self.fn(), buf)
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
@@ -562,9 +498,6 @@ class Async(Node):
 
     def __replace__(self, **changes):
         return type(self)(self.fn)
-
-    def _collect(self, buf: list[str]) -> None:
-        raise TypeError("Async nodes require async rendering")
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Async nodes require async rendering")
@@ -615,13 +548,6 @@ class ConditionalNode(Node):
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("ConditionalNode does not support children")
 
-    def _collect(self, buf: list[str]) -> None:
-        val = self.var()
-        branch = self.if_true if val else self.if_false
-        if branch is None:
-            return
-        _collect_result(branch, buf)
-
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         val = self.var()
         branch = self.if_true if val else self.if_false
@@ -663,11 +589,6 @@ class IterationNode(Node):
 
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("IterationNode does not support children")
-
-    def _collect(self, buf: list[str]) -> None:
-        items = self.var()
-        for item in items:
-            _collect_result(self.body_fn(item), buf)
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         items = self.var()

@@ -55,23 +55,6 @@ def _needs_escape(value: str, quote: bool = False) -> bool:
     return quote and ('"' in value or "'" in value)
 
 
-def collect_string(value: Template, buf: list[str], quote: bool = False) -> None:
-    """Collect rendered template string into a buffer (non-generator fast path)."""
-    for item in value:
-        match item:
-            case str() as s:
-                buf.append(s)
-            case Interpolation(v, _, conversion, format_spec):
-                if callable(v):
-                    v = v()
-                if isinstance(v, Renderable):
-                    v._collect(buf)
-                else:
-                    v = _convert(v, conversion)
-                    v = format(v, format_spec)
-                    buf.append(escape(v, quote=quote) if _needs_escape(v, quote) else v)
-
-
 def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
     if isinstance(value, Template):
         for item in value:
@@ -262,20 +245,6 @@ async def aflush_deferred(ctx: RenderContext) -> AsyncGenerator[str]:
 # -- Children helpers --
 
 
-def _collect_children(children: list, buf: list[str]) -> None:
-    """Collect rendered HTML for children into a buffer (non-generator fast path)."""
-    for child in children:
-        if type(child) is str:
-            if "&" in child or "<" in child or ">" in child:
-                buf.append(escape(child))
-            else:
-                buf.append(child)
-        elif isinstance(child, Template):
-            collect_string(child, buf)
-        else:
-            child._collect(buf)
-
-
 def _collect_result(result: object, buf: list[str]) -> None:
     """Collect the return value of a Lazy callable into a buffer."""
     if result is None or result is False:
@@ -291,7 +260,7 @@ def _collect_result(result: object, buf: list[str]) -> None:
         result._collect(buf)
         return
     if isinstance(result, Template):
-        collect_string(result, buf)
+        buf.extend(render_string(result))
         return
     if is_sync_content_fn(result):
         _collect_result(result(), buf)
