@@ -58,9 +58,6 @@ _WS_JS = (
     "return w}"
 )
 
-# Legacy alias
-_RUNTIME_JS = _APPLY_JS + _CUSTOM_ELEMENT_JS
-
 
 def runtime(
     *,
@@ -72,12 +69,12 @@ def runtime(
     Always includes the core apply() and <shift-update> custom element.
     Optionally adds SSE and/or WebSocket listeners.
     """
-    js = _APPLY_JS + _CUSTOM_ELEMENT_JS
+    body = _APPLY_JS + _CUSTOM_ELEMENT_JS
     if stream is not None:
-        js += _SSE_JS + f'connectSSE("{stream}");'
+        body += _SSE_JS + f'connectSSE("{stream}");'
     if socket is not None:
-        js += _WS_JS + f'connectWS("{socket}");'
-    return script() >> js
+        body += _WS_JS + f'connectWS("{socket}");'
+    return script() >> f"(function(){{{body}}})()"
 
 
 __all__ = ("runtime",)

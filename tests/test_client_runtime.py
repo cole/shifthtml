@@ -9,7 +9,7 @@ from shifthtml.client_runtime import (
 
 def test_runtime_renders_core_js():
     result = runtime().render()
-    assert result == f"<script>{_APPLY_JS}{_CUSTOM_ELEMENT_JS}</script>"
+    assert result == f"<script>(function(){{{_APPLY_JS}{_CUSTOM_ELEMENT_JS}}})()</script>"
 
 
 def test_runtime_with_stream_includes_sse():
