@@ -288,9 +288,7 @@ class Element(Node):
 
     tag: ClassVar[str]
     _close_tag: ClassVar[str] = ""
-    _bare_open: ClassVar[str] = ""
-    _tag_prefix: ClassVar[str] = ""
-    _class_prefix: ClassVar[str] = ""
+
     void: ClassVar[bool] = False
     doctype: ClassVar[str] = ""
     attributes: dict[str, object]
@@ -299,9 +297,6 @@ class Element(Node):
         super().__init_subclass__(**kwargs)
         if hasattr(cls, "tag"):
             cls._close_tag = f"</{cls.tag}>"
-            cls._bare_open = f"<{cls.tag}>"
-            cls._tag_prefix = f"<{cls.tag} "
-            cls._class_prefix = f'<{cls.tag} class="'
 
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         self.parent_node = None
