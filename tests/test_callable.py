@@ -1,3 +1,5 @@
+from functools import partial
+
 from shifthtml import (
     Lazy,
     div,
@@ -88,38 +90,37 @@ def test_callable_returning_empty_tuple():
     assert str(tag) == "<div></div>"
 
 
-def test_lazy_with_positional_args():
+def test_lazy_with_partial():
     def card(title, subtitle):
         return div() >> (p() >> title, p() >> subtitle)
 
-    node = div() >> Lazy(card, "Hello", "World")
+    node = div() >> Lazy(partial(card, "Hello", "World"))
     assert str(node) == "<div><div><p>Hello</p><p>World</p></div></div>"
 
 
-def test_lazy_with_keyword_args():
+def test_lazy_with_keyword_partial():
     def card(title="default"):
         return p() >> title
 
-    node = div() >> Lazy(card, title="Custom")
+    node = div() >> Lazy(partial(card, title="Custom"))
     assert str(node) == "<div><p>Custom</p></div>"
 
 
-def test_lazy_with_mixed_args():
+def test_lazy_with_mixed_partial():
     def card(title, body="default"):
         return div() >> (p() >> title, p() >> body)
 
-    node = div() >> Lazy(card, "Hello", body="World")
+    node = div() >> Lazy(partial(card, "Hello", body="World"))
     assert str(node) == "<div><div><p>Hello</p><p>World</p></div></div>"
 
 
-def test_lazy_args_repr():
+def test_lazy_repr():
     def my_fn():
         pass
 
-    node = Lazy(my_fn, "a", key="val")
+    node = Lazy(my_fn)
     assert "Lazy(" in repr(node)
-    assert "'a'" in repr(node)
-    assert "key='val'" in repr(node)
+    assert "my_fn" in repr(node)
 
 
 def test_lazy_no_args_unchanged():

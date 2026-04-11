@@ -741,41 +741,34 @@ class VoidElement(Element):
 
 
 class Lazy(ContentNode):
-    """Wraps a sync callable, resolved during rendering."""
+    """Wraps a zero-arg sync callable, resolved during rendering."""
 
-    __slots__ = ("fn", "args", "kwargs")
+    __slots__ = ("fn",)
 
     _may_block: ClassVar[bool] = True
 
-    fn: Callable[..., NodeContent]
-    args: tuple[object, ...]
-    kwargs: dict[str, object]
+    fn: Callable[[], NodeContent]
 
-    def __init__(self, fn: Callable[..., NodeContent], /, *args, **kwargs):
+    def __init__(self, fn: Callable[[], NodeContent], /):
         self.parent_node = None
         self.children = []
         self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
 
     def __repr__(self):
-        parts = [repr(self.fn)]
-        parts.extend(repr(a) for a in self.args)
-        parts.extend(f"{k}={v!r}" for k, v in self.kwargs.items())
-        return f"Lazy({', '.join(parts)})"
+        return f"Lazy({self.fn!r})"
 
     def __replace__(self, **changes):
-        return type(self)(self.fn, *self.args, **self.kwargs)
+        return type(self)(self.fn)
 
     def _collect(self, buf: list[str]) -> None:
-        _collect_result(self.fn(*self.args, **self.kwargs), buf)
+        _collect_result(self.fn(), buf)
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             if ctx._depth >= ctx.max_depth:
                 raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
             ctx._depth += 1
-        yield from render_result(self.fn(*self.args, **self.kwargs), ctx)
+        yield from render_result(self.fn(), ctx)
         if ctx is not None:
             ctx._depth -= 1
 
@@ -784,38 +777,31 @@ class Lazy(ContentNode):
             if ctx._depth >= ctx.max_depth:
                 raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
             ctx._depth += 1
-        async for chunk in arender_result(self.fn(*self.args, **self.kwargs), ctx):
+        async for chunk in arender_result(self.fn(), ctx):
             yield chunk
         if ctx is not None:
             ctx._depth -= 1
 
 
 class Async(ContentNode):
-    """Wraps an async callable, resolved during async rendering."""
+    """Wraps a zero-arg async callable, resolved during async rendering."""
 
-    __slots__ = ("fn", "args", "kwargs")
+    __slots__ = ("fn",)
 
     _may_block: ClassVar[bool] = True
 
-    fn: Callable[..., Awaitable[NodeContent]]
-    args: tuple[object, ...]
-    kwargs: dict[str, object]
+    fn: Callable[[], Awaitable[NodeContent]]
 
-    def __init__(self, fn: Callable[..., Awaitable[NodeContent]], /, *args, **kwargs):
+    def __init__(self, fn: Callable[[], Awaitable[NodeContent]], /):
         self.parent_node = None
         self.children = []
         self.fn = fn
-        self.args = args
-        self.kwargs = kwargs
 
     def __repr__(self):
-        parts = [repr(self.fn)]
-        parts.extend(repr(a) for a in self.args)
-        parts.extend(f"{k}={v!r}" for k, v in self.kwargs.items())
-        return f"Async({', '.join(parts)})"
+        return f"Async({self.fn!r})"
 
     def __replace__(self, **changes):
-        return type(self)(self.fn, *self.args, **self.kwargs)
+        return type(self)(self.fn)
 
     def _collect(self, buf: list[str]) -> None:
         raise TypeError("Async nodes require async rendering")
@@ -828,7 +814,7 @@ class Async(ContentNode):
             if ctx._depth >= ctx.max_depth:
                 raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
             ctx._depth += 1
-        async for chunk in arender_result(await self.fn(*self.args, **self.kwargs), ctx):
+        async for chunk in arender_result(await self.fn(), ctx):
             yield chunk
         if ctx is not None:
             ctx._depth -= 1

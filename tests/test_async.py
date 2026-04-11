@@ -1,4 +1,5 @@
 import time
+from functools import partial
 
 import anyio
 import pytest
@@ -155,19 +156,19 @@ async def test_async_callable_returning_list():
     assert result == "<div><span>a</span><span>b</span></div>"
 
 
-async def test_async_with_positional_args():
+async def test_async_with_partial():
     async def fetch_greeting(name):
         return p() >> f"Hello, {name}"
 
-    result = await render_str(div() >> Async(fetch_greeting, "World"))
+    result = await render_str(div() >> Async(partial(fetch_greeting, "World")))
     assert result == "<div><p>Hello, World</p></div>"
 
 
-async def test_async_with_keyword_args():
+async def test_async_with_keyword_partial():
     async def fetch_user(user_id=0):
         return span() >> f"user-{user_id}"
 
-    result = await render_str(div() >> Async(fetch_user, user_id=42))
+    result = await render_str(div() >> Async(partial(fetch_user, user_id=42)))
     assert result == "<div><span>user-42</span></div>"
 
 
@@ -175,18 +176,9 @@ def test_async_repr():
     async def my_fn():
         return "data"
 
-    node = Async(my_fn, "a", key="val")
-    assert "Async(" in repr(node)
-    assert "'a'" in repr(node)
-    assert "key='val'" in repr(node)
-
-
-def test_async_repr_no_args():
-    async def my_fn():
-        return "data"
-
     node = Async(my_fn)
     assert "Async(" in repr(node)
+    assert "my_fn" in repr(node)
 
 
 async def test_fragment_astream():
