@@ -6,6 +6,7 @@
 - On top of that, we aim for a concise but pythonic and readable DSL
 - core concern: tree builder for rendering HTML
 - loosely coupled higher layers: template compilation, low JS tooling for dynamic content
+- our main use case is getting content to the browser as soon as it's ready with no upfront delays
 
 # Guidelines
 - jj for version control

@@ -18,7 +18,6 @@ from .element import (
     Async,
     Comment,
     ConditionalNode,
-    ContentNode,
     Element,
     Fragment,
     IterationNode,
@@ -62,13 +61,10 @@ class CompiledTemplate:
         return f"CompiledTemplate(<{len(self._source)} chars source>)"
 
 
-def compile(node: ContentNode | Fragment) -> CompiledTemplate:
+def compile(node: Node | Fragment) -> CompiledTemplate:
     """Compile a node or fragment into a CompiledTemplate."""
     if isinstance(node, Fragment):
-        root = node.root
-        if not isinstance(root, ContentNode):
-            raise TypeError("Cannot compile a Fragment whose root is not a ContentNode")
-        node = root
+        node = node.root
     render_fn, source = _compile_to_function(node)
     return CompiledTemplate(render_fn, source)
 
@@ -77,7 +73,7 @@ def compile(node: ContentNode | Fragment) -> CompiledTemplate:
 
 
 def _compile_to_function(
-    node: ContentNode,
+    node: Node,
 ) -> tuple[Callable[[dict[str, object], list[str]], None], str]:
     """Walk node tree, emit Python source, exec() it. Returns (render_fn, source)."""
     gen = _CodeGen()
@@ -155,7 +151,7 @@ class _CodeGen:
 
     # -- Node visitors --
 
-    def visit_node(self, node: ContentNode) -> None:
+    def visit_node(self, node: Node) -> None:
         match node:
             case Comment():
                 self._add_static(f"<!--{node._escape_content()}-->")
@@ -221,10 +217,8 @@ for {item} in _vars[{node.var.name!r}]:
                     self._add_static(_html_escape(child) if _needs_escape(child) else child)
                 case Template():
                     self._visit_template(child)
-                case ContentNode():
-                    self.visit_node(child)
                 case Node():
-                    self._add_static("".join(child._chunks()))
+                    self.visit_node(child)
 
     def _visit_template(self, tpl: Template) -> None:
         for item in tpl:
@@ -281,14 +275,10 @@ else:
                 self._add_static(_html_escape(content) if _needs_escape(content) else content)
             case Template():
                 self._visit_template(content)
-            case Fragment(root=ContentNode() as root):
-                self.visit_node(root)
             case Fragment(root=root):
-                self._add_static("".join(root._chunks()))
-            case ContentNode():
-                self.visit_node(content)
+                self.visit_node(root)
             case Node():
-                self._add_static("".join(content._chunks()))
+                self.visit_node(content)
             case _ if is_node_list(content):
                 for item in content:
                     self._emit_content(item)

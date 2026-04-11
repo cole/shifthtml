@@ -1,5 +1,4 @@
-from shifthtml import div, li, span, ul
-from shifthtml.element import ContentNode
+from shifthtml import Node, div, li, span, ul
 from shifthtml.mutations import (
     Mutation,
     after,
@@ -198,7 +197,7 @@ def test_sse_with_mutation_fragment():
 
 
 def test_sse_with_multiple_mutation_fragments():
-    wrapper = ContentNode()
+    wrapper = Node()
     wrapper.append_child(replace("a", span() >> "1").fragment().root)
     wrapper.append_child(replace("b", li() >> "2").fragment().root)
     result = sse(wrapper)

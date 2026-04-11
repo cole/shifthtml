@@ -3,11 +3,12 @@ from __future__ import annotations
 import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from html import escape as _escape
-from string.templatelib import Interpolation, Template
+from string.templatelib import Template
 from typing import Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
 
+from . import tree as _tree_module
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
@@ -27,7 +28,6 @@ from .tree import Node, _render_vars
 from .types import _MISSING, NodeContent, is_async_content_fn, is_sync_content_fn
 
 _FLATTEN_MAX_DEPTH = 100
-_EMPTY_ARGS: dict[str, object] = {}
 
 
 def _wrap_content(contents: NodeContent) -> Node:
@@ -109,107 +109,20 @@ def _convert_attribute_names(name: str) -> str:
         return result
 
 
-# -- Render cache helpers --
-
-
-def _is_static_template(template: Template) -> bool:
-    return not any(callable(item.value) for item in template if isinstance(item, Interpolation))
-
-
-_UNCACHEABLE: list = []
-
-
-def _build_render_buf(node: Node, buf: list) -> bool:
-    """Walk a tree and build a reusable render buffer.
-
-    Static content is pre-rendered as strings. Dynamic content (Var-bound
-    Templates, Lazy/Async nodes) is stored as refs resolved at each render.
-
-    Returns False if the tree contains Deferred nodes (render cache unusable).
-    """
-    if isinstance(node, Element):
-        if node.doctype:
-            buf.append(node.doctype)
-        buf.append(render_open_tag(node.tag, node._render_attrs(), void=node.void))
-        if not node.void:
-            if not _build_children(node.children, buf):
-                return False
-            buf.append(f"</{node.tag}>")
-    elif getattr(node, "_deferred_node", False):
-        return False
-    elif isinstance(node, IterationNode):
-        buf.append(node)
-    elif isinstance(node, Lazy | Async | ConditionalNode):
-        buf.append(node)  # Dynamic — resolved at render time
-    elif isinstance(node, Comment):
-        buf.append(f"<!--{node._escape_content()}-->")
-    elif isinstance(node, ContentNode):
-        if not _build_children(node.children, buf):
-            return False
-    else:
-        buf.append(node)
-    return True
-
-
-def _build_children(children: list, buf: list) -> bool:
-    for child in children:
-        if type(child) is str:
-            buf.append(_escape(child) if ("&" in child or "<" in child or ">" in child) else child)
-        elif isinstance(child, Node):
-            if not _build_render_buf(child, buf):
-                return False
-        elif isinstance(child, Template):
-            if _is_static_template(child):
-                collect_string(child, buf)
-            else:
-                buf.append(child)
-    return True
-
-
-def _compact_render_buf(buf: list) -> list:
-    """Merge adjacent strings in a render buffer."""
-    result: list = []
-    pending: list[str] = []
-    for item in buf:
-        if type(item) is str:
-            pending.append(item)
-        else:
-            if pending:
-                result.append("".join(pending) if len(pending) > 1 else pending[0])
-                pending.clear()
-            result.append(item)
-    if pending:
-        result.append("".join(pending) if len(pending) > 1 else pending[0])
-    return result
-
-
-def _resolve_render_buf(buf: list, out: list[str]) -> None:
-    """Resolve a render buffer into output strings."""
-    for item in buf:
-        if type(item) is str:
-            out.append(item)
-        elif isinstance(item, Template):
-            collect_string(item, out)
-        else:  # Node — has _collect
-            item._collect(out)
-
-
 # -- Fragment --
 
 
 class Fragment:
     """A document fragment — a builder wrapper around a DOM tree."""
 
-    __slots__ = ("root", "append_pointer", "_render_cache")
+    __slots__ = ("root", "append_pointer")
 
     root: Node
     append_pointer: Node
-    _render_cache: list | None
 
     def __init__(self, root: Node, append_pointer: Node, /):
         self.root = root
         self.append_pointer = append_pointer
-        self._render_cache = None
 
     def __copy__(self) -> Fragment:
         return Fragment(self.root, self.append_pointer)
@@ -233,25 +146,7 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
-        # Fast path: use reusable render buffer (no limits, no deferred nodes)
-        if max_nodes is None and max_depth == 100 and isinstance(self.root, ContentNode):
-            _render_vars.set(args if args is not None else _EMPTY_ARGS)
-            render_cache = self._render_cache
-            if render_cache is None:
-                raw: list = []
-                cacheable = _build_render_buf(self.root, raw)
-                if cacheable:
-                    render_cache = _compact_render_buf(raw)
-                    self._render_cache = render_cache
-                else:
-                    self._render_cache = _UNCACHEABLE
-            if render_cache is not None and render_cache is not _UNCACHEABLE:
-                out: list[str] = []
-                _resolve_render_buf(render_cache, out)
-                return "".join(out)
-        if isinstance(self.root, ContentNode):
-            return self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
-        return self.root.render(args=args)
+        return self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
 
     def stream(
         self,
@@ -260,9 +155,7 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> Generator[str]:
-        if isinstance(self.root, ContentNode):
-            return self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes)
-        return self.root.stream(args=args)
+        return self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes)
 
     def astream(
         self,
@@ -273,15 +166,13 @@ class Fragment:
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
-        if isinstance(self.root, ContentNode):
-            return self.root.astream(
-                args=args,
-                min_chunk_size=min_chunk_size,
-                cancel_scope=cancel_scope,
-                max_depth=max_depth,
-                max_nodes=max_nodes,
-            )
-        return self.root.astream(args=args)
+        return self.root.astream(
+            args=args,
+            min_chunk_size=min_chunk_size,
+            cancel_scope=cancel_scope,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+        )
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from self.root._chunks(ctx)
@@ -294,11 +185,6 @@ class Fragment:
         self.root._collect(buf)
 
     def __str__(self) -> str:
-        root = self.root
-        if isinstance(root, ContentNode):
-            result_buf: list[str] = []
-            root._collect(result_buf)
-            return "".join(result_buf)
         return self.render()
 
     def __iter__(self) -> Iterator[Node | str | Template]:
@@ -317,7 +203,6 @@ class Fragment:
         if other is None or other is False:
             return None
 
-        self._render_cache = None
         other_type = type(other)
 
         if other_type is str:
@@ -350,7 +235,6 @@ class Fragment:
 
     def append(self, node: Node | Fragment) -> None:
         """Modify the tree by appending a node to the end."""
-        self._render_cache = None
         if isinstance(node, Fragment):
             new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
             if new_pointer is None:
@@ -365,127 +249,12 @@ class Fragment:
         self.append_pointer = node
 
 
-# -- ContentNode types --
+# Register Fragment so tree.Node.__rshift__ can create instances without circular imports.
+_tree_module._Fragment = Fragment
 
 
-class ContentNode(Node):
-    """
-    A node in the document tree with builder support.
-
-    Extends Node with the >> operator for building HTML trees,
-    and a factory method for creating nodes from various content types.
-    """
-
-    __slots__ = ()
-
-    def _collect(self, buf: list[str]) -> None:
-        """Collect rendered HTML into a buffer (non-generator fast path)."""
-        _collect_children(self.children, buf)
-
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        yield from stream_children(self.children, ctx)
-
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in astream_children(self.children, ctx):
-            yield chunk
-
-    def render(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> str:
-        _render_vars.set(args if args is not None else _EMPTY_ARGS)
-        ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        parts = list(self._chunks(ctx))
-        parts.extend(flush_deferred(ctx))
-        return "".join(parts)
-
-    def stream(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> Generator[str]:
-        _render_vars.set(args or {})
-        ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        yield from self._chunks(ctx)
-        yield from flush_deferred(ctx)
-
-    async def astream(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        min_chunk_size: int | None = 4096,
-        cancel_scope: anyio.CancelScope | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> AsyncGenerator[str]:
-        _render_vars.set(args or {})
-        if min_chunk_size is None:
-            async for chunk in self._achunks_unbuffered(
-                cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-            ):
-                yield chunk
-            return
-
-        buf: list[str] = []
-        buf_size = 0
-        async for chunk in self._achunks_unbuffered(
-            cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
-        ):
-            buf.append(chunk)
-            buf_size += len(chunk)
-            if buf_size >= min_chunk_size:
-                yield "".join(buf)
-                buf.clear()
-                buf_size = 0
-        if buf:
-            yield "".join(buf)
-
-    async def _achunks_unbuffered(
-        self,
-        *,
-        cancel_scope: anyio.CancelScope | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> AsyncGenerator[str]:
-        ctx = RenderContext(cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        async for chunk in self._achunks(ctx):
-            yield chunk
-        async for chunk in aflush_deferred(ctx):
-            yield chunk
-
-    @overload
-    def __rshift__(self, other: NodeContent) -> Fragment: ...
-
-    @overload
-    def __rshift__(self, other: None) -> None: ...
-
-    @overload
-    def __rshift__(self, other: Literal[False]) -> None: ...
-
-    def __rshift__(self, other):
-        if other is None or other is False:
-            return None
-        return Fragment(self, self).__rshift__(other)
-
-    @property
-    def text_content(self) -> str:
-        """Get the text content of this node and all descendants."""
-        parts: list[str] = []
-        for item in self.walk():
-            if isinstance(item, str):
-                parts.append(item)
-            elif isinstance(item, Template):
-                parts.append(str(item))
-        return "".join(parts)
-
-
-class Comment(ContentNode):
-    """An HTML Comment ContentNode."""
+class Comment(Node):
+    """An HTML comment node."""
 
     __slots__ = ("content",)
 
@@ -519,7 +288,7 @@ class Comment(ContentNode):
         yield f"<!--{self._escape_content()}-->"
 
 
-class Element(ContentNode):
+class Element(Node):
     """An HTML Element with tag, attributes, and builder support."""
 
     __slots__ = ("attributes", "_style", "_class_list", "_dataset")
@@ -731,7 +500,7 @@ class VoidElement(Element):
             buf.append(render_open_tag(tag, attrs, void=True))
 
 
-class Lazy(ContentNode):
+class Lazy(Node):
     """Wraps a zero-arg sync callable, resolved during rendering."""
 
     __slots__ = ("fn",)
@@ -774,7 +543,7 @@ class Lazy(ContentNode):
             ctx._depth -= 1
 
 
-class Async(ContentNode):
+class Async(Node):
     """Wraps a zero-arg async callable, resolved during async rendering."""
 
     __slots__ = ("fn",)
@@ -811,7 +580,7 @@ class Async(ContentNode):
             ctx._depth -= 1
 
 
-class ConditionalNode(ContentNode):
+class ConditionalNode(Node):
     """Renders content conditionally based on a Var's truthiness."""
 
     __slots__ = ("var", "if_true", "if_false")
@@ -869,7 +638,7 @@ class ConditionalNode(ContentNode):
             yield chunk
 
 
-class IterationNode(ContentNode):
+class IterationNode(Node):
     """Renders content for each item in a Var's iterable value."""
 
     __slots__ = ("var", "body_fn")

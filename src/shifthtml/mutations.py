@@ -5,7 +5,7 @@ from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-from .element import ContentNode, Element, Fragment
+from .element import Element, Fragment
 from .tags import template
 from .tree import Node
 from .types import NodeContent
@@ -47,7 +47,7 @@ _MARKER = ShiftDoneElement()
 
 def _render(*content: NodeContent) -> str:
     """Render content to an HTML string."""
-    return (ContentNode() >> content).render()
+    return (Node() >> content).render()
 
 
 @dataclass(slots=True)

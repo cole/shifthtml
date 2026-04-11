@@ -4,12 +4,12 @@ import copy
 from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
-from .element import ContentNode, Fragment, _wrap_content
+from .element import Fragment, _wrap_content
 from .rendering import RenderContext, arender_string, collect_string, render_string
 from .tree import Node
 
 
-class Deferred(ContentNode):
+class Deferred(Node):
     __slots__ = ("loading", "slot_name")
 
     _deferred_node = True

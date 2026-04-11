@@ -8,16 +8,28 @@ import copy
 from collections.abc import AsyncGenerator, Generator, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, overload
 
+import anyio
+
+from .rendering import (
+    RenderContext,
+    aflush_deferred,
+    astream_children,
+    flush_deferred,
+    stream_children,
+)
 from .types import _MISSING
 
 if TYPE_CHECKING:
-    from .rendering import RenderContext
+    from .element import Fragment
+    from .types import NodeContent
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
 type ChildNode = Node | str | Template
+
+_EMPTY_ARGS: dict[str, object] = {}
 
 
 def _resolve_var(name: str, default: object = _MISSING) -> Any:
@@ -32,17 +44,12 @@ def _resolve_var(name: str, default: object = _MISSING) -> Any:
 
 class Node:
     """
-    Abstract base class for nodes in a tree structure.
+    Abstract base class for all nodes in the document tree.
 
-    Different types of nodes are supported, analogous to Document Object Model (DOM)
-    nodes, such as document, element, text, comment nodes, etc.
+    Analogous to the DOM Node interface. Manages parent/child relationships,
+    provides tree traversal, and supports rendering to HTML via _chunks()/_achunks().
 
-    Nodes are initially "floating" without parent or children.
-    They are added to a tree via `append_child`, which sets up parent/child
-    relationships. Adding an existing node elsewhere will raise an error.
-
-    Children can be Node instances, plain strings, or Template objects.
-    Strings and Templates are terminal — immutable, no parent tracking.
+    The >> operator creates a Fragment for building HTML trees.
     """
 
     __slots__ = ("parent_node", "children")
@@ -57,33 +64,116 @@ class Node:
         self.children = []
 
     def _collect(self, buf: list[str]) -> None:
-        """Collect HTML chunks into a buffer. Overridden by subclasses."""
-        buf.extend(self._chunks())  # pragma: no cover
+        """Collect HTML chunks into a buffer. Default delegates to _chunks()."""
+        buf.extend(self._chunks())
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        """Yield HTML chunks for this node. Overridden by subclasses."""
-        raise NotImplementedError  # pragma: no cover
+        """Yield HTML chunks for this node. Default renders children."""
+        yield from stream_children(self.children, ctx)
 
     async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        """Yield HTML chunks asynchronously. Overridden by subclasses."""
-        raise NotImplementedError  # pragma: no cover
-        yield  # pragma: no cover  # noqa: RET503
+        """Yield HTML chunks asynchronously. Default renders children."""
+        async for chunk in astream_children(self.children, ctx):
+            yield chunk
 
-    def render(self, *, args: dict[str, object] | None = None) -> str:
+    def render(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> str:
         """Render this node to an HTML string."""
-        _render_vars.set(args or {})
-        return "".join(self._chunks())
+        _render_vars.set(args if args is not None else _EMPTY_ARGS)
+        ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
+        parts = list(self._chunks(ctx))
+        parts.extend(flush_deferred(ctx))
+        return "".join(parts)
 
-    def stream(self, *, args: dict[str, object] | None = None) -> Generator[str]:
+    def stream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> Generator[str]:
         """Yield HTML chunks for this node."""
         _render_vars.set(args or {})
-        return self._chunks()
+        ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
+        yield from self._chunks(ctx)
+        yield from flush_deferred(ctx)
 
-    async def astream(self, *, args: dict[str, object] | None = None) -> AsyncGenerator[str]:
-        """Yield HTML chunks asynchronously."""
+    async def astream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        min_chunk_size: int | None = 4096,
+        cancel_scope: anyio.CancelScope | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> AsyncGenerator[str]:
+        """Yield HTML chunks asynchronously with optional batching."""
         _render_vars.set(args or {})
-        async for chunk in self._achunks():
+        if min_chunk_size is None:
+            async for chunk in self._achunks_unbuffered(
+                cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+            ):
+                yield chunk
+            return
+
+        buf: list[str] = []
+        buf_size = 0
+        async for chunk in self._achunks_unbuffered(
+            cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+        ):
+            buf.append(chunk)
+            buf_size += len(chunk)
+            if buf_size >= min_chunk_size:
+                yield "".join(buf)
+                buf.clear()
+                buf_size = 0
+        if buf:
+            yield "".join(buf)
+
+    async def _achunks_unbuffered(
+        self,
+        *,
+        cancel_scope: anyio.CancelScope | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> AsyncGenerator[str]:
+        ctx = RenderContext(cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
+        async for chunk in self._achunks(ctx):
             yield chunk
+        async for chunk in aflush_deferred(ctx):
+            yield chunk
+
+    @overload
+    def __rshift__(self, other: NodeContent) -> Fragment: ...  # noqa: F821
+
+    @overload
+    def __rshift__(self, other: None) -> None: ...
+
+    @overload
+    def __rshift__(self, other: Literal[False]) -> None: ...
+
+    def __rshift__(self, other):
+        if other is None or other is False:
+            return None
+        # _Fragment is set by element.py at import time to avoid circular imports.
+        assert _Fragment is not None
+        return _Fragment(self, self).__rshift__(other)
+
+    @property
+    def text_content(self) -> str:
+        """Get the text content of this node and all descendants."""
+        parts: list[str] = []
+        for item in self.walk():
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, Template):
+                parts.append(str(item))
+        return "".join(parts)
 
     def __str__(self) -> str:
         return self.render()
@@ -261,3 +351,7 @@ class Node:
         if deep:
             return copy.replace(self)
         return copy.replace(self, children=[])
+
+
+# Filled in by element.py at import time to avoid circular imports.
+_Fragment: type[Fragment] | None = None

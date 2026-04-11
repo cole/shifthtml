@@ -4,6 +4,7 @@ from shifthtml import (
     Comment,
     Fragment,
     Lazy,
+    Node,
     Var,
     aside,
     body,
@@ -22,7 +23,7 @@ from shifthtml import (
     title,
     ul,
 )
-from shifthtml.element import ContentNode, _flatten_into
+from shifthtml.element import _flatten_into
 
 
 def test_render_h1_string():
@@ -263,7 +264,7 @@ def test_none_still_suppressed():
 
 
 def test_zero_not_suppressed():
-    node = ContentNode()
+    node = Node()
     with pytest.raises(ValueError, match="Unsupported type"):
         _flatten_into(node, (0,))
 
