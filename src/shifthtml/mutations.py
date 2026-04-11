@@ -35,10 +35,10 @@ class _RawText(Node):
     def __replace__(self, /, **changes):
         return _RawText(self._html)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield self._html
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         yield self._html
 
 

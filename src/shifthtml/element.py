@@ -285,18 +285,18 @@ class Fragment:
             )
         return self.root.astream(args=args)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             yield from _render_node(self.root, ctx)
         else:
-            yield from self.root._stream()
+            yield from self.root._chunks()
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         if ctx is not None:
             async for chunk in _arender_node(self.root, ctx):
                 yield chunk
         else:
-            async for chunk in self.root._astream():
+            async for chunk in self.root._achunks():
                 yield chunk
 
     def _collect(self, buf: list[str]) -> None:
@@ -391,10 +391,10 @@ class ContentNode(Node):
         """Collect rendered HTML into a buffer (non-generator fast path)."""
         _collect_children(self.children, buf)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield from stream_children(self.children, ctx)
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         async for chunk in astream_children(self.children, ctx):
             yield chunk
 
@@ -407,7 +407,7 @@ class ContentNode(Node):
     ) -> str:
         _render_vars.set(args if args is not None else _EMPTY_ARGS)
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        parts = list(self._stream(ctx))
+        parts = list(self._chunks(ctx))
         parts.extend(flush_deferred(ctx))
         return "".join(parts)
 
@@ -420,7 +420,7 @@ class ContentNode(Node):
     ) -> Generator[str]:
         _render_vars.set(args or {})
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        yield from self._stream(ctx)
+        yield from self._chunks(ctx)
         yield from flush_deferred(ctx)
 
     async def astream(
@@ -434,7 +434,7 @@ class ContentNode(Node):
     ) -> AsyncGenerator[str]:
         _render_vars.set(args or {})
         if min_chunk_size is None:
-            async for chunk in self._astream_unbuffered(
+            async for chunk in self._achunks_unbuffered(
                 cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
             ):
                 yield chunk
@@ -442,7 +442,7 @@ class ContentNode(Node):
 
         buf: list[str] = []
         buf_size = 0
-        async for chunk in self._astream_unbuffered(
+        async for chunk in self._achunks_unbuffered(
             cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
         ):
             buf.append(chunk)
@@ -454,7 +454,7 @@ class ContentNode(Node):
         if buf:
             yield "".join(buf)
 
-    async def _astream_unbuffered(
+    async def _achunks_unbuffered(
         self,
         *,
         cancel_scope: anyio.CancelScope | None = None,
@@ -462,7 +462,7 @@ class ContentNode(Node):
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
         ctx = RenderContext(cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        async for chunk in self._astream(ctx):
+        async for chunk in self._achunks(ctx):
             yield chunk
         async for chunk in aflush_deferred(ctx):
             yield chunk
@@ -521,10 +521,10 @@ class Comment(ContentNode):
     def _collect(self, buf: list[str]) -> None:
         buf.append(f"<!--{self._escape_content()}-->")
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         yield f"<!--{self._escape_content()}-->"
 
 
@@ -676,7 +676,7 @@ class Element(ContentNode):
             _collect_children(children, buf)
         buf.append(self._close_tag)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         attrs = self._render_attrs()
         if self.void:
             yield render_open_tag(self.tag, attrs, void=True)
@@ -689,7 +689,7 @@ class Element(ContentNode):
                 yield from flush_deferred(ctx)
             yield self._close_tag
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         attrs = self._render_attrs()
         if self.void:
             yield render_open_tag(self.tag, attrs, void=True)
@@ -770,7 +770,7 @@ class Lazy(ContentNode):
     def _collect(self, buf: list[str]) -> None:
         _collect_result(self.fn(*self.args, **self.kwargs), buf)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             if ctx._depth >= ctx.max_depth:
                 raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
@@ -779,7 +779,7 @@ class Lazy(ContentNode):
         if ctx is not None:
             ctx._depth -= 1
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         if ctx is not None:
             if ctx._depth >= ctx.max_depth:
                 raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
@@ -820,10 +820,10 @@ class Async(ContentNode):
     def _collect(self, buf: list[str]) -> None:
         raise TypeError("Async nodes require async rendering")
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         raise TypeError("Async nodes require async rendering")
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         if ctx is not None:
             if ctx._depth >= ctx.max_depth:
                 raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
@@ -876,14 +876,14 @@ class ConditionalNode(ContentNode):
             return
         _collect_result(branch, buf)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         val = self.var()
         branch = self.if_true if val else self.if_false
         if branch is None:
             return
         yield from render_result(branch, ctx)
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         val = self.var()
         branch = self.if_true if val else self.if_false
         if branch is None:
@@ -923,12 +923,12 @@ class IterationNode(ContentNode):
         for item in items:
             _collect_result(self.body_fn(item), buf)
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         items = self.var()
         for item in items:
             yield from render_result(self.body_fn(item), ctx)
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         items = self.var()
         for item in items:
             async for chunk in arender_result(self.body_fn(item), ctx):

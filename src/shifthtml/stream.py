@@ -46,7 +46,7 @@ class Deferred(ContentNode):
             _collect_loading(self.loading, buf)
         buf.append("</div>")
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         if ctx is not None:
             ctx._deferred.append(self)
         yield f'<div id="{self.slot_name}">'
@@ -54,7 +54,7 @@ class Deferred(ContentNode):
             yield from _render_loading(self.loading)
         yield "</div>"
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         if ctx is not None:
             ctx._deferred.append(self)
         yield f'<div id="{self.slot_name}">'
@@ -77,7 +77,7 @@ def _render_loading(loading: str | Template | Node) -> Generator[str]:
     if isinstance(loading, str | Template):
         yield from render_string(loading)
     else:
-        yield from loading._stream()
+        yield from loading._chunks()
 
 
 async def _arender_loading(loading: str | Template | Node) -> AsyncGenerator[str]:
@@ -85,7 +85,7 @@ async def _arender_loading(loading: str | Template | Node) -> AsyncGenerator[str
         async for chunk in arender_string(loading):
             yield chunk
     else:
-        async for chunk in loading._astream():
+        async for chunk in loading._achunks():
             yield chunk
 
 

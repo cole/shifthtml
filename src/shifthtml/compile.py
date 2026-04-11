@@ -224,7 +224,7 @@ for {item} in _vars[{node.var.name!r}]:
                 case ContentNode():
                     self.visit_node(child)
                 case Node():
-                    self._add_static("".join(child._stream()))
+                    self._add_static("".join(child._chunks()))
 
     def _visit_template(self, tpl: Template) -> None:
         for item in tpl:
@@ -284,11 +284,11 @@ else:
             case Fragment(root=ContentNode() as root):
                 self.visit_node(root)
             case Fragment(root=root):
-                self._add_static("".join(root._stream()))
+                self._add_static("".join(root._chunks()))
             case ContentNode():
                 self.visit_node(content)
             case Node():
-                self._add_static("".join(content._stream()))
+                self._add_static("".join(content._chunks()))
             case _ if is_node_list(content):
                 for item in content:
                     self._emit_content(item)

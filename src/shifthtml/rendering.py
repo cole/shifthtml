@@ -3,7 +3,7 @@
 This module owns all output concerns: context management, streaming,
 and buffering. Tree types stay focused on structure.
 
-Node dispatch is polymorphic: each node type implements _stream()/_astream()
+Node dispatch is polymorphic: each node type implements _chunks()/_achunks()
 methods. This module never imports element types directly.
 """
 
@@ -83,7 +83,7 @@ def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
                     if callable(v):
                         v = v()
                     if isinstance(v, Renderable):
-                        yield "".join(v._stream())
+                        yield "".join(v._chunks())
                     else:
                         v = _convert(v, conversion)
                         v = format(v, format_spec)
@@ -106,7 +106,7 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
                         else:
                             v = result
                     if isinstance(v, Renderable):
-                        yield "".join(v._stream())
+                        yield "".join(v._chunks())
                     else:
                         v = _convert(v, conversion)
                         v = format(v, format_spec)
@@ -168,10 +168,10 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
         if ctx is not None:
             yield from _render_node(result, ctx)
         else:
-            yield from result._stream()
+            yield from result._chunks()
         return
     if isinstance(result, Renderable):
-        yield from result._stream(ctx)
+        yield from result._chunks(ctx)
         return
     if isinstance(result, tuple | list):
         for item in result:
@@ -196,11 +196,11 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
             async for chunk in _arender_node(result, ctx):
                 yield chunk
         else:
-            async for chunk in result._astream():
+            async for chunk in result._achunks():
                 yield chunk
         return
     if isinstance(result, Renderable):
-        async for chunk in result._astream(ctx):
+        async for chunk in result._achunks(ctx):
             yield chunk
         return
     if isinstance(result, tuple | list):
@@ -227,7 +227,7 @@ def _render_node(node: Node, ctx: RenderContext) -> Generator[str]:
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
         raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
-    yield from node._stream(ctx)
+    yield from node._chunks(ctx)
 
 
 async def _arender_node(node: Node, ctx: RenderContext) -> AsyncGenerator[str]:
@@ -235,7 +235,7 @@ async def _arender_node(node: Node, ctx: RenderContext) -> AsyncGenerator[str]:
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
         raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
-    async for chunk in node._astream(ctx):
+    async for chunk in node._achunks(ctx):
         yield chunk
 
 
@@ -323,7 +323,7 @@ def stream_children(children: list, ctx: RenderContext | None = None) -> Generat
         elif ctx is not None:
             yield from _render_node(child, ctx)
         else:
-            yield from child._stream()
+            yield from child._chunks()
 
 
 async def astream_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
@@ -341,7 +341,7 @@ async def astream_children(children: list, ctx: RenderContext | None = None) -> 
             async for chunk in _arender_node(child, ctx):
                 yield chunk
         else:
-            async for chunk in child._astream():
+            async for chunk in child._achunks():
                 yield chunk
 
 
@@ -357,7 +357,7 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
             if ctx is not None:
                 results[i] = [chunk async for chunk in _arender_node(child, ctx)]
             else:
-                results[i] = [chunk async for chunk in child._astream()]
+                results[i] = [chunk async for chunk in child._achunks()]
         ready[i].set()
 
     async with anyio.create_task_group() as tg:

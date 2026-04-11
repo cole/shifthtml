@@ -58,13 +58,13 @@ class Node:
 
     def _collect(self, buf: list[str]) -> None:
         """Collect HTML chunks into a buffer. Overridden by subclasses."""
-        buf.extend(self._stream())  # pragma: no cover
+        buf.extend(self._chunks())  # pragma: no cover
 
-    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         """Yield HTML chunks for this node. Overridden by subclasses."""
         raise NotImplementedError  # pragma: no cover
 
-    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         """Yield HTML chunks asynchronously. Overridden by subclasses."""
         raise NotImplementedError  # pragma: no cover
         yield  # pragma: no cover  # noqa: RET503
@@ -72,17 +72,17 @@ class Node:
     def render(self, *, args: dict[str, object] | None = None) -> str:
         """Render this node to an HTML string."""
         _render_vars.set(args or {})
-        return "".join(self._stream())
+        return "".join(self._chunks())
 
     def stream(self, *, args: dict[str, object] | None = None) -> Generator[str]:
         """Yield HTML chunks for this node."""
         _render_vars.set(args or {})
-        return self._stream()
+        return self._chunks()
 
     async def astream(self, *, args: dict[str, object] | None = None) -> AsyncGenerator[str]:
         """Yield HTML chunks asynchronously."""
         _render_vars.set(args or {})
-        async for chunk in self._astream():
+        async for chunk in self._achunks():
             yield chunk
 
     def __str__(self) -> str:
