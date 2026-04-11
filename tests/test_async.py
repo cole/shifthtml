@@ -5,7 +5,7 @@ import anyio
 import pytest
 
 from shifthtml import Lazy, Var, div, h1, li, p, span, ul
-from shifthtml.stream import defer
+from shifthtml.deferred import defer
 
 pytestmark = pytest.mark.anyio
 

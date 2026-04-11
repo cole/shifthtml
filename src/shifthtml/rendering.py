@@ -22,7 +22,7 @@ from .errors import RenderLimitExceeded
 from .types import Renderable, is_async_content_fn, is_sync_content_fn
 
 if TYPE_CHECKING:
-    from .stream import Deferred
+    from .deferred import Deferred
 
 
 @dataclass(slots=True)

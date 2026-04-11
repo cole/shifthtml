@@ -4,7 +4,7 @@ import anyio
 import pytest
 
 from shifthtml import div, footer, h1, header, li, main, p, span, ul
-from shifthtml.stream import Deferred, defer
+from shifthtml.deferred import Deferred, defer
 
 pytestmark = pytest.mark.anyio
 
