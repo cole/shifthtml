@@ -8,7 +8,7 @@ import copy
 from collections.abc import AsyncGenerator, Generator, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, Self, overload
+from typing import TYPE_CHECKING, Any, Literal, Self, overload
 
 import anyio
 
@@ -53,8 +53,6 @@ class Node:
     """
 
     __slots__ = ("parent_node", "children")
-
-    _may_block: ClassVar[bool] = False
 
     parent_node: None | Node
     children: list[ChildNode]

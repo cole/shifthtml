@@ -15,15 +15,14 @@ from string.templatelib import Interpolation, Template
 from typing import Any
 
 from .element import (
-    Async,
     Comment,
     ConditionalNode,
     Element,
     Fragment,
     IterationNode,
-    Lazy,
     Var,
 )
+from .lazy import Lazy
 from .rendering import _collect_result, _convert, _needs_escape, render_open_tag
 from .tree import Node, _render_vars
 from .types import NodeContent, Renderable, is_node_list, is_sync_content_fn
@@ -157,12 +156,13 @@ class _CodeGen:
                 self._add_static(f"<!--{node._escape_content()}-->")
             case Element():
                 self._visit_element(node)
+            case Lazy() if node._is_async:
+                raise TypeError(
+                    "compile() cannot eagerly resolve async Lazy nodes. "
+                    "Only Var slots remain dynamic in compiled templates."
+                )
             case Lazy():
                 self._visit_lazy(node)
-            case Async():
-                raise TypeError(
-                    "compile() cannot eagerly resolve Async nodes. Only Var slots remain dynamic in compiled templates."
-                )
             case ConditionalNode():
                 self._visit_conditional(node)
             case IterationNode():

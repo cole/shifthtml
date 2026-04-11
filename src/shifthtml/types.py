@@ -50,6 +50,10 @@ def is_node_list(obj: object) -> TypeGuard[Iterable[NodeContent]]:
     return isinstance(obj, tuple | list)
 
 
+def is_content_fn(obj: object) -> TypeGuard[Callable[..., object]]:
+    return callable(obj)
+
+
 def is_sync_content_fn(obj: object) -> TypeGuard[Callable[..., NodeContent]]:
     return callable(obj) and not inspect.iscoroutinefunction(obj)
 

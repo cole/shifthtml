@@ -1,18 +1,17 @@
 from . import tags
 from .compile import CompiledTemplate, compile
 from .element import (
-    Async,
     Comment,
     ConditionalNode,
     Element,
     Fragment,
     IterationNode,
-    Lazy,
     Var,
     VoidElement,
     args,
 )
 from .errors import RenderLimitExceeded
+from .lazy import Lazy
 from .rendering import RenderContext
 from .tags import (
     a,
@@ -135,7 +134,6 @@ __all__ = (
     "tags",
     "compile",
     "CompiledTemplate",
-    "Async",
     "Comment",
     "ConditionalNode",
     "IterationNode",

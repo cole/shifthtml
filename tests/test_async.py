@@ -4,7 +4,7 @@ from functools import partial
 import anyio
 import pytest
 
-from shifthtml import Async, Var, div, h1, li, p, span, ul
+from shifthtml import Lazy, Var, div, h1, li, p, span, ul
 from shifthtml.stream import defer
 
 pytestmark = pytest.mark.anyio
@@ -109,8 +109,8 @@ async def test_async_node_sync_render_raises():
     async def get_content():
         return "hello"
 
-    node = Async(get_content)
-    with pytest.raises(TypeError, match="Async nodes require async rendering"):
+    node = Lazy(get_content)
+    with pytest.raises(TypeError, match="Async Lazy nodes require async rendering"):
         node.render()
 
 
@@ -160,7 +160,7 @@ async def test_async_with_partial():
     async def fetch_greeting(name):
         return p() >> f"Hello, {name}"
 
-    result = await render_str(div() >> Async(partial(fetch_greeting, "World")))
+    result = await render_str(div() >> Lazy(partial(fetch_greeting, "World")))
     assert result == "<div><p>Hello, World</p></div>"
 
 
@@ -168,7 +168,7 @@ async def test_async_with_keyword_partial():
     async def fetch_user(user_id=0):
         return span() >> f"user-{user_id}"
 
-    result = await render_str(div() >> Async(partial(fetch_user, user_id=42)))
+    result = await render_str(div() >> Lazy(partial(fetch_user, user_id=42)))
     assert result == "<div><span>user-42</span></div>"
 
 
@@ -176,8 +176,8 @@ def test_async_repr():
     async def my_fn():
         return "data"
 
-    node = Async(my_fn)
-    assert "Async(" in repr(node)
+    node = Lazy(my_fn)
+    assert "Lazy(" in repr(node)
     assert "my_fn" in repr(node)
 
 

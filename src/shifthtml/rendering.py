@@ -286,7 +286,7 @@ def stream_children(children: list, ctx: RenderContext | None = None) -> Generat
 
 async def astream_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
     """Render a list of children to async HTML chunks."""
-    if len(children) > 1 and any(getattr(child, "_may_block", False) for child in children):
+    if len(children) > 1 and any(getattr(child, "_is_async", False) for child in children):
         async for chunk in _astream_children_parallel(children, ctx):
             yield chunk
         return

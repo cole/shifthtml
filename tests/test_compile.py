@@ -1,7 +1,6 @@
 import pytest
 
 from shifthtml import (
-    Async,
     Comment,
     Lazy,
     Var,
@@ -80,8 +79,8 @@ def test_compile_async_raises():
     async def fetch():
         return "data"
 
-    tree = div() >> Async(fetch)
-    with pytest.raises(TypeError, match="compile\\(\\) cannot eagerly resolve Async nodes"):
+    tree = div() >> Lazy(fetch)
+    with pytest.raises(TypeError, match="compile\\(\\) cannot eagerly resolve async Lazy nodes"):
         compile(tree)
 
 

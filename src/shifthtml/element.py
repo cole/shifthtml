@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
+from collections.abc import AsyncGenerator, Callable, Generator, Iterable, Iterator
 from string.templatelib import Template
 from typing import Any, ClassVar, Literal, NoReturn, overload
 
@@ -9,6 +9,7 @@ import anyio
 
 from . import tree as _tree_module
 from .errors import RenderLimitExceeded
+from .lazy import Lazy
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
     RenderContext,
@@ -21,7 +22,7 @@ from .rendering import (
     stream_children,
 )
 from .tree import Node, _render_vars
-from .types import _MISSING, NodeContent, is_async_content_fn, is_sync_content_fn
+from .types import _MISSING, NodeContent, is_content_fn
 
 _FLATTEN_MAX_DEPTH = 100
 
@@ -32,7 +33,7 @@ def normalize(content: NodeContent) -> Node | str | Template | None:
     Returns None for suppressed values (None, False).
     Strings and Templates pass through unchanged.
     Fragments are unwrapped to their root (cloned if already parented).
-    Callables are wrapped as Lazy or Async nodes.
+    Callables are wrapped as Lazy nodes.
     """
     if content is None or content is False:
         return None
@@ -43,9 +44,7 @@ def normalize(content: NodeContent) -> Node | str | Template | None:
         if root.parent_node is not None:
             return root.clone_node(deep=True)
         return root
-    if is_async_content_fn(content):
-        return Async(content)
-    if is_sync_content_fn(content):
+    if is_content_fn(content):
         return Lazy(content)
     raise ValueError(f"Unsupported type: {type(content)}")
 
@@ -412,80 +411,6 @@ class VoidElement(Element):
 
     def __rshift__(self, other: object) -> NoReturn:
         raise ValueError(f"Cannot add children to a void element ({self.tag})")
-
-
-class Lazy(Node):
-    """Wraps a zero-arg sync callable, resolved during rendering."""
-
-    __slots__ = ("fn",)
-
-    _may_block: ClassVar[bool] = True
-
-    fn: Callable[[], NodeContent]
-
-    def __init__(self, fn: Callable[[], NodeContent], /):
-        self.parent_node = None
-        self.children = []
-        self.fn = fn
-
-    def __repr__(self):
-        return f"Lazy({self.fn!r})"
-
-    def __replace__(self, **changes):
-        return type(self)(self.fn)
-
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        if ctx is not None:
-            if ctx._depth >= ctx.max_depth:
-                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
-            ctx._depth += 1
-        yield from render_result(self.fn(), ctx)
-        if ctx is not None:
-            ctx._depth -= 1
-
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        if ctx is not None:
-            if ctx._depth >= ctx.max_depth:
-                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
-            ctx._depth += 1
-        async for chunk in arender_result(self.fn(), ctx):
-            yield chunk
-        if ctx is not None:
-            ctx._depth -= 1
-
-
-class Async(Node):
-    """Wraps a zero-arg async callable, resolved during async rendering."""
-
-    __slots__ = ("fn",)
-
-    _may_block: ClassVar[bool] = True
-
-    fn: Callable[[], Awaitable[NodeContent]]
-
-    def __init__(self, fn: Callable[[], Awaitable[NodeContent]], /):
-        self.parent_node = None
-        self.children = []
-        self.fn = fn
-
-    def __repr__(self):
-        return f"Async({self.fn!r})"
-
-    def __replace__(self, **changes):
-        return type(self)(self.fn)
-
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        raise TypeError("Async nodes require async rendering")
-
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        if ctx is not None:
-            if ctx._depth >= ctx.max_depth:
-                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
-            ctx._depth += 1
-        async for chunk in arender_result(await self.fn(), ctx):
-            yield chunk
-        if ctx is not None:
-            ctx._depth -= 1
 
 
 class ConditionalNode(Node):
