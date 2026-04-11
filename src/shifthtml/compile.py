@@ -16,14 +16,43 @@ from typing import Any
 
 from .element import Comment, Element, Fragment
 from .lazy import Lazy
-from .rendering import _collect_result, _convert, _needs_escape, render_open_tag
+from .rendering import RenderContext, _collect_result, _convert, _needs_escape, render_open_tag
 from .tree import Node, _render_vars
 from .types import NodeContent, Renderable, is_node_list, is_sync_content_fn
 from .var import ConditionalNode, IterationNode, Var
 
 
+class _CompiledNode(Node):
+    """Node wrapper around a compiled render function for tree embedding."""
+
+    __slots__ = ("_render_fn",)
+
+    _render_fn: Callable[[dict[str, object], list[str]], None]
+
+    def __init__(self, render_fn: Callable[[dict[str, object], list[str]], None], /):
+        super().__init__()
+        self._render_fn = render_fn
+
+    def _collect(self, buf: list[str]) -> None:
+        self._render_fn(_render_vars.get() or {}, buf)
+
+    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        buf: list[str] = []
+        self._render_fn(_render_vars.get() or {}, buf)
+        yield "".join(buf)
+
+    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        buf: list[str] = []
+        self._render_fn(_render_vars.get() or {}, buf)
+        yield "".join(buf)
+
+
 class CompiledTemplate:
-    """A compiled HTML template backed by a generated Python function."""
+    """A compiled HTML template backed by a generated Python function.
+
+    render() is sync — that is the purpose of compile(). Use as_node() to embed
+    in a tree via >>.
+    """
 
     __slots__ = ("_render_fn", "_source")
 
@@ -33,6 +62,10 @@ class CompiledTemplate:
     def __init__(self, render_fn: Callable[[dict[str, object], list[str]], None], source: str, /):
         self._render_fn = render_fn
         self._source = source
+
+    def as_node(self) -> Node:
+        """Return a Node that can be embedded in any tree via >>."""
+        return _CompiledNode(self._render_fn)
 
     def render(self, *, args: dict[str, object] | None = None) -> str:
         resolved = args or {}

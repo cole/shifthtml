@@ -303,3 +303,25 @@ def test_compile_conditional_with_list_content():
     page = div() >> (args.show & (p() >> "a", p() >> "b"),)
     compiled = compile(page)
     assert compiled.render(args={"show": True}) == "<div><p>a</p><p>b</p></div>"
+
+
+def test_compiled_embeddable_in_tree():
+    header_tpl = compile(h1() >> "Title")
+    page = div() >> (header_tpl.as_node(), p() >> "body")
+    assert str(page) == "<div><h1>Title</h1><p>body</p></div>"
+
+
+@pytest.mark.anyio
+async def test_compiled_embeddable_with_args():
+    header_tpl = compile(h1() >> t"{args.title}")
+    page = div() >> (header_tpl.as_node(), p() >> "body")
+    result = await page.render(args={"title": "Hello"})
+    assert result == "<div><h1>Hello</h1><p>body</p></div>"
+
+
+@pytest.mark.anyio
+async def test_compiled_embeddable_stream():
+    header_tpl = compile(h1() >> t"{args.title}")
+    page = div() >> (header_tpl.as_node(), p() >> "body")
+    chunks = [chunk async for chunk in page.stream(args={"title": "Hi"})]
+    assert "".join(chunks) == "<div><h1>Hi</h1><p>body</p></div>"
