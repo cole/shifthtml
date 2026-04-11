@@ -26,20 +26,28 @@ from .types import _MISSING, NodeContent, is_async_content_fn, is_sync_content_f
 _FLATTEN_MAX_DEPTH = 100
 
 
-def _wrap_content(contents: NodeContent) -> Node:
-    """Wrap remaining NodeContent types (Node, Fragment, callables) into a tree node."""
-    if isinstance(contents, Node):
-        return contents
-    if isinstance(contents, Fragment):
-        root = contents.root
+def normalize(content: NodeContent) -> Node | str | Template | None:
+    """Normalize any NodeContent value into a leaf type for tree insertion.
+
+    Returns None for suppressed values (None, False).
+    Strings and Templates pass through unchanged.
+    Fragments are unwrapped to their root (cloned if already parented).
+    Callables are wrapped as Lazy or Async nodes.
+    """
+    if content is None or content is False:
+        return None
+    if isinstance(content, str | Template | Node):
+        return content
+    if isinstance(content, Fragment):
+        root = content.root
         if root.parent_node is not None:
             return root.clone_node(deep=True)
         return root
-    if is_async_content_fn(contents):
-        return Async(contents)
-    if is_sync_content_fn(contents):
-        return Lazy(contents)
-    raise ValueError(f"Unsupported type: {type(contents)}")
+    if is_async_content_fn(content):
+        return Async(content)
+    if is_sync_content_fn(content):
+        return Lazy(content)
+    raise ValueError(f"Unsupported type: {type(content)}")
 
 
 def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
@@ -69,28 +77,17 @@ def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
         raise RenderLimitExceeded("Exceeded max nesting depth in children")
     children = parent.children
     for item in items:
-        if item is None or item is False:
-            continue
-        item_type = type(item)
-        if item_type is Fragment:
-            item = item.root
-            if item.parent_node is not None:
-                item = item.clone_node(deep=True)
-            item.parent_node = parent
-            children.append(item)
-        elif item_type is str or isinstance(item, Template):
-            children.append(item)
-        elif isinstance(item, Node):
-            if item.parent_node is not None:
-                item = item.clone_node(deep=True)
-            item.parent_node = parent
-            children.append(item)
-        elif isinstance(item, Iterable):
+        if isinstance(item, Iterable) and not isinstance(item, str | Template | Node | Fragment):
             _flatten_into(parent, item, _depth=_depth + 1)
-        else:
-            node = _wrap_content(item)
-            node.parent_node = parent
-            children.append(node)
+            continue
+        child = normalize(item)
+        if child is None:
+            continue
+        if isinstance(child, Node):
+            if child.parent_node is not None:
+                child = child.clone_node(deep=True)
+            child.parent_node = parent
+        children.append(child)
 
 
 _attr_name_cache: dict[str, str] = {}
@@ -199,34 +196,17 @@ class Fragment:
         if other is None or other is False:
             return None
 
-        other_type = type(other)
-
-        if other_type is str:
-            self.append_pointer.children.append(other)
-            return self
-
-        if isinstance(other, Template):
-            self.append_pointer.children.append(other)
-            return self
-
-        if other_type is tuple or other_type is list:
+        if isinstance(other, Iterable) and not isinstance(other, str | Template | Node | Fragment):
             _flatten_into(self.append_pointer, other)
             return self
 
-        if other_type is Fragment:
-            self.append(other)
+        child = normalize(other)
+        if child is None:
             return self
-
-        if isinstance(other, Node):
-            self.append(other)
-            return self
-
-        if isinstance(other, Iterable):
-            _flatten_into(self.append_pointer, other)
-            return self
-
-        node = _wrap_content(other)
-        self.append(node)
+        if isinstance(child, str | Template):
+            self.append_pointer.children.append(child)
+        else:
+            self.append(child)
         return self
 
     def append(self, node: Node | Fragment) -> None:
