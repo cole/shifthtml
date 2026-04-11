@@ -146,11 +146,11 @@ class Fragment:
         async for chunk in self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes):
             yield chunk
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        yield from self.root._chunks(ctx)
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield from self.root.chunks(ctx)
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in self.root._achunks(ctx):
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        async for chunk in self.root.achunks(ctx):
             yield chunk
 
     def _collect(self, buf: list[str]) -> None:
@@ -235,10 +235,10 @@ class Comment(Node):
         content = str(self.content)
         return content.replace("--", "- -")
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield f"<!--{self._escape_content()}-->"
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         yield f"<!--{self._escape_content()}-->"
 
 
@@ -348,7 +348,7 @@ class Element(Node):
             return {**self.attributes, "style": self._style.css_text}
         return self.attributes
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         attrs = self._render_attrs()
         if self.void:
             yield render_open_tag(self.tag, attrs, void=True)
@@ -361,7 +361,7 @@ class Element(Node):
                 yield from flush_deferred(ctx)
             yield self._close_tag
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         attrs = self._render_attrs()
         if self.void:
             yield render_open_tag(self.tag, attrs, void=True)

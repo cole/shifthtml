@@ -18,7 +18,7 @@ from .element import Comment, Element, Fragment
 from .lazy import Lazy
 from .rendering import RenderContext, _collect_result, _convert, _needs_escape, render_open_tag
 from .tree import Node, _render_vars
-from .types import NodeContent, Renderable, is_node_list, is_sync_content_fn
+from .types import NodeContent, Renderable, is_node_list
 from .var import ConditionalNode, IterationNode, Var
 
 
@@ -36,12 +36,12 @@ class _CompiledNode(Node):
     def _collect(self, buf: list[str]) -> None:
         self._render_fn(_render_vars.get() or {}, buf)
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         buf: list[str] = []
         self._render_fn(_render_vars.get() or {}, buf)
         yield "".join(buf)
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         buf: list[str] = []
         self._render_fn(_render_vars.get() or {}, buf)
         yield "".join(buf)
@@ -183,13 +183,12 @@ class _CodeGen:
                 self._add_static(f"<!--{node._escape_content()}-->")
             case Element():
                 self._visit_element(node)
-            case Lazy() if node._is_async:
-                raise TypeError(
-                    "compile() cannot eagerly resolve async Lazy nodes. "
-                    "Only Var slots remain dynamic in compiled templates."
-                )
+            case Lazy() if isinstance(node.fn, Var):
+                self._emit_var_interpolation(node.fn)
             case Lazy():
-                self._visit_lazy(node)
+                raise TypeError(
+                    "compile() cannot compile Lazy nodes. Only Var slots remain dynamic in compiled templates."
+                )
             case ConditionalNode():
                 self._visit_conditional(node)
             case IterationNode():
@@ -204,12 +203,6 @@ class _CodeGen:
         if not el.void:
             self._visit_children(el.children)
             self._add_static(f"</{el.tag}>")
-
-    def _visit_lazy(self, node: Lazy) -> None:
-        if isinstance(node.fn, Var):
-            self._emit_var_interpolation(node.fn)
-        else:
-            self._add_static(str(node))
 
     def _visit_conditional(self, node: ConditionalNode) -> None:
         self._emit(f"if _vars[{node.var.name!r}]:")
@@ -309,6 +302,8 @@ else:
             case _ if is_node_list(content):
                 for item in content:
                     self._emit_content(item)
-            case _ if is_sync_content_fn(content):
+            case _ if isinstance(content, Var):
+                self._emit_var_interpolation(content)
+            case _ if callable(content):
                 fn_name = self._capture("_lazy", content)
                 self._emit(f"_collect_result({fn_name}(), _buf)")

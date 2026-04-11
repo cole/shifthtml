@@ -3,7 +3,7 @@
 This module owns all output concerns: context management, streaming,
 and buffering. Tree types stay focused on structure.
 
-Node dispatch is polymorphic: each node type implements _chunks()/_achunks()
+Node dispatch is polymorphic: each node type implements chunks()/achunks()
 methods. This module never imports element types directly.
 """
 
@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Literal
 import anyio
 
 from .errors import RenderLimitExceeded
-from .types import Renderable, is_async_content_fn, is_sync_content_fn
+from .types import Renderable, is_content_fn
 
 if TYPE_CHECKING:
     from .deferred import Deferred
@@ -64,7 +64,7 @@ def render_string(value: str | Template, quote: bool = False) -> Generator[str]:
                     if callable(v):
                         v = v()
                     if isinstance(v, Renderable):
-                        yield "".join(v._chunks())
+                        yield "".join(v.chunks())
                     else:
                         v = _convert(v, conversion)
                         v = format(v, format_spec)
@@ -87,7 +87,7 @@ async def arender_string(value: str | Template, quote: bool = False) -> AsyncGen
                         else:
                             v = result
                     if isinstance(v, Renderable):
-                        yield "".join(v._chunks())
+                        yield "".join(v.chunks())
                     else:
                         v = _convert(v, conversion)
                         v = format(v, format_spec)
@@ -138,31 +138,8 @@ def render_open_tag(tag: str, attributes: Mapping[str, object], void: bool = Fal
 # -- Callable result helpers --
 
 
-def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
-    """Render the return value of a Lazy/Async callable."""
-    if result is None or result is False:
-        return
-    if isinstance(result, str | Template):
-        yield from render_string(result)
-        return
-    if isinstance(result, Renderable):
-        if ctx is not None:
-            yield from _render_node(result, ctx)
-        else:
-            yield from result._chunks()
-        return
-    if isinstance(result, tuple | list):
-        for item in result:
-            yield from render_result(item, ctx)
-        return
-    if is_sync_content_fn(result):
-        yield from render_result(result(), ctx)
-        return
-    raise ValueError(f"Unsupported content type: {type(result)}")
-
-
 async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGenerator[str]:
-    """Async render the return value of a Lazy/Async callable."""
+    """Async render the return value of a Lazy callable."""
     if result is None or result is False:
         return
     if isinstance(result, str | Template):
@@ -174,7 +151,7 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
             async for chunk in _arender_node(result, ctx):
                 yield chunk
         else:
-            async for chunk in result._achunks():
+            async for chunk in result.achunks():
                 yield chunk
         return
     if isinstance(result, tuple | list):
@@ -182,12 +159,11 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
             async for chunk in arender_result(item, ctx):
                 yield chunk
         return
-    if is_async_content_fn(result):
-        async for chunk in arender_result(await result(), ctx):
-            yield chunk
-        return
-    if is_sync_content_fn(result):
-        async for chunk in arender_result(result(), ctx):
+    if is_content_fn(result):
+        res = result()
+        if inspect.isawaitable(res):
+            res = await res
+        async for chunk in arender_result(res, ctx):
             yield chunk
         return
     raise ValueError(f"Unsupported content type: {type(result)}")
@@ -201,7 +177,7 @@ def _render_node(node: Renderable, ctx: RenderContext) -> Generator[str]:
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
         raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
-    yield from node._chunks(ctx)
+    yield from node.chunks(ctx)
 
 
 async def _arender_node(node: Renderable, ctx: RenderContext) -> AsyncGenerator[str]:
@@ -209,7 +185,7 @@ async def _arender_node(node: Renderable, ctx: RenderContext) -> AsyncGenerator[
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
         raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
-    async for chunk in node._achunks(ctx):
+    async for chunk in node.achunks(ctx):
         yield chunk
 
 
@@ -254,12 +230,12 @@ def _collect_result(result: object, buf: list[str]) -> None:
             _collect_result(item, buf)
         return
     if isinstance(result, Renderable):
-        result._collect(buf)
+        buf.extend(result.chunks())
         return
     if isinstance(result, Template):
         buf.extend(render_string(result))
         return
-    if is_sync_content_fn(result):
+    if is_content_fn(result):
         _collect_result(result(), buf)
         return
     raise ValueError(f"Unsupported content type: {type(result)}")
@@ -278,7 +254,7 @@ def stream_children(children: list, ctx: RenderContext | None = None) -> Generat
         elif ctx is not None:
             yield from _render_node(child, ctx)
         else:
-            yield from child._chunks()
+            yield from child.chunks()
 
 
 async def astream_children(children: list, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
@@ -296,7 +272,7 @@ async def astream_children(children: list, ctx: RenderContext | None = None) -> 
             async for chunk in _arender_node(child, ctx):
                 yield chunk
         else:
-            async for chunk in child._achunks():
+            async for chunk in child.achunks():
                 yield chunk
 
 
@@ -312,7 +288,7 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
             if ctx is not None:
                 results[i] = [chunk async for chunk in _arender_node(child, ctx)]
             else:
-                results[i] = [chunk async for chunk in child._achunks()]
+                results[i] = [chunk async for chunk in child.achunks()]
         ready[i].set()
 
     async with anyio.create_task_group() as tg:

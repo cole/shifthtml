@@ -1,9 +1,11 @@
 import copy
+from collections.abc import AsyncGenerator, Generator
 
 import pytest
 
 from shifthtml import div, h1, li, p, span, ul
 from shifthtml.element import Fragment
+from shifthtml.rendering import RenderContext
 from shifthtml.tree import Node
 
 
@@ -14,6 +16,12 @@ class SimpleNode(Node):
 
     def __replace__(self, /, **changes):
         return SimpleNode(self.value)
+
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield self.value
+
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        yield self.value
 
 
 def test_node_depth():

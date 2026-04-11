@@ -4,7 +4,6 @@ from shifthtml import (
     Comment,
     Fragment,
     Lazy,
-    Node,
     Var,
     aside,
     body,
@@ -24,6 +23,7 @@ from shifthtml import (
     ul,
 )
 from shifthtml.element import _flatten_into
+from shifthtml.tree import ContainerNode
 
 pytestmark = pytest.mark.anyio
 
@@ -254,9 +254,9 @@ def test_conditional_pattern_false():
     assert str(tag) == "<div>always</div>"
 
 
-def test_false_in_lazy_return():
+async def test_false_in_lazy_return():
     tag = div() >> Lazy(lambda: False)
-    assert str(tag) == "<div></div>"
+    assert await tag.render() == "<div></div>"
 
 
 def test_none_still_suppressed():
@@ -266,7 +266,7 @@ def test_none_still_suppressed():
 
 
 def test_zero_not_suppressed():
-    node = Node()
+    node = ContainerNode()
     with pytest.raises(ValueError, match="Unsupported type"):
         _flatten_into(node, (0,))
 

@@ -106,7 +106,7 @@ def test_async_node_sync_str_raises():
         return "hello"
 
     node = Lazy(get_content)
-    with pytest.raises(TypeError, match="Async Lazy nodes require async rendering"):
+    with pytest.raises(TypeError, match="Lazy nodes require async rendering"):
         str(node)
 
 

@@ -1,7 +1,8 @@
 import pytest
 
-from shifthtml import Lazy, Node, RenderLimitExceeded, div, li, p, ul
+from shifthtml import Lazy, RenderLimitExceeded, div, li, p, ul
 from shifthtml.element import _flatten_into
+from shifthtml.tree import ContainerNode
 
 pytestmark = pytest.mark.anyio
 
@@ -37,7 +38,7 @@ def test_flatten_into_depth_limit():
     nested: object = ("leaf",)
     for _ in range(150):
         nested = (nested,)
-    node = Node()
+    node = ContainerNode()
     with pytest.raises(RenderLimitExceeded, match="max nesting depth"):
         _flatten_into(node, (nested,))
 

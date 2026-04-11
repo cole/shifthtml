@@ -1,4 +1,6 @@
-from shifthtml import Node, div, li, span, ul
+import pytest
+
+from shifthtml import div, li, span, ul
 from shifthtml.mutations import (
     Mutation,
     after,
@@ -9,12 +11,15 @@ from shifthtml.mutations import (
     replace,
     sse,
 )
+from shifthtml.tree import ContainerNode
+
+pytestmark = pytest.mark.anyio
 
 # -- fragment output (page streaming) --
 
 
-def test_replace_fragment():
-    result = str(replace("counter", div(id="counter") >> "42").fragment())
+async def test_replace_fragment():
+    result = str((await replace("counter", div(id="counter") >> "42")).fragment())
     assert result == (
         '<shift-update action="replace" target="counter">'
         '<template><div id="counter">42</div></template>'
@@ -22,8 +27,8 @@ def test_replace_fragment():
     )
 
 
-def test_append_fragment():
-    result = str(append("messages", li() >> "Hello").fragment())
+async def test_append_fragment():
+    result = str((await append("messages", li() >> "Hello")).fragment())
     assert result == (
         '<shift-update action="append" target="messages">'
         "<template><li>Hello</li></template>"
@@ -31,8 +36,8 @@ def test_append_fragment():
     )
 
 
-def test_prepend_fragment():
-    result = str(prepend("list", li() >> "First").fragment())
+async def test_prepend_fragment():
+    result = str((await prepend("list", li() >> "First")).fragment())
     assert result == (
         '<shift-update action="prepend" target="list">'
         "<template><li>First</li></template>"
@@ -40,8 +45,8 @@ def test_prepend_fragment():
     )
 
 
-def test_before_fragment():
-    result = str(before("item", span() >> "Before").fragment())
+async def test_before_fragment():
+    result = str((await before("item", span() >> "Before")).fragment())
     assert result == (
         '<shift-update action="before" target="item">'
         "<template><span>Before</span></template>"
@@ -49,8 +54,8 @@ def test_before_fragment():
     )
 
 
-def test_after_fragment():
-    result = str(after("item", span() >> "After").fragment())
+async def test_after_fragment():
+    result = str((await after("item", span() >> "After")).fragment())
     assert result == (
         '<shift-update action="after" target="item">'
         "<template><span>After</span></template>"
@@ -63,8 +68,8 @@ def test_remove_fragment():
     assert result == '<shift-update action="remove" target="old-banner"></shift-update>'
 
 
-def test_fragment_with_multiple_children():
-    result = str(replace("box", span() >> "a", span() >> "b").fragment())
+async def test_fragment_with_multiple_children():
+    result = str((await replace("box", span() >> "a", span() >> "b")).fragment())
     assert result == (
         '<shift-update action="replace" target="box">'
         "<template><span>a</span><span>b</span></template>"
@@ -72,8 +77,8 @@ def test_fragment_with_multiple_children():
     )
 
 
-def test_fragment_with_nested_tree():
-    result = str(replace("nav", ul(id="nav") >> (li() >> "Home", li() >> "About")).fragment())
+async def test_fragment_with_nested_tree():
+    result = str((await replace("nav", ul(id="nav") >> (li() >> "Home", li() >> "About"))).fragment())
     assert result == (
         '<shift-update action="replace" target="nav">'
         '<template><ul id="nav"><li>Home</li><li>About</li></ul></template>'
@@ -81,12 +86,12 @@ def test_fragment_with_nested_tree():
     )
 
 
-def test_fragments_compose_in_tree():
+async def test_fragments_compose_in_tree():
     result = str(
         div()
         >> (
-            replace("a", span() >> "new-a").fragment(),
-            append("b", li() >> "item").fragment(),
+            (await replace("a", span() >> "new-a")).fragment(),
+            (await append("b", li() >> "item")).fragment(),
         )
     )
     assert result == (
@@ -104,13 +109,13 @@ def test_fragments_compose_in_tree():
 # -- JSON output (WebSocket / SSE) --
 
 
-def test_json_replace():
-    m = replace("chat", div(id="chat") >> "hello")
+async def test_json_replace():
+    m = await replace("chat", div(id="chat") >> "hello")
     assert m.json() == '{"action": "replace", "target": "chat", "html": "<div id=\\"chat\\">hello</div>"}'
 
 
-def test_json_append():
-    m = append("messages", li() >> "new")
+async def test_json_append():
+    m = await append("messages", li() >> "new")
     assert m.json() == '{"action": "append", "target": "messages", "html": "<li>new</li>"}'
 
 
@@ -122,19 +127,19 @@ def test_json_remove_omits_html():
 # -- Mutation.sse() --
 
 
-def test_mutation_sse_basic():
-    m = replace("x", span() >> "hi")
+async def test_mutation_sse_basic():
+    m = await replace("x", span() >> "hi")
     assert m.sse() == f"data: {m.json()}\n\n"
 
 
-def test_mutation_sse_with_event():
-    m = append("feed", div() >> "item")
+async def test_mutation_sse_with_event():
+    m = await append("feed", div() >> "item")
     result = m.sse(event="update")
     assert result == f"event: update\ndata: {m.json()}\n\n"
 
 
-def test_mutation_sse_with_event_and_id():
-    m = replace("status", span() >> "ok")
+async def test_mutation_sse_with_event_and_id():
+    m = await replace("status", span() >> "ok")
     result = m.sse(event="update", id="42")
     assert result == f"event: update\nid: 42\ndata: {m.json()}\n\n"
 
@@ -163,32 +168,32 @@ def test_mutation_html_defaults_to_none():
 # -- sse() for renderables --
 
 
-def test_sse_formats_simple_node():
-    assert sse(div() >> "hi") == "data: <div>hi</div>\n\n"
+async def test_sse_formats_simple_node():
+    assert await sse(div() >> "hi") == "data: <div>hi</div>\n\n"
 
 
-def test_sse_with_event_name():
-    result = sse(div() >> "hi", event="update")
+async def test_sse_with_event_name():
+    result = await sse(div() >> "hi", event="update")
     assert result == "event: update\ndata: <div>hi</div>\n\n"
 
 
-def test_sse_with_id():
-    result = sse(div() >> "hi", id="42")
+async def test_sse_with_id():
+    result = await sse(div() >> "hi", id="42")
     assert result == "id: 42\ndata: <div>hi</div>\n\n"
 
 
-def test_sse_with_event_and_id():
-    result = sse(div() >> "hi", event="update", id="42")
+async def test_sse_with_event_and_id():
+    result = await sse(div() >> "hi", event="update", id="42")
     assert result == "event: update\nid: 42\ndata: <div>hi</div>\n\n"
 
 
-def test_sse_multiline_content():
-    result = sse(div() >> (span() >> "a\nb"))
+async def test_sse_multiline_content():
+    result = await sse(div() >> (span() >> "a\nb"))
     assert result == "data: <div><span>a\ndata: b</span></div>\n\n"
 
 
-def test_sse_with_mutation_fragment():
-    result = sse(replace("x", div(id="x") >> "new").fragment())
+async def test_sse_with_mutation_fragment():
+    result = await sse((await replace("x", div(id="x") >> "new")).fragment())
     assert result == (
         'data: <shift-update action="replace" target="x">'
         '<template><div id="x">new</div></template>'
@@ -196,11 +201,11 @@ def test_sse_with_mutation_fragment():
     )
 
 
-def test_sse_with_multiple_mutation_fragments():
-    wrapper = Node()
-    wrapper.append_child(replace("a", span() >> "1").fragment().root)
-    wrapper.append_child(replace("b", li() >> "2").fragment().root)
-    result = sse(wrapper)
+async def test_sse_with_multiple_mutation_fragments():
+    wrapper = ContainerNode()
+    wrapper.append_child((await replace("a", span() >> "1")).fragment().root)
+    wrapper.append_child((await replace("b", li() >> "2")).fragment().root)
+    result = await sse(wrapper)
     assert result == (
         "data: "
         '<shift-update action="replace" target="a">'

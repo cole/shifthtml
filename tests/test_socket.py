@@ -35,7 +35,7 @@ def conn(message_log, incoming):
 
 @pytest.mark.anyio
 async def test_send_mutation(conn, message_log):
-    m = replace("status", span() >> "Online")
+    m = await replace("status", span() >> "Online")
     await conn.send(m)
     assert len(message_log) == 1
     parsed = json.loads(message_log[0])
@@ -44,8 +44,8 @@ async def test_send_mutation(conn, message_log):
 
 @pytest.mark.anyio
 async def test_send_many(conn, message_log):
-    m1 = replace("a", span() >> "1")
-    m2 = append("b", li() >> "2")
+    m1 = await replace("a", span() >> "1")
+    m2 = await append("b", li() >> "2")
     await conn.send_many(m1, m2)
     assert len(message_log) == 1
     parsed = json.loads(message_log[0])

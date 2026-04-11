@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from .element import Element, Fragment
 from .tags import template
-from .tree import Node
+from .tree import ContainerNode, Node
 from .types import NodeContent
 
 if TYPE_CHECKING:
@@ -34,19 +34,19 @@ class _RawText(Node):
     def __replace__(self, /, **changes):
         return _RawText(self._html)
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         yield self._html
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         yield self._html
 
 
 _MARKER = ShiftDoneElement()
 
 
-def _render(*content: NodeContent) -> str:
+async def _render(*content: NodeContent) -> str:
     """Render content to an HTML string."""
-    return str(Node() >> content)
+    return await (ContainerNode() >> content).render()
 
 
 @dataclass(slots=True)
@@ -85,33 +85,33 @@ class Mutation:
         return el >> (template() >> _RawText(html), _MARKER)
 
 
-def replace(target: str, *content: NodeContent) -> Mutation:
-    return Mutation("replace", target, _render(*content))
+async def replace(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("replace", target, await _render(*content))
 
 
-def append(target: str, *content: NodeContent) -> Mutation:
-    return Mutation("append", target, _render(*content))
+async def append(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("append", target, await _render(*content))
 
 
-def prepend(target: str, *content: NodeContent) -> Mutation:
-    return Mutation("prepend", target, _render(*content))
+async def prepend(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("prepend", target, await _render(*content))
 
 
-def before(target: str, *content: NodeContent) -> Mutation:
-    return Mutation("before", target, _render(*content))
+async def before(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("before", target, await _render(*content))
 
 
-def after(target: str, *content: NodeContent) -> Mutation:
-    return Mutation("after", target, _render(*content))
+async def after(target: str, *content: NodeContent) -> Mutation:
+    return Mutation("after", target, await _render(*content))
 
 
 def remove(target: str) -> Mutation:
     return Mutation("remove", target)
 
 
-def sse(node: Node | Fragment, *, event: str | None = None, id: str | None = None) -> str:
+async def sse(node: Node | Fragment, *, event: str | None = None, id: str | None = None) -> str:
     """Format a renderable node as a Server-Sent Event string."""
-    html = str(node)
+    html = await node.render()
     parts: list[str] = []
     if event is not None:
         parts.append(f"event: {event}")

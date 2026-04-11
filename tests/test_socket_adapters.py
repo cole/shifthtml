@@ -57,7 +57,7 @@ async def test_starlette_accepts_and_closes():
 async def test_starlette_send():
     ws = MockStarletteWS()
     async with starlette_websocket(ws) as conn:
-        await conn.send(replace("x", span() >> "hi"))
+        await conn.send(await replace("x", span() >> "hi"))
     parsed = json.loads(ws.sent[0])
     assert parsed == {"action": "replace", "target": "x", "html": "<span>hi</span>"}
 
@@ -100,7 +100,7 @@ class MockAiohttpWS(BaseMockWS):
 async def test_aiohttp_send_and_close():
     ws = MockAiohttpWS()
     async with aiohttp_websocket(ws) as conn:
-        await conn.send(replace("x", span() >> "hi"))
+        await conn.send(await replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["action"] == "replace"
 
@@ -138,7 +138,7 @@ async def test_quart_accepts_and_sends():
     ws = MockQuartWS()
     async with quart_websocket(ws) as conn:
         assert ws.accepted
-        await conn.send(replace("x", span() >> "hi"))
+        await conn.send(await replace("x", span() >> "hi"))
     assert json.loads(ws.sent[0])["target"] == "x"
 
 
@@ -174,7 +174,7 @@ class MockSanicWS(BaseMockWS):
 async def test_sanic_send_and_close():
     ws = MockSanicWS()
     async with sanic_websocket(ws) as conn:
-        await conn.send(replace("x", span() >> "hi"))
+        await conn.send(await replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["html"] == "<span>hi</span>"
 
@@ -223,7 +223,7 @@ async def test_litestar_accepts_and_closes():
     ws = MockLitestarWS()
     async with litestar_websocket(ws) as conn:
         assert ws.accepted
-        await conn.send(replace("x", span() >> "hi"))
+        await conn.send(await replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["action"] == "replace"
 
@@ -260,7 +260,7 @@ class MockWebSocketsConn(BaseMockWS):
 async def test_websockets_send_and_close():
     ws = MockWebSocketsConn()
     async with websockets_websocket(ws) as conn:
-        await conn.send(replace("x", span() >> "hi"))
+        await conn.send(await replace("x", span() >> "hi"))
     assert ws.closed
     assert json.loads(ws.sent[0])["action"] == "replace"
 

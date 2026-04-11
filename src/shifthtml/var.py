@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Callable, Generator
 from typing import Any, NoReturn
 
-from .rendering import RenderContext, arender_result, render_result
+from .rendering import RenderContext, _collect_result, arender_result
 from .tree import Node, _render_vars
 from .types import _MISSING, NodeContent
 
@@ -43,14 +43,20 @@ class ConditionalNode(Node):
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("ConditionalNode does not support children")
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _collect(self, buf: list[str]) -> None:
         val = self.var()
         branch = self.if_true if val else self.if_false
         if branch is None:
             return
-        yield from render_result(branch, ctx)
+        _collect_result(branch, buf)
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        buf: list[str] = []
+        self._collect(buf)
+        if buf:
+            yield "".join(buf)
+
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         val = self.var()
         branch = self.if_true if val else self.if_false
         if branch is None:
@@ -85,12 +91,18 @@ class IterationNode(Node):
     def append_child(self, child: object) -> NoReturn:
         raise TypeError("IterationNode does not support children")
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+    def _collect(self, buf: list[str]) -> None:
         items = self.var()
         for item in items:
-            yield from render_result(self.body_fn(item), ctx)
+            _collect_result(self.body_fn(item), buf)
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        buf: list[str] = []
+        self._collect(buf)
+        if buf:
+            yield "".join(buf)
+
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         items = self.var()
         for item in items:
             async for chunk in arender_result(self.body_fn(item), ctx):
@@ -100,7 +112,7 @@ class IterationNode(Node):
 class Var:
     """A named variable for use in preserved trees.
 
-    Callable — works in t-string interpolations (evaluated at render time)
+    Callable \u2014 works in t-string interpolations (evaluated at render time)
     and auto-wraps as Lazy when used as a child node via >>.
 
     Values are passed via render()/stream()/astream() ``args`` parameter.

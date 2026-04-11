@@ -49,22 +49,10 @@ def test_compile_escapes_static_strings():
     assert compiled.render() == "<div>1 &lt; 2 &amp; 3 &gt; 0</div>"
 
 
-def test_compile_eager_lazy():
-    counter = [0]
-
-    def make_content():
-        counter[0] += 1
-        return p() >> f"call {counter[0]}"
-
-    tree = div() >> Lazy(make_content)
-    compiled = compile(tree)
-
-    # Lazy was called once at compile time
-    assert counter[0] == 1
-    # Baked result is static — same output every render
-    assert compiled.render() == "<div><p>call 1</p></div>"
-    assert compiled.render() == "<div><p>call 1</p></div>"
-    assert counter[0] == 1
+def test_compile_sync_lazy_raises():
+    tree = div() >> Lazy(lambda: p() >> "text")
+    with pytest.raises(TypeError, match="compile\\(\\) cannot compile Lazy nodes"):
+        compile(tree)
 
 
 def test_compile_var_as_child():
@@ -75,12 +63,12 @@ def test_compile_var_as_child():
     assert compiled.render(args={"title": "World"}) == "<div>World</div>"
 
 
-def test_compile_async_raises():
+def test_compile_async_lazy_raises():
     async def fetch():
         return "data"
 
     tree = div() >> Lazy(fetch)
-    with pytest.raises(TypeError, match="compile\\(\\) cannot eagerly resolve async Lazy nodes"):
+    with pytest.raises(TypeError, match="compile\\(\\) cannot compile Lazy nodes"):
         compile(tree)
 
 

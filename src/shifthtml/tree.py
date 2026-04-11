@@ -5,6 +5,7 @@ Abstract base class for nodes in a tree structure, analogous to DOM nodes.
 from __future__ import annotations
 
 import copy
+from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Generator, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
@@ -39,12 +40,12 @@ def _resolve_var(name: str, default: object = _MISSING) -> Any:
     raise LookupError(f"Var {name!r} not set")
 
 
-class Node:
+class Node(ABC):
     """
     Abstract base class for all nodes in the document tree.
 
     Analogous to the DOM Node interface. Manages parent/child relationships,
-    provides tree traversal, and supports rendering to HTML via _chunks()/_achunks().
+    provides tree traversal, and supports rendering to HTML via chunks()/achunks().
 
     The >> operator creates a Fragment for building HTML trees.
     """
@@ -59,17 +60,18 @@ class Node:
         self.children = []
 
     def _collect(self, buf: list[str]) -> None:
-        """Collect HTML chunks into a buffer. Default delegates to _chunks()."""
-        buf.extend(self._chunks())
+        """Collect HTML chunks into a buffer. Default delegates to chunks()."""
+        buf.extend(self.chunks())
 
-    def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        """Yield HTML chunks for this node. Default renders children."""
-        yield from stream_children(self.children, ctx)
+    @abstractmethod
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        """Yield HTML chunks for this node."""
+        ...
 
-    async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        """Yield HTML chunks asynchronously. Default renders children."""
-        async for chunk in astream_children(self.children, ctx):
-            yield chunk
+    @abstractmethod
+    def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        """Yield HTML chunks asynchronously."""
+        ...
 
     async def render(
         self,
@@ -82,7 +84,7 @@ class Node:
         _render_vars.set(args if args is not None else _EMPTY_ARGS)
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
         parts: list[str] = []
-        async for chunk in self._achunks(ctx):
+        async for chunk in self.achunks(ctx):
             parts.append(chunk)
         async for chunk in aflush_deferred(ctx):
             parts.append(chunk)
@@ -98,7 +100,7 @@ class Node:
         """Yield HTML chunks asynchronously for this node."""
         _render_vars.set(args or {})
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
-        async for chunk in self._achunks(ctx):
+        async for chunk in self.achunks(ctx):
             yield chunk
         async for chunk in aflush_deferred(ctx):
             yield chunk
@@ -308,6 +310,19 @@ class Node:
         if deep:
             return copy.replace(self)
         return copy.replace(self, children=[])
+
+
+class ContainerNode(Node):
+    """Concrete node that renders only its children (no tag markup)."""
+
+    __slots__ = ()
+
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield from stream_children(self.children, ctx)
+
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        async for chunk in astream_children(self.children, ctx):
+            yield chunk
 
 
 # Filled in by element.py at import time to avoid circular imports.
