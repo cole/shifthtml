@@ -1,4 +1,4 @@
-# ⏩ ShiftHTML: an experimental HTML renderer
+# ⏩ Shift: a streaming HTML renderer
 
 ```python
 from shifthtml import tags as t

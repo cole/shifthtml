@@ -88,16 +88,15 @@ class ClassList:
         self._owner = owner
 
     def _tokens(self) -> list[str]:
-        raw = self._owner.attributes.get("class", "")
-        if isinstance(raw, list):
-            return [str(v) for v in raw]
-        if isinstance(raw, tuple):
-            return [str(v) for v in raw]
-        if isinstance(raw, set):
-            return sorted(str(v) for v in raw)
-        if isinstance(raw, str):
-            return raw.split() if raw else []
-        return str(raw).split() if raw else []
+        match self._owner.attributes.get("class", ""):
+            case list() | tuple() as raw:
+                return [str(v) for v in raw]
+            case set() as raw:
+                return sorted(str(v) for v in raw)
+            case str() as raw:
+                return raw.split() if raw else []
+            case raw:
+                return str(raw).split() if raw else []
 
     def _save(self, tokens: list[str]) -> None:
         self._owner.attributes["class"] = " ".join(tokens)

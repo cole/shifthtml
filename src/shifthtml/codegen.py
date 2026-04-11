@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import textwrap
 from collections.abc import Callable
 from html import escape as _html_escape
 from string.templatelib import Interpolation, Template
@@ -48,6 +49,11 @@ class _CodeGen:
         """Emit a dynamic code line, flushing any buffered static strings first."""
         self._flush_pending()
         self._lines.append("    " * self._indent + line)
+
+    def _emit_block(self, block: str) -> None:
+        """Emit a multi-line code block at the current indent level."""
+        self._flush_pending()
+        self._lines.append(textwrap.indent(block, "    " * self._indent))
 
     def _add_static(self, text: str) -> None:
         """Buffer a static string for merging with adjacent statics."""
@@ -98,22 +104,23 @@ class _CodeGen:
     # -- Node visitors --
 
     def visit_node(self, node: ContentNode) -> None:
-        if isinstance(node, Comment):
-            self._add_static(f"<!--{node._escape_content()}-->")
-        elif isinstance(node, Element):
-            self._visit_element(node)
-        elif isinstance(node, Lazy):
-            self._visit_lazy(node)
-        elif isinstance(node, Async):
-            raise TypeError(
-                "compile() cannot eagerly resolve Async nodes. Only Var slots remain dynamic in compiled templates."
-            )
-        elif isinstance(node, ConditionalNode):
-            self._visit_conditional(node)
-        elif isinstance(node, IterationNode):
-            self._visit_iteration(node)
-        else:
-            self._visit_children(node.children)
+        match node:
+            case Comment():
+                self._add_static(f"<!--{node._escape_content()}-->")
+            case Element():
+                self._visit_element(node)
+            case Lazy():
+                self._visit_lazy(node)
+            case Async():
+                raise TypeError(
+                    "compile() cannot eagerly resolve Async nodes. Only Var slots remain dynamic in compiled templates."
+                )
+            case ConditionalNode():
+                self._visit_conditional(node)
+            case IterationNode():
+                self._visit_iteration(node)
+            case _:
+                self._visit_children(node.children)
 
     def _visit_element(self, el: Element) -> None:
         if el.doctype:
@@ -151,105 +158,88 @@ class _CodeGen:
     def _visit_iteration(self, node: IterationNode) -> None:
         fn_name = self._capture("_fn", node.body_fn)
         item = self._next_name("_i")
-        self._emit(f"for {item} in _vars[{node.var.name!r}]:")
-        self._indent += 1
-        self._emit(f"{fn_name}({item})._collect(_buf)")
-        self._indent -= 1
+        self._emit_block(f"""\
+for {item} in _vars[{node.var.name!r}]:
+    {fn_name}({item})._collect(_buf)""")
 
     def _visit_children(self, children: list) -> None:
         for child in children:
-            if isinstance(child, str):
-                self._add_static(_html_escape(child) if _needs_escape(child) else child)
-            elif isinstance(child, Template):
-                self._visit_template(child)
-            elif isinstance(child, ContentNode):
-                self.visit_node(child)
-            elif isinstance(child, Node):
-                self._add_static("".join(child._stream()))
+            match child:
+                case str():
+                    self._add_static(_html_escape(child) if _needs_escape(child) else child)
+                case Template():
+                    self._visit_template(child)
+                case ContentNode():
+                    self.visit_node(child)
+                case Node():
+                    self._add_static("".join(child._stream()))
 
     def _visit_template(self, tpl: Template) -> None:
         for item in tpl:
-            if isinstance(item, str):
-                self._add_static(item)
-            elif isinstance(item, Interpolation):
-                self._emit_interpolation(item)
+            match item:
+                case str():
+                    self._add_static(item)
+                case Interpolation():
+                    self._emit_interpolation(item)
 
     def _emit_var_interpolation(self, var: Var) -> None:
         """Emit code for a Var used as a child node (may return Node or str)."""
         var_name = self._capture("_var", var)
         v = self._next_name("_v")
-        self._emit(f"{v} = {var_name}()")
-        self._emit(f"if isinstance({v}, Renderable):")
-        self._indent += 1
-        self._emit(f"{v}._collect(_buf)")
-        self._indent -= 1
-        self._emit("else:")
-        self._indent += 1
-        self._emit(f"if not isinstance({v}, str):")
-        self._indent += 1
-        self._emit(f"{v} = str({v})")
-        self._indent -= 1
-        self._emit(f"_a(_html_escape({v}) if _needs_escape({v}) else {v})")
-        self._indent -= 1
+        self._emit_block(f"""\
+{v} = {var_name}()
+if isinstance({v}, Renderable):
+    {v}._collect(_buf)
+else:
+    if not isinstance({v}, str):
+        {v} = str({v})
+    _a(_html_escape({v}) if _needs_escape({v}) else {v})""")
 
     def _emit_interpolation(self, interp: Interpolation) -> None:
         """Emit code for a single Template interpolation."""
         val_name = self._capture("_val", interp.value)
         v = self._next_name("_v")
+        call = f"{val_name}()" if callable(interp.value) else val_name
 
-        if callable(interp.value):
-            self._emit(f"{v} = {val_name}()")
-        else:
-            self._emit(f"{v} = {val_name}")
-
-        self._emit(f"if isinstance({v}, Renderable):")
-        self._indent += 1
-        self._emit(f"{v}._collect(_buf)")
-        self._indent -= 1
-        self._emit("else:")
-        self._indent += 1
-
+        # Build the else branch: coerce to string, optional format, then escape
+        else_lines = []
         if interp.conversion is not None:
-            self._emit(f"{v} = _convert({v}, {interp.conversion!r})")
+            else_lines.append(f"{v} = _convert({v}, {interp.conversion!r})")
         else:
-            self._emit(f"if not isinstance({v}, str):")
-            self._indent += 1
-            self._emit(f"{v} = str({v})")
-            self._indent -= 1
-
+            else_lines.append(f"if not isinstance({v}, str):")
+            else_lines.append(f"    {v} = str({v})")
         if interp.format_spec:
-            self._emit(f"{v} = format({v}, {interp.format_spec!r})")
+            else_lines.append(f"{v} = format({v}, {interp.format_spec!r})")
+        else_lines.append(f"_a(_html_escape({v}) if _needs_escape({v}) else {v})")
+        else_body = "\n".join("    " + line for line in else_lines)
 
-        self._emit(f"_a(_html_escape({v}) if _needs_escape({v}) else {v})")
-        self._indent -= 1
+        self._emit_block(f"""\
+{v} = {call}
+if isinstance({v}, Renderable):
+    {v}._collect(_buf)
+else:
+{else_body}""")
 
     def _emit_content(self, content: NodeContent) -> None:
         """Emit code for arbitrary NodeContent (used in conditional branches)."""
-        if content is None or content is False:
-            return
-        if isinstance(content, str):
-            self._add_static(_html_escape(content) if _needs_escape(content) else content)
-            return
-        if isinstance(content, Template):
-            self._visit_template(content)
-            return
-        if isinstance(content, Fragment):
-            root = content.root
-            if isinstance(root, ContentNode):
+        match content:
+            case None | False:
+                pass
+            case str():
+                self._add_static(_html_escape(content) if _needs_escape(content) else content)
+            case Template():
+                self._visit_template(content)
+            case Fragment(root=ContentNode() as root):
                 self.visit_node(root)
-            else:
+            case Fragment(root=root):
                 self._add_static("".join(root._stream()))
-            return
-        if isinstance(content, Node):
-            if isinstance(content, ContentNode):
+            case ContentNode():
                 self.visit_node(content)
-            else:
+            case Node():
                 self._add_static("".join(content._stream()))
-            return
-        if is_node_list(content):
-            for item in content:
-                self._emit_content(item)
-            return
-        if is_sync_content_fn(content):
-            fn_name = self._capture("_lazy", content)
-            self._emit(f"_collect_result({fn_name}(), _buf)")
+            case _ if is_node_list(content):
+                for item in content:
+                    self._emit_content(item)
+            case _ if is_sync_content_fn(content):
+                fn_name = self._capture("_lazy", content)
+                self._emit(f"_collect_result({fn_name}(), _buf)")

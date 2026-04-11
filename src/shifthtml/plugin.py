@@ -59,7 +59,7 @@ def clear_registry() -> None:
     _registry.clear()
 
 
-@dataclass
+@dataclass(slots=True)
 class RenderContext:
     plugins: tuple[Plugin, ...]
     state: dict[Any, Any] = field(default_factory=dict)
