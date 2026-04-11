@@ -1,7 +1,7 @@
 """Top-level rendering API.
 
-This module owns all output concerns: plugin dispatch, context management,
-streaming, and buffering. Tree types stay focused on structure.
+This module owns all output concerns: context management, streaming,
+and buffering. Tree types stay focused on structure.
 
 Node dispatch is polymorphic: each node type implements _stream()/_astream()
 methods. This module never imports element types directly.
@@ -11,16 +11,32 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import AsyncGenerator, Generator, Mapping
+from dataclasses import dataclass, field
 from html import escape
 from string.templatelib import Interpolation, Template
-from typing import Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import anyio
 
 from .errors import RenderLimitExceeded
-from .plugin import AStreamFn, RenderContext, StreamFn
 from .tree import Node
 from .types import Renderable, is_async_content_fn, is_sync_content_fn
+
+if TYPE_CHECKING:
+    from .stream import Deferred
+
+
+@dataclass(slots=True)
+class RenderContext:
+    state: dict[Any, Any] = field(default_factory=dict)
+    cancel_scope: anyio.CancelScope | None = None
+    max_depth: int = 100
+    max_nodes: int | None = None
+    _depth: int = field(default=0, repr=False)
+    _node_count: int = field(default=0, repr=False)
+    _deferred: list[Deferred] = field(default_factory=list, repr=False)
+    _root_node: Node | None = field(default=None, repr=False)
+
 
 # -- Low-level string / tag helpers --
 
@@ -203,75 +219,52 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
     raise ValueError(f"Unsupported content type: {type(result)}")
 
 
-# -- RenderContext dispatch (with plugin pipeline) --
+# -- RenderContext dispatch --
 
 
 def _render_node(node: Node, ctx: RenderContext) -> Generator[str]:
-    """Render a node through the full plugin pipeline."""
+    """Render a node through the context (tracks node count)."""
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
         raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
-    stream = _stream_fn(ctx)
-    for plugin in ctx.plugins:
-        result = plugin.pre_render_node(node, stream, ctx)
-        if result is not None:
-            yield from result
-            yield from ctx._post_render_node(node)
-            return
-
     yield from node._stream(ctx)
-    yield from ctx._post_render_node(node)
 
 
 async def _arender_node(node: Node, ctx: RenderContext) -> AsyncGenerator[str]:
-    """Render a node through the full async plugin pipeline."""
+    """Render a node through the async context (tracks node count)."""
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
         raise RenderLimitExceeded(f"Exceeded max node count ({ctx.max_nodes})")
-    async_fn = _astream_fn(ctx)
-    sync_fn = _stream_fn(ctx)
-    for plugin in ctx.plugins:
-        ahook = getattr(plugin, "apre_render_node", None)
-        if ahook is not None:
-            aresult: AsyncGenerator[str] | None = ahook(node, async_fn, ctx)
-            if aresult is not None:
-                async for chunk in aresult:
-                    yield chunk
-                async for chunk in ctx._apost_render_node(node):
-                    yield chunk
-                return
-        else:
-            sresult = plugin.pre_render_node(node, sync_fn, ctx)
-            if sresult is not None:
-                for chunk in sresult:
-                    yield chunk
-                async for chunk in ctx._apost_render_node(node):
-                    yield chunk
-                return
-
     async for chunk in node._astream(ctx):
         yield chunk
-    async for chunk in ctx._apost_render_node(node):
-        yield chunk
 
 
-def _stream_fn(ctx: RenderContext) -> StreamFn:
-    """Create a stream callable that renders a node's own markup."""
-
-    def stream(node: Node) -> Generator[str]:
-        yield from node._stream(ctx)
-
-    return stream
+# -- Deferred flushing --
 
 
-def _astream_fn(ctx: RenderContext) -> AStreamFn:
-    """Create an async stream callable that renders a node's own markup."""
+def flush_deferred(ctx: RenderContext) -> Generator[str]:
+    """Flush accumulated deferred nodes as <shift-update> elements."""
+    while ctx._deferred:
+        node = ctx._deferred.pop(0)
+        child = node.children[0]
+        assert isinstance(child, Node)
+        yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
+        yield from _render_node(child, ctx)
+        yield "</template><shift-done></shift-done></shift-update>"
 
-    async def astream(node: Node) -> AsyncGenerator[str]:
-        async for chunk in node._astream(ctx):
+
+async def aflush_deferred(ctx: RenderContext) -> AsyncGenerator[str]:
+    """Async flush accumulated deferred nodes as <shift-update> elements."""
+    while ctx._deferred:
+        if ctx.cancel_scope is not None and ctx.cancel_scope.cancel_called:
+            return
+        node = ctx._deferred.pop(0)
+        child = node.children[0]
+        assert isinstance(child, Node)
+        yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
+        async for chunk in _arender_node(child, ctx):
             yield chunk
-
-    return astream
+        yield "</template><shift-done></shift-done></shift-update>"
 
 
 # -- Children helpers --

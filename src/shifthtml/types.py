@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 
 if TYPE_CHECKING:
     from .element import Fragment
-    from .plugin import RenderContext
+    from .rendering import RenderContext
     from .tree import Node
 
 _MISSING: object = object()

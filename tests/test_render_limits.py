@@ -62,34 +62,16 @@ def test_limits_on_fast_path():
 
 def test_limits_on_stream_path():
     tag = div() >> _recursive_lazy()
-
-    class NoopPlugin:
-        def pre_render_node(self, node, stream, ctx):
-            return None
-
-        def post_render(self, ctx):
-            return
-            yield  # noqa: RET504
-
     with pytest.raises(RenderLimitExceeded, match="max render depth"):
-        list(tag.stream(plugins=(NoopPlugin(),), max_depth=3))
+        list(tag.stream(max_depth=3))
 
 
 @pytest.mark.anyio
 async def test_limits_on_async_path():
     tag = div() >> _recursive_lazy()
-
-    class NoopPlugin:
-        def pre_render_node(self, node, stream, ctx):
-            return None
-
-        def post_render(self, ctx):
-            return
-            yield  # noqa: RET504
-
     with pytest.raises(RenderLimitExceeded, match="max render depth"):
         chunks = []
-        async for chunk in tag.astream(plugins=(NoopPlugin(),), max_depth=3, min_chunk_size=None):
+        async for chunk in tag.astream(max_depth=3, min_chunk_size=None):
             chunks.append(chunk)
 
 
@@ -103,15 +85,7 @@ def test_normal_tree_within_limits():
     assert "footer" in result
 
 
-def test_max_nodes_on_stream_with_plugins():
-    class NoopPlugin:
-        def pre_render_node(self, node, stream, ctx):
-            return None
-
-        def post_render(self, ctx):
-            return
-            yield  # noqa: RET504
-
+def test_max_nodes_on_stream_path():
     tag = div() >> tuple(p() >> f"item {i}" for i in range(20))
     with pytest.raises(RenderLimitExceeded, match="max node count"):
-        list(tag.stream(plugins=(NoopPlugin(),), max_nodes=5))
+        list(tag.stream(max_nodes=5))

@@ -4,32 +4,29 @@ import copy
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from html import escape as _escape
 from string.templatelib import Interpolation, Template
-from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, overload
+from typing import Any, ClassVar, Literal, NoReturn, overload
 
 import anyio
 
 from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
-from .plugin import RenderContext, registered_plugins
 from .rendering import (
+    RenderContext,
     _arender_node,
-    _astream_fn,
     _collect_children,
     _collect_result,
     _render_node,
-    _stream_fn,
+    aflush_deferred,
     arender_result,
     astream_children,
     collect_string,
+    flush_deferred,
     render_open_tag,
     render_result,
     stream_children,
 )
 from .tree import Node, _render_vars
 from .types import _MISSING, NodeContent, is_async_content_fn, is_sync_content_fn
-
-if TYPE_CHECKING:
-    from .plugin import Plugin
 
 _FLATTEN_MAX_DEPTH = 100
 _EMPTY_ARGS: dict[str, object] = {}
@@ -121,19 +118,27 @@ def _is_static_template(template: Template) -> bool:
     return not any(callable(item.value) for item in template if isinstance(item, Interpolation))
 
 
-def _build_render_buf(node: Node, buf: list) -> None:
+_UNCACHEABLE: list = []
+
+
+def _build_render_buf(node: Node, buf: list) -> bool:
     """Walk a tree and build a reusable render buffer.
 
     Static content is pre-rendered as strings. Dynamic content (Var-bound
     Templates, Lazy/Async nodes) is stored as refs resolved at each render.
+
+    Returns False if the tree contains Deferred nodes (render cache unusable).
     """
     if isinstance(node, Element):
         if node.doctype:
             buf.append(node.doctype)
         buf.append(render_open_tag(node.tag, node._render_attrs(), void=node.void))
         if not node.void:
-            _build_children(node.children, buf)
+            if not _build_children(node.children, buf):
+                return False
             buf.append(f"</{node.tag}>")
+    elif getattr(node, "_deferred_node", False):
+        return False
     elif isinstance(node, IterationNode):
         buf.append(node)
     elif isinstance(node, Lazy | Async | ConditionalNode):
@@ -141,22 +146,26 @@ def _build_render_buf(node: Node, buf: list) -> None:
     elif isinstance(node, Comment):
         buf.append(f"<!--{node._escape_content()}-->")
     elif isinstance(node, ContentNode):
-        _build_children(node.children, buf)
+        if not _build_children(node.children, buf):
+            return False
     else:
         buf.append(node)
+    return True
 
 
-def _build_children(children: list, buf: list) -> None:
+def _build_children(children: list, buf: list) -> bool:
     for child in children:
         if type(child) is str:
             buf.append(_escape(child) if ("&" in child or "<" in child or ">" in child) else child)
         elif isinstance(child, Node):
-            _build_render_buf(child, buf)
+            if not _build_render_buf(child, buf):
+                return False
         elif isinstance(child, Template):
             if _is_static_template(child):
                 collect_string(child, buf)
             else:
                 buf.append(child)
+    return True
 
 
 def _compact_render_buf(buf: list) -> list:
@@ -223,44 +232,44 @@ class Fragment:
         self,
         *,
         args: dict[str, object] | None = None,
-        plugins: tuple[Plugin, ...] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
-        # Fast path: use reusable render buffer (no plugins, no limits)
-        resolved = plugins if plugins is not None else registered_plugins()
-        if not resolved and max_nodes is None and max_depth == 100 and isinstance(self.root, ContentNode):
+        # Fast path: use reusable render buffer (no limits, no deferred nodes)
+        if max_nodes is None and max_depth == 100 and isinstance(self.root, ContentNode):
             _render_vars.set(args if args is not None else _EMPTY_ARGS)
             render_cache = self._render_cache
             if render_cache is None:
                 raw: list = []
-                _build_render_buf(self.root, raw)
-                render_cache = _compact_render_buf(raw)
-                self._render_cache = render_cache
-            out: list[str] = []
-            _resolve_render_buf(render_cache, out)
-            return "".join(out)
+                cacheable = _build_render_buf(self.root, raw)
+                if cacheable:
+                    render_cache = _compact_render_buf(raw)
+                    self._render_cache = render_cache
+                else:
+                    self._render_cache = _UNCACHEABLE
+            if render_cache is not None and render_cache is not _UNCACHEABLE:
+                out: list[str] = []
+                _resolve_render_buf(render_cache, out)
+                return "".join(out)
         if isinstance(self.root, ContentNode):
-            return self.root.render(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+            return self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
         return self.root.render(args=args)
 
     def stream(
         self,
         *,
         args: dict[str, object] | None = None,
-        plugins: tuple[Plugin, ...] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> Generator[str]:
         if isinstance(self.root, ContentNode):
-            return self.root.stream(args=args, plugins=plugins, max_depth=max_depth, max_nodes=max_nodes)
+            return self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes)
         return self.root.stream(args=args)
 
     def astream(
         self,
         *,
         args: dict[str, object] | None = None,
-        plugins: tuple[Plugin, ...] | None = None,
         min_chunk_size: int | None = 4096,
         cancel_scope: anyio.CancelScope | None = None,
         max_depth: int = 100,
@@ -269,7 +278,6 @@ class Fragment:
         if isinstance(self.root, ContentNode):
             return self.root.astream(
                 args=args,
-                plugins=plugins,
                 min_chunk_size=min_chunk_size,
                 cancel_scope=cancel_scope,
                 max_depth=max_depth,
@@ -296,7 +304,7 @@ class Fragment:
 
     def __str__(self) -> str:
         root = self.root
-        if isinstance(root, ContentNode) and not registered_plugins():
+        if isinstance(root, ContentNode):
             result_buf: list[str] = []
             root._collect(result_buf)
             return "".join(result_buf)
@@ -394,45 +402,31 @@ class ContentNode(Node):
         self,
         *,
         args: dict[str, object] | None = None,
-        plugins: tuple[Plugin, ...] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
         _render_vars.set(args if args is not None else _EMPTY_ARGS)
-        resolved = plugins if plugins is not None else registered_plugins()
-        if not resolved and max_nodes is None and max_depth == 100:
-            buf: list[str] = []
-            self._collect(buf)
-            return "".join(buf)
-        ctx = RenderContext(plugins=resolved, max_depth=max_depth, max_nodes=max_nodes)
-        if resolved:
-            parts = list(ctx.pre_render_all())
-            parts.extend(self._render_root(ctx))
-            return "".join(parts)
-        return "".join(_render_node(self, ctx))
+        ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
+        parts = list(self._stream(ctx))
+        parts.extend(flush_deferred(ctx))
+        return "".join(parts)
 
     def stream(
         self,
         *,
         args: dict[str, object] | None = None,
-        plugins: tuple[Plugin, ...] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> Generator[str]:
         _render_vars.set(args or {})
-        resolved = plugins if plugins is not None else registered_plugins()
-        if resolved:
-            ctx = RenderContext(plugins=resolved, max_depth=max_depth, max_nodes=max_nodes)
-            yield from ctx.pre_render_all()
-            yield from self._render_root(ctx)
-        else:
-            yield from self._stream()
+        ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
+        yield from self._stream(ctx)
+        yield from flush_deferred(ctx)
 
     async def astream(
         self,
         *,
         args: dict[str, object] | None = None,
-        plugins: tuple[Plugin, ...] | None = None,
         min_chunk_size: int | None = 4096,
         cancel_scope: anyio.CancelScope | None = None,
         max_depth: int = 100,
@@ -441,7 +435,7 @@ class ContentNode(Node):
         _render_vars.set(args or {})
         if min_chunk_size is None:
             async for chunk in self._astream_unbuffered(
-                plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+                cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
             ):
                 yield chunk
             return
@@ -449,7 +443,7 @@ class ContentNode(Node):
         buf: list[str] = []
         buf_size = 0
         async for chunk in self._astream_unbuffered(
-            plugins=plugins, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
+            cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes
         ):
             buf.append(chunk)
             buf_size += len(chunk)
@@ -463,82 +457,15 @@ class ContentNode(Node):
     async def _astream_unbuffered(
         self,
         *,
-        plugins: tuple[Plugin, ...] | None = None,
         cancel_scope: anyio.CancelScope | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
-        resolved = plugins if plugins is not None else registered_plugins()
-        if resolved:
-            ctx = RenderContext(plugins=resolved, cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes)
-            async for chunk in ctx.apre_render_all():
-                yield chunk
-            async for chunk in self._arender_root(ctx):
-                yield chunk
-        else:
-            async for chunk in self._astream():
-                yield chunk
-
-    def _render_root(self, ctx: RenderContext) -> Generator[str]:
-        """Render this node as root with plugin dispatch and post_render_all."""
-        stream_fn = _stream_fn(ctx)
-        for plugin in ctx.plugins:
-            result = plugin.pre_render_node(self, stream_fn, ctx)
-            if result is not None:
-                yield from result
-                yield from ctx._post_render_node(self)
-                if not ctx.state.get("_post_rendered"):
-                    yield from ctx.post_render_all()
-                return
-        yield from self._render_root_body(ctx)
-        yield from ctx._post_render_node(self)
-
-    def _render_root_body(self, ctx: RenderContext) -> Generator[str]:
-        """Render this node's own content as root (no plugin dispatch)."""
-        yield from self._stream(ctx)
-        if not ctx.state.get("_post_rendered"):
-            yield from ctx.post_render_all()
-
-    async def _arender_root(self, ctx: RenderContext) -> AsyncGenerator[str]:
-        """Async render this node as root with plugin dispatch and post_render_all."""
-        async_fn = _astream_fn(ctx)
-        sync_fn = _stream_fn(ctx)
-        for plugin in ctx.plugins:
-            ahook = getattr(plugin, "apre_render_node", None)
-            if ahook is not None:
-                aresult: AsyncGenerator[str] | None = ahook(self, async_fn, ctx)
-                if aresult is not None:
-                    async for chunk in aresult:
-                        yield chunk
-                    async for chunk in ctx._apost_render_node(self):
-                        yield chunk
-                    if not ctx.state.get("_post_rendered"):
-                        async for chunk in ctx.apost_render_all():
-                            yield chunk
-                    return
-            else:
-                sresult = plugin.pre_render_node(self, sync_fn, ctx)
-                if sresult is not None:
-                    for chunk in sresult:
-                        yield chunk
-                    async for chunk in ctx._apost_render_node(self):
-                        yield chunk
-                    if not ctx.state.get("_post_rendered"):
-                        async for chunk in ctx.apost_render_all():
-                            yield chunk
-                    return
-        async for chunk in self._arender_root_body(ctx):
-            yield chunk
-        async for chunk in ctx._apost_render_node(self):
-            yield chunk
-
-    async def _arender_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
-        """Async render this node's own content as root (no plugin dispatch)."""
+        ctx = RenderContext(cancel_scope=cancel_scope, max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
         async for chunk in self._astream(ctx):
             yield chunk
-        if not ctx.state.get("_post_rendered"):
-            async for chunk in ctx.apost_render_all():
-                yield chunk
+        async for chunk in aflush_deferred(ctx):
+            yield chunk
 
     @overload
     def __rshift__(self, other: NodeContent) -> Fragment: ...
@@ -758,9 +685,8 @@ class Element(ContentNode):
                 yield self.doctype
             yield render_open_tag(self.tag, attrs)
             yield from stream_children(self.children, ctx)
-            if ctx is not None and self.tag == "body":
-                yield from ctx.post_render_all()
-                ctx.state["_post_rendered"] = True
+            if ctx is not None and ctx._deferred and self._is_flush_target(ctx):
+                yield from flush_deferred(ctx)
             yield self._close_tag
 
     async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
@@ -773,39 +699,14 @@ class Element(ContentNode):
             yield render_open_tag(self.tag, attrs)
             async for chunk in astream_children(self.children, ctx):
                 yield chunk
-            if ctx is not None and self.tag == "body":
-                async for chunk in ctx.apost_render_all():
-                    yield chunk
-                ctx.state["_post_rendered"] = True
-            yield self._close_tag
-
-    def _render_root_body(self, ctx: RenderContext) -> Generator[str]:
-        """Element override: post_render_all goes inside the closing tag."""
-        if self.void:
-            yield render_open_tag(self.tag, self._render_attrs(), void=True)
-        else:
-            if self.doctype:
-                yield self.doctype
-            yield render_open_tag(self.tag, self._render_attrs())
-            yield from stream_children(self.children, ctx)
-            if not ctx.state.get("_post_rendered"):
-                yield from ctx.post_render_all()
-            yield self._close_tag
-
-    async def _arender_root_body(self, ctx: RenderContext) -> AsyncGenerator[str]:
-        """Element override: async post_render_all goes inside the closing tag."""
-        if self.void:
-            yield render_open_tag(self.tag, self._render_attrs(), void=True)
-        else:
-            if self.doctype:
-                yield self.doctype
-            yield render_open_tag(self.tag, self._render_attrs())
-            async for chunk in astream_children(self.children, ctx):
-                yield chunk
-            if not ctx.state.get("_post_rendered"):
-                async for chunk in ctx.apost_render_all():
+            if ctx is not None and ctx._deferred and self._is_flush_target(ctx):
+                async for chunk in aflush_deferred(ctx):
                     yield chunk
             yield self._close_tag
+
+    def _is_flush_target(self, ctx: RenderContext) -> bool:
+        """True when this is the root element (flush deferred before close tag)."""
+        return self is ctx._root_node
 
 
 class VoidElement(Element):

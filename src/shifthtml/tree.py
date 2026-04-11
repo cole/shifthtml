@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Self
 from .types import _MISSING
 
 if TYPE_CHECKING:
-    from .plugin import RenderContext
+    from .rendering import RenderContext
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 

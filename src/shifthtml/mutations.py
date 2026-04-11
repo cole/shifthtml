@@ -11,7 +11,7 @@ from .tree import Node
 from .types import NodeContent
 
 if TYPE_CHECKING:
-    from .plugin import RenderContext
+    from .rendering import RenderContext
     from .types import Renderable
 
 

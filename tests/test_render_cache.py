@@ -1,4 +1,4 @@
-from shifthtml import Lazy, Var, div, h1, li, p, ul
+from shifthtml import Var, div, p
 
 
 def test_render_cache_populated_on_first_render():

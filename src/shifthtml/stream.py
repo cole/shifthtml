@@ -5,13 +5,14 @@ from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
 from .element import ContentNode, Fragment, _wrap_content
-from .plugin import RenderContext, register
-from .rendering import _arender_node, _render_node, arender_string, render_string
+from .rendering import RenderContext, arender_string, collect_string, render_string
 from .tree import Node
 
 
 class Deferred(ContentNode):
     __slots__ = ("loading", "slot_name")
+
+    _deferred_node = True
 
     def __init__(
         self,
@@ -39,81 +40,59 @@ class Deferred(ContentNode):
         assert isinstance(child, Node)
         return type(self)(copy.replace(child), slot_name=self.slot_name, loading=self.loading)
 
+    def _collect(self, buf: list[str]) -> None:
+        buf.append(f'<div id="{self.slot_name}">')
+        if self.loading is not None:
+            _collect_loading(self.loading, buf)
+        buf.append("</div>")
 
-def _render_loading(loading: str | Template | Node, stream) -> Generator[str]:
+    def _stream(self, ctx: RenderContext | None = None) -> Generator[str]:
+        if ctx is not None:
+            ctx._deferred.append(self)
+        yield f'<div id="{self.slot_name}">'
+        if self.loading is not None:
+            yield from _render_loading(self.loading)
+        yield "</div>"
+
+    async def _astream(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        if ctx is not None:
+            ctx._deferred.append(self)
+        yield f'<div id="{self.slot_name}">'
+        if self.loading is not None:
+            async for chunk in _arender_loading(self.loading):
+                yield chunk
+        yield "</div>"
+
+
+def _collect_loading(loading: str | Template | Node, buf: list[str]) -> None:
+    if isinstance(loading, Template):
+        collect_string(loading, buf)
+    elif isinstance(loading, str):
+        buf.append(loading)
+    else:
+        loading._collect(buf)
+
+
+def _render_loading(loading: str | Template | Node) -> Generator[str]:
     if isinstance(loading, str | Template):
         yield from render_string(loading)
     else:
-        yield from stream(loading)
+        yield from loading._stream()
 
 
-async def _arender_loading(loading: str | Template | Node, astream) -> AsyncGenerator[str]:
+async def _arender_loading(loading: str | Template | Node) -> AsyncGenerator[str]:
     if isinstance(loading, str | Template):
         async for chunk in arender_string(loading):
             yield chunk
     else:
-        async for chunk in astream(loading):
+        async for chunk in loading._astream():
             yield chunk
 
 
-class DeferPlugin:
-    def __call__(
-        self,
-        slot_name: str,
-        node: Node | Fragment,
-        *,
-        loading: Node | str | Template | None = None,
-    ) -> Deferred:
-        register(self)
-        return Deferred(node, slot_name=slot_name, loading=loading)
-
-    def pre_render_node(self, node: Node, stream, ctx: RenderContext) -> Generator[str] | None:
-        if not isinstance(node, Deferred):
-            return None
-
-        ctx.state.setdefault("deferred", []).append(node)
-        return self._render_placeholder(node, stream)
-
-    def _render_placeholder(self, node: Deferred, stream) -> Generator[str]:
-        yield f'<div id="{node.slot_name}">'
-        if node.loading is not None:
-            yield from _render_loading(node.loading, stream)
-        yield "</div>"
-
-    def post_render(self, ctx: RenderContext) -> Generator[str]:
-        deferred: list[Deferred] = ctx.state.get("deferred", [])
-        while deferred:
-            node = deferred.pop(0)
-            child = node.children[0]
-            yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
-            yield from _render_node(child, ctx)
-            yield "</template><shift-done></shift-done></shift-update>"
-
-    def apre_render_node(self, node: Node, astream, ctx: RenderContext) -> AsyncGenerator[str] | None:
-        if not isinstance(node, Deferred):
-            return None
-
-        ctx.state.setdefault("deferred", []).append(node)
-        return self._arender_placeholder(node, astream)
-
-    async def _arender_placeholder(self, node: Deferred, astream) -> AsyncGenerator[str]:
-        yield f'<div id="{node.slot_name}">'
-        if node.loading is not None:
-            async for chunk in _arender_loading(node.loading, astream):
-                yield chunk
-        yield "</div>"
-
-    async def apost_render(self, ctx: RenderContext) -> AsyncGenerator[str]:
-        deferred: list[Deferred] = ctx.state.get("deferred", [])
-        while deferred:
-            if ctx.cancel_scope is not None and ctx.cancel_scope.cancel_called:
-                return
-            node = deferred.pop(0)
-            child = node.children[0]
-            yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
-            async for chunk in _arender_node(child, ctx):
-                yield chunk
-            yield "</template><shift-done></shift-done></shift-update>"
-
-
-defer = DeferPlugin()
+def defer(
+    slot_name: str,
+    node: Node | Fragment,
+    *,
+    loading: Node | str | Template | None = None,
+) -> Deferred:
+    return Deferred(node, slot_name=slot_name, loading=loading)
