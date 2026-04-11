@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING, Any, Literal
 import anyio
 
 from .errors import RenderLimitExceeded
-from .tree import Node
 from .types import Renderable, is_async_content_fn, is_sync_content_fn
 
 if TYPE_CHECKING:
@@ -35,7 +34,7 @@ class RenderContext:
     _depth: int = field(default=0, repr=False)
     _node_count: int = field(default=0, repr=False)
     _deferred: list[Deferred] = field(default_factory=list, repr=False)
-    _root_node: Node | None = field(default=None, repr=False)
+    _root_node: Renderable | None = field(default=None, repr=False)
 
 
 # -- Low-level string / tag helpers --
@@ -164,14 +163,11 @@ def render_result(result: object, ctx: RenderContext | None) -> Generator[str]:
     if isinstance(result, str | Template):
         yield from render_string(result)
         return
-    if isinstance(result, Node):
+    if isinstance(result, Renderable):
         if ctx is not None:
             yield from _render_node(result, ctx)
         else:
             yield from result._chunks()
-        return
-    if isinstance(result, Renderable):
-        yield from result._chunks(ctx)
         return
     if isinstance(result, tuple | list):
         for item in result:
@@ -191,17 +187,13 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
         async for chunk in arender_string(result):
             yield chunk
         return
-    if isinstance(result, Node):
+    if isinstance(result, Renderable):
         if ctx is not None:
             async for chunk in _arender_node(result, ctx):
                 yield chunk
         else:
             async for chunk in result._achunks():
                 yield chunk
-        return
-    if isinstance(result, Renderable):
-        async for chunk in result._achunks(ctx):
-            yield chunk
         return
     if isinstance(result, tuple | list):
         for item in result:
@@ -222,7 +214,7 @@ async def arender_result(result: object, ctx: RenderContext | None) -> AsyncGene
 # -- RenderContext dispatch --
 
 
-def _render_node(node: Node, ctx: RenderContext) -> Generator[str]:
+def _render_node(node: Renderable, ctx: RenderContext) -> Generator[str]:
     """Render a node through the context (tracks node count)."""
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
@@ -230,7 +222,7 @@ def _render_node(node: Node, ctx: RenderContext) -> Generator[str]:
     yield from node._chunks(ctx)
 
 
-async def _arender_node(node: Node, ctx: RenderContext) -> AsyncGenerator[str]:
+async def _arender_node(node: Renderable, ctx: RenderContext) -> AsyncGenerator[str]:
     """Render a node through the async context (tracks node count)."""
     ctx._node_count += 1
     if ctx.max_nodes is not None and ctx._node_count > ctx.max_nodes:
@@ -247,7 +239,7 @@ def flush_deferred(ctx: RenderContext) -> Generator[str]:
     while ctx._deferred:
         node = ctx._deferred.pop(0)
         child = node.children[0]
-        assert isinstance(child, Node)
+        assert isinstance(child, Renderable)
         yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
         yield from _render_node(child, ctx)
         yield "</template><shift-done></shift-done></shift-update>"
@@ -260,7 +252,7 @@ async def aflush_deferred(ctx: RenderContext) -> AsyncGenerator[str]:
             return
         node = ctx._deferred.pop(0)
         child = node.children[0]
-        assert isinstance(child, Node)
+        assert isinstance(child, Renderable)
         yield f'<shift-update action="replace" target="{node.slot_name}"><template>'
         async for chunk in _arender_node(child, ctx):
             yield chunk
@@ -278,18 +270,15 @@ def _collect_children(children: list, buf: list[str]) -> None:
                 buf.append(escape(child))
             else:
                 buf.append(child)
-        elif isinstance(child, Node):
-            child._collect(buf)
-        else:
+        elif isinstance(child, Template):
             collect_string(child, buf)
+        else:
+            child._collect(buf)
 
 
 def _collect_result(result: object, buf: list[str]) -> None:
     """Collect the return value of a Lazy callable into a buffer."""
     if result is None or result is False:
-        return
-    if isinstance(result, Node):
-        result._collect(buf)
         return
     if type(result) is str:
         buf.append(escape(result) if _needs_escape(result) else result)
@@ -353,7 +342,7 @@ async def _astream_children_parallel(children: list, ctx: RenderContext | None =
     async def collect(i: int, child: object) -> None:
         if isinstance(child, str | Template):
             results[i] = [chunk async for chunk in arender_string(child)]
-        elif isinstance(child, Node):
+        elif isinstance(child, Renderable):
             if ctx is not None:
                 results[i] = [chunk async for chunk in _arender_node(child, ctx)]
             else:

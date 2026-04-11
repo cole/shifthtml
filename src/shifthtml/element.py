@@ -12,10 +12,8 @@ from .errors import RenderLimitExceeded
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
     RenderContext,
-    _arender_node,
     _collect_children,
     _collect_result,
-    _render_node,
     aflush_deferred,
     arender_result,
     astream_children,
@@ -286,18 +284,11 @@ class Fragment:
         return self.root.astream(args=args)
 
     def _chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        if ctx is not None:
-            yield from _render_node(self.root, ctx)
-        else:
-            yield from self.root._chunks()
+        yield from self.root._chunks(ctx)
 
     async def _achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        if ctx is not None:
-            async for chunk in _arender_node(self.root, ctx):
-                yield chunk
-        else:
-            async for chunk in self.root._achunks():
-                yield chunk
+        async for chunk in self.root._achunks(ctx):
+            yield chunk
 
     def _collect(self, buf: list[str]) -> None:
         self.root._collect(buf)
