@@ -14,10 +14,9 @@ from html import escape as _html_escape
 from string.templatelib import Interpolation, Template
 from typing import Any
 
-from .element import Comment, Element, Fragment
-from .lazy import Lazy
+from .element import Comment, Element
 from .rendering import RenderContext, _collect_result, _convert, _needs_escape, render_open_tag
-from .tree import Node, _render_vars
+from .tree import Fragment, Lazy, Node, _render_vars
 from .types import NodeContent, Renderable, is_node_list
 from .var import ConditionalNode, IterationNode, Var
 

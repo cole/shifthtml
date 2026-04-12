@@ -5,9 +5,9 @@ from collections.abc import AsyncGenerator, Generator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-from .element import Element, Fragment
+from .element import Element
 from .tags import template
-from .tree import ContainerNode, Node
+from .tree import ContainerNode, Fragment, Node
 from .types import NodeContent
 
 if TYPE_CHECKING:

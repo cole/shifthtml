@@ -22,8 +22,7 @@ from shifthtml import (
     title,
     ul,
 )
-from shifthtml.element import _flatten_into
-from shifthtml.tree import ContainerNode
+from shifthtml.tree import ContainerNode, _flatten_into
 
 pytestmark = pytest.mark.anyio
 

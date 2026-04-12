@@ -3,11 +3,9 @@ from .compile import CompiledTemplate, compile
 from .element import (
     Comment,
     Element,
-    Fragment,
     VoidElement,
 )
 from .errors import RenderLimitExceeded
-from .lazy import Lazy
 from .rendering import RenderContext
 from .tags import (
     a,
@@ -123,7 +121,7 @@ from .tags import (
     video,
     wbr,
 )
-from .tree import Node
+from .tree import Fragment, Lazy, Node
 from .types import Renderable
 from .var import ConditionalNode, IterationNode, Var, args
 

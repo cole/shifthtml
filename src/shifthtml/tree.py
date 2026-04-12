@@ -5,29 +5,34 @@ Abstract base class for nodes in a tree structure, analogous to DOM nodes.
 from __future__ import annotations
 
 import copy
+import inspect
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator, Generator, Iterator
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import TYPE_CHECKING, Any, Literal, Self, overload
+from typing import Any, Literal, Self, overload
 
+from .errors import RenderLimitExceeded
 from .rendering import (
     RenderContext,
     aflush_deferred,
+    arender_result,
     astream_children,
     stream_children,
 )
-from .types import _MISSING
-
-if TYPE_CHECKING:
-    from .element import Fragment
-    from .types import NodeContent
+from .types import _MISSING, NodeContent, is_content_fn
 
 _render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
 
 type ChildNode = Node | str | Template
 
 _EMPTY_ARGS: dict[str, object] = {}
+
+_FLATTEN_MAX_DEPTH = 100
+
+_LAZY_TYPE_ERROR = (
+    "Lazy nodes require async rendering. Use `await node.render()` or `async for chunk in node.stream()`."
+)
 
 
 def _resolve_var(name: str, default: object = _MISSING) -> Any:
@@ -106,7 +111,7 @@ class Node(ABC):
             yield chunk
 
     @overload
-    def __rshift__(self, other: NodeContent) -> Fragment: ...  # noqa: F821
+    def __rshift__(self, other: NodeContent) -> Fragment: ...
 
     @overload
     def __rshift__(self, other: None) -> None: ...
@@ -117,9 +122,7 @@ class Node(ABC):
     def __rshift__(self, other):
         if other is None or other is False:
             return None
-        # _Fragment is set by element.py at import time to avoid circular imports.
-        assert _Fragment is not None
-        return _Fragment(self, self).__rshift__(other)
+        return Fragment(self, self).__rshift__(other)
 
     @property
     def text_content(self) -> str:
@@ -325,5 +328,213 @@ class ContainerNode(Node):
             yield chunk
 
 
-# Filled in by element.py at import time to avoid circular imports.
-_Fragment: type[Fragment] | None = None
+class Lazy(Node):
+    """Wraps a zero-arg callable, resolved during rendering.
+
+    Handles both sync and async callables. All Lazy nodes require async
+    rendering — _collect and chunks raise TypeError. Use render() or stream().
+    """
+
+    __slots__ = ("fn", "_is_async")
+
+    fn: Callable[..., object]
+    _is_async: bool
+
+    def __init__(self, fn: Callable[..., object], /):
+        super().__init__()
+        self.fn = fn
+        self._is_async = inspect.iscoroutinefunction(fn)
+
+    def __repr__(self) -> str:
+        return f"Lazy({self.fn!r})"
+
+    def __replace__(self, **changes: object) -> Lazy:
+        return type(self)(self.fn)
+
+    def _collect(self, buf: list[str]) -> None:
+        raise TypeError(_LAZY_TYPE_ERROR)
+
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        raise TypeError(_LAZY_TYPE_ERROR)
+        yield  # unreachable, but makes this a generator function
+
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        if ctx is not None:
+            if ctx._depth >= ctx.max_depth:
+                raise RenderLimitExceeded(f"Exceeded max render depth ({ctx.max_depth})")
+            ctx._depth += 1
+        result = self.fn()
+        if isinstance(result, Awaitable):
+            result = await result
+        async for chunk in arender_result(result, ctx):
+            yield chunk
+        if ctx is not None:
+            ctx._depth -= 1
+
+
+def normalize(content: NodeContent) -> Node | str | Template | None:
+    """Normalize any NodeContent value into a leaf type for tree insertion.
+
+    Returns None for suppressed values (None, False).
+    Strings and Templates pass through unchanged.
+    Fragments are unwrapped to their root (cloned if already parented).
+    Callables are wrapped as Lazy nodes.
+    """
+    if content is None or content is False:
+        return None
+    if isinstance(content, str | Template | Node):
+        return content
+    if isinstance(content, Fragment):
+        root = content.root
+        if root.parent_node is not None:
+            return root.clone_node(deep=True)
+        return root
+    if is_content_fn(content):
+        return Lazy(content)
+    raise ValueError(f"Unsupported type: {type(content)}")
+
+
+def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
+    pointer_found: Node | None = None
+
+    new_node = old_node.__replace__(children=[])
+
+    if old_node is pointer_target:
+        pointer_found = new_node
+
+    for child in old_node.children:
+        if type(child) is str or isinstance(child, Template):
+            new_node.children.append(child)
+        elif isinstance(child, Node):
+            new_child, child_pointer = _copy_tree(child, pointer_target)
+            new_child.parent_node = new_node
+            new_node.children.append(new_child)
+            if child_pointer is not None:
+                pointer_found = child_pointer
+
+    return new_node, pointer_found
+
+
+def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
+    """Flatten an iterable of children directly into parent's children list."""
+    if _depth > _FLATTEN_MAX_DEPTH:
+        raise RenderLimitExceeded("Exceeded max nesting depth in children")
+    children = parent.children
+    for item in items:
+        if isinstance(item, Iterable) and not isinstance(item, str | Template | Node | Fragment):
+            _flatten_into(parent, item, _depth=_depth + 1)
+            continue
+        child = normalize(item)
+        if child is None:
+            continue
+        if isinstance(child, Node):
+            if child.parent_node is not None:
+                child = child.clone_node(deep=True)
+            child.parent_node = parent
+        children.append(child)
+
+
+class Fragment:
+    """A document fragment — a builder wrapper around a DOM tree."""
+
+    __slots__ = ("root", "append_pointer")
+
+    root: Node
+    append_pointer: Node
+
+    def __init__(self, root: Node, append_pointer: Node, /):
+        self.root = root
+        self.append_pointer = append_pointer
+
+    def __copy__(self) -> Fragment:
+        return Fragment(self.root, self.append_pointer)
+
+    def __deepcopy__(self, memo=None) -> Fragment:
+        new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
+        if new_pointer is None:
+            raise ValueError("Pointer target not found in the tree")
+        return Fragment(new_root, new_pointer)
+
+    def __replace__(self, /, **changes):
+        return copy.deepcopy(self)
+
+    def __repr__(self):
+        return f"Fragment({self.root!r}, {self.append_pointer!r})"
+
+    async def render(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> str:
+        return await self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
+
+    async def stream(
+        self,
+        *,
+        args: dict[str, object] | None = None,
+        max_depth: int = 100,
+        max_nodes: int | None = None,
+    ) -> AsyncGenerator[str]:
+        async for chunk in self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes):
+            yield chunk
+
+    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
+        yield from self.root.chunks(ctx)
+
+    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
+        async for chunk in self.root.achunks(ctx):
+            yield chunk
+
+    def _collect(self, buf: list[str]) -> None:
+        self.root._collect(buf)
+
+    def __str__(self) -> str:
+        buf: list[str] = []
+        self.root._collect(buf)
+        return "".join(buf)
+
+    def __iter__(self) -> Iterator[Node | str | Template]:
+        return iter(self.root.children)
+
+    @overload
+    def __rshift__(self, other: None) -> None: ...
+
+    @overload
+    def __rshift__(self, other: Literal[False]) -> None: ...
+
+    @overload
+    def __rshift__(self, other: NodeContent) -> Fragment: ...
+
+    def __rshift__(self, other):
+        if other is None or other is False:
+            return None
+
+        if isinstance(other, Iterable) and not isinstance(other, str | Template | Node | Fragment):
+            _flatten_into(self.append_pointer, other)
+            return self
+
+        child = normalize(other)
+        if child is None:
+            return self
+        if isinstance(child, str | Template):
+            self.append_pointer.children.append(child)
+        else:
+            self.append(child)
+        return self
+
+    def append(self, node: Node | Fragment) -> None:
+        """Modify the tree by appending a node to the end."""
+        if isinstance(node, Fragment):
+            new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
+            if new_pointer is None:
+                raise ValueError("Pointer target not found in the tree")
+            # Skip validation — _copy_tree always produces a fresh unparented root
+            new_root.parent_node = self.append_pointer
+            self.append_pointer.children.append(new_root)
+            self.append_pointer = new_pointer
+            return
+
+        self.append_pointer.append_child(node)
+        self.append_pointer = node

@@ -4,9 +4,8 @@ import copy
 from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
 
-from .element import Fragment, normalize
 from .rendering import RenderContext, arender_string, render_string
-from .tree import Node
+from .tree import Fragment, Node, normalize
 
 
 class Deferred(Node):

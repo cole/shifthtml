@@ -3,9 +3,8 @@ from string.templatelib import Template
 from typing import TYPE_CHECKING, Protocol, TypeGuard, runtime_checkable
 
 if TYPE_CHECKING:
-    from .element import Fragment
     from .rendering import RenderContext
-    from .tree import Node
+    from .tree import Fragment, Node
 
 _MISSING: object = object()
 

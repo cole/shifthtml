@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from .element import Fragment
 from .tags import script
+from .tree import Fragment
 
 # Core apply() function — shared by all layers
 _APPLY_JS = (

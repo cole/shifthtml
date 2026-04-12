@@ -1,13 +1,10 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import AsyncGenerator, Generator, Iterable, Iterator
+from collections.abc import AsyncGenerator, Generator
 from string.templatelib import Template
-from typing import ClassVar, Literal, NoReturn, overload
+from typing import ClassVar, NoReturn
 
-from . import tree as _tree_module
-from .errors import RenderLimitExceeded
-from .lazy import Lazy
 from .mappings import ClassList, DatasetMap, StyleMap, _snake_to_kebab
 from .rendering import (
     RenderContext,
@@ -18,72 +15,6 @@ from .rendering import (
     stream_children,
 )
 from .tree import Node
-from .types import NodeContent, is_content_fn
-
-_FLATTEN_MAX_DEPTH = 100
-
-
-def normalize(content: NodeContent) -> Node | str | Template | None:
-    """Normalize any NodeContent value into a leaf type for tree insertion.
-
-    Returns None for suppressed values (None, False).
-    Strings and Templates pass through unchanged.
-    Fragments are unwrapped to their root (cloned if already parented).
-    Callables are wrapped as Lazy nodes.
-    """
-    if content is None or content is False:
-        return None
-    if isinstance(content, str | Template | Node):
-        return content
-    if isinstance(content, Fragment):
-        root = content.root
-        if root.parent_node is not None:
-            return root.clone_node(deep=True)
-        return root
-    if is_content_fn(content):
-        return Lazy(content)
-    raise ValueError(f"Unsupported type: {type(content)}")
-
-
-def _copy_tree(old_node: Node, pointer_target: Node) -> tuple[Node, Node | None]:
-    pointer_found: Node | None = None
-
-    new_node = old_node.__replace__(children=[])
-
-    if old_node is pointer_target:
-        pointer_found = new_node
-
-    for child in old_node.children:
-        if type(child) is str or isinstance(child, Template):
-            new_node.children.append(child)
-        elif isinstance(child, Node):
-            new_child, child_pointer = _copy_tree(child, pointer_target)
-            new_child.parent_node = new_node
-            new_node.children.append(new_child)
-            if child_pointer is not None:
-                pointer_found = child_pointer
-
-    return new_node, pointer_found
-
-
-def _flatten_into(parent: Node, items: Iterable, *, _depth: int = 0) -> None:
-    """Flatten an iterable of children directly into parent's children list."""
-    if _depth > _FLATTEN_MAX_DEPTH:
-        raise RenderLimitExceeded("Exceeded max nesting depth in children")
-    children = parent.children
-    for item in items:
-        if isinstance(item, Iterable) and not isinstance(item, str | Template | Node | Fragment):
-            _flatten_into(parent, item, _depth=_depth + 1)
-            continue
-        child = normalize(item)
-        if child is None:
-            continue
-        if isinstance(child, Node):
-            if child.parent_node is not None:
-                child = child.clone_node(deep=True)
-            child.parent_node = parent
-        children.append(child)
-
 
 _attr_name_cache: dict[str, str] = {}
 
@@ -95,119 +26,6 @@ def _convert_attribute_names(name: str) -> str:
         result = _snake_to_kebab(name.rstrip("_"))
         _attr_name_cache[name] = result
         return result
-
-
-# -- Fragment --
-
-
-class Fragment:
-    """A document fragment — a builder wrapper around a DOM tree."""
-
-    __slots__ = ("root", "append_pointer")
-
-    root: Node
-    append_pointer: Node
-
-    def __init__(self, root: Node, append_pointer: Node, /):
-        self.root = root
-        self.append_pointer = append_pointer
-
-    def __copy__(self) -> Fragment:
-        return Fragment(self.root, self.append_pointer)
-
-    def __deepcopy__(self, memo=None) -> Fragment:
-        new_root, new_pointer = _copy_tree(self.root, self.append_pointer)
-        if new_pointer is None:
-            raise ValueError("Pointer target not found in the tree")
-        return Fragment(new_root, new_pointer)
-
-    def __replace__(self, /, **changes):
-        return copy.deepcopy(self)
-
-    def __repr__(self):
-        return f"Fragment({self.root!r}, {self.append_pointer!r})"
-
-    async def render(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> str:
-        return await self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
-
-    async def stream(
-        self,
-        *,
-        args: dict[str, object] | None = None,
-        max_depth: int = 100,
-        max_nodes: int | None = None,
-    ) -> AsyncGenerator[str]:
-        async for chunk in self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes):
-            yield chunk
-
-    def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
-        yield from self.root.chunks(ctx)
-
-    async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
-        async for chunk in self.root.achunks(ctx):
-            yield chunk
-
-    def _collect(self, buf: list[str]) -> None:
-        self.root._collect(buf)
-
-    def __str__(self) -> str:
-        buf: list[str] = []
-        self.root._collect(buf)
-        return "".join(buf)
-
-    def __iter__(self) -> Iterator[Node | str | Template]:
-        return iter(self.root.children)
-
-    @overload
-    def __rshift__(self, other: None) -> None: ...
-
-    @overload
-    def __rshift__(self, other: Literal[False]) -> None: ...
-
-    @overload
-    def __rshift__(self, other: NodeContent) -> Fragment: ...
-
-    def __rshift__(self, other):
-        if other is None or other is False:
-            return None
-
-        if isinstance(other, Iterable) and not isinstance(other, str | Template | Node | Fragment):
-            _flatten_into(self.append_pointer, other)
-            return self
-
-        child = normalize(other)
-        if child is None:
-            return self
-        if isinstance(child, str | Template):
-            self.append_pointer.children.append(child)
-        else:
-            self.append(child)
-        return self
-
-    def append(self, node: Node | Fragment) -> None:
-        """Modify the tree by appending a node to the end."""
-        if isinstance(node, Fragment):
-            new_root, new_pointer = _copy_tree(node.root, node.append_pointer)
-            if new_pointer is None:
-                raise ValueError("Pointer target not found in the tree")
-            # Skip validation — _copy_tree always produces a fresh unparented root
-            new_root.parent_node = self.append_pointer
-            self.append_pointer.children.append(new_root)
-            self.append_pointer = new_pointer
-            return
-
-        self.append_pointer.append_child(node)
-        self.append_pointer = node
-
-
-# Register Fragment so tree.Node.__rshift__ can create instances without circular imports.
-_tree_module._Fragment = Fragment
 
 
 class Comment(Node):
