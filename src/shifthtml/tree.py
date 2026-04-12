@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable, Generator, Iterable, Iterator
 from contextvars import ContextVar
 from string.templatelib import Template
-from typing import Any, Literal, Self, overload
+from typing import Any, Self
 
 from .errors import RenderLimitExceeded
 from .rendering import (
@@ -52,17 +52,21 @@ class Node(ABC):
     Analogous to the DOM Node interface. Manages parent/child relationships,
     provides tree traversal, and supports rendering to HTML via chunks()/achunks().
 
-    The >> operator creates a Fragment for building HTML trees.
+    The >> operator builds HTML trees in-place, returning self. The _cursor slot
+    tracks where the next appended Node should land so chained ``a >> b >> c``
+    nests into the tree rather than appending siblings.
     """
 
-    __slots__ = ("parent_node", "children")
+    __slots__ = ("parent_node", "children", "_cursor")
 
     parent_node: None | Node
     children: list[ChildNode]
+    _cursor: Node | None
 
     def __init__(self):
         self.parent_node = None
         self.children = []
+        self._cursor = None
 
     def _collect(self, buf: list[str]) -> None:
         """Collect HTML chunks into a buffer. Default delegates to chunks()."""
@@ -110,19 +114,27 @@ class Node(ABC):
         async for chunk in aflush_deferred(ctx):
             yield chunk
 
-    @overload
-    def __rshift__(self, other: NodeContent) -> Fragment: ...
-
-    @overload
-    def __rshift__(self, other: None) -> None: ...
-
-    @overload
-    def __rshift__(self, other: Literal[False]) -> None: ...
-
-    def __rshift__(self, other):
+    def __rshift__(self, other: NodeContent | None) -> Self:
         if other is None or other is False:
-            return None
-        return Fragment(self, self).__rshift__(other)
+            return self
+
+        target = self._cursor if self._cursor is not None else self
+
+        if isinstance(other, Iterable) and not isinstance(other, str | Template | Node | Fragment):
+            _flatten_into(target, other)
+            return self
+
+        child = normalize(other)
+        if child is None:
+            return self
+        if isinstance(child, str | Template):
+            target.children.append(child)
+        else:
+            if child.parent_node is not None:
+                child = child.clone_node(deep=True)
+            target.append_child(child)
+            self._cursor = child
+        return self
 
     @property
     def text_content(self) -> str:
@@ -498,18 +510,9 @@ class Fragment:
     def __iter__(self) -> Iterator[Node | str | Template]:
         return iter(self.root.children)
 
-    @overload
-    def __rshift__(self, other: None) -> None: ...
-
-    @overload
-    def __rshift__(self, other: Literal[False]) -> None: ...
-
-    @overload
-    def __rshift__(self, other: NodeContent) -> Fragment: ...
-
-    def __rshift__(self, other):
+    def __rshift__(self, other: NodeContent | None) -> Fragment:
         if other is None or other is False:
-            return None
+            return self
 
         if isinstance(other, Iterable) and not isinstance(other, str | Template | Node | Fragment):
             _flatten_into(self.append_pointer, other)

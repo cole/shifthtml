@@ -1,5 +1,4 @@
 import pytest
-from conftest import root
 
 from shifthtml import div, h1, label
 
@@ -96,12 +95,11 @@ def test_attribute_empty_string():
 
 
 def test_boolean_attributes():
-    f = div() >> "x"
-    el = root(f)
+    el = div() >> "x"
     el["hidden"] = True
-    assert str(f) == "<div hidden>x</div>"
+    assert str(el) == "<div hidden>x</div>"
     el["hidden"] = False
-    assert str(f) == "<div>x</div>"
+    assert str(el) == "<div>x</div>"
 
 
 def test_trailing_underscore_stripped_for_reserved_words():

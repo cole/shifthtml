@@ -20,6 +20,7 @@ class ConditionalNode(Node):
     def __init__(self, var: Var, if_true: NodeContent, if_false: NodeContent | None = None):
         self.parent_node = None
         self.children = []
+        self._cursor = None
         self.var = var
         self.if_true = if_true
         self.if_false = if_false
@@ -76,6 +77,7 @@ class IterationNode(Node):
     def __init__(self, var: Var, body_fn: Callable[[Any], NodeContent]):
         self.parent_node = None
         self.children = []
+        self._cursor = None
         self.var = var
         self.body_fn = body_fn
 

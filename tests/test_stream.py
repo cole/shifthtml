@@ -158,7 +158,7 @@ async def test_unbuffered_stream():
 
 
 async def test_defer_with_node_loading():
-    loading = (span() >> "Loading...").root
+    loading = span() >> "Loading..."
     tag = div() >> defer("slot", p() >> "Content", loading=loading)
     result = await tag.render()
     assert '<div id="slot"><span>Loading...</span></div>' in result
@@ -169,7 +169,7 @@ async def test_async_defer_with_node_loading():
     async def get_content():
         return span() >> "loaded"
 
-    loading = (span() >> "please wait").root
+    loading = span() >> "please wait"
     page = div() >> defer("slot", div() >> get_content, loading=loading)
     chunks = [chunk async for chunk in page.stream()]
     result = "".join(chunks)

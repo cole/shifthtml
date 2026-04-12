@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .tags import script
-from .tree import Fragment
+from .tree import Node
 
 # Core apply() function — shared by all layers
 _APPLY_JS = (
@@ -63,7 +63,7 @@ def runtime(
     *,
     stream: str | None = None,
     socket: str | None = None,
-) -> Fragment:
+) -> Node:
     """Return a <script> tag with the shift runtime.
 
     Always includes the core apply() and <shift-update> custom element.

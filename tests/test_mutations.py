@@ -203,8 +203,8 @@ async def test_sse_with_mutation_fragment():
 
 async def test_sse_with_multiple_mutation_fragments():
     wrapper = ContainerNode()
-    wrapper.append_child((await replace("a", span() >> "1")).fragment().root)
-    wrapper.append_child((await replace("b", li() >> "2")).fragment().root)
+    wrapper.append_child((await replace("a", span() >> "1")).fragment())
+    wrapper.append_child((await replace("b", li() >> "2")).fragment())
     result = await sse(wrapper)
     assert result == (
         "data: "

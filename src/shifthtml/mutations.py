@@ -76,7 +76,7 @@ class Mutation:
         parts.append("")
         return "\n".join(parts)
 
-    def fragment(self) -> Fragment:
+    def fragment(self) -> Node:
         """<shift-update> fragment for inline page streaming."""
         el = ShiftUpdateElement(action=self.action, target=self.target)
         if self.action == "remove":

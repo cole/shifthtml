@@ -238,7 +238,7 @@ def test_false_suppressed_in_children():
 
 def test_false_suppressed_top_level():
     result = div() >> False
-    assert result is None
+    assert str(result) == "<div></div>"
 
 
 def test_conditional_pattern_true():
@@ -261,7 +261,7 @@ async def test_false_in_lazy_return():
 def test_none_still_suppressed():
     tag = div() >> (None, "text")
     assert str(tag) == "<div>text</div>"
-    assert div() >> None is None
+    assert str(div() >> None) == "<div></div>"
 
 
 def test_zero_not_suppressed():

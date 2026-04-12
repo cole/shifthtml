@@ -38,6 +38,7 @@ class Comment(Node):
     def __init__(self, content: str | Template, /):
         self.parent_node = None
         self.children = []
+        self._cursor = None
         self.content = content
 
     def __repr__(self):
@@ -80,6 +81,7 @@ class Element(Node):
     def __init__(self, attributes: dict[str, object] | None = None, /, **keyword_attributes: object):
         self.parent_node = None
         self.children = []
+        self._cursor = None
         if keyword_attributes:
             if attributes:
                 merged: dict[str, object] = {k.lower(): v for k, v in attributes.items()}
@@ -109,6 +111,7 @@ class Element(Node):
     def __replace__(self, /, **changes):
         new_obj = object.__new__(type(self))
         new_obj.parent_node = None
+        new_obj._cursor = None
         new_obj.attributes = {**self.attributes}
         new_obj._style = None
         new_obj._class_list = None
