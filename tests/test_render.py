@@ -4,7 +4,7 @@ from shifthtml import (
     Comment,
     Fragment,
     Lazy,
-    Var,
+    Slot,
     aside,
     body,
     button,
@@ -287,10 +287,10 @@ async def test_fragment_stream():
     assert "".join(chunks) == "<div><p>hello</p><p>world</p></div>"
 
 
-async def test_fragment_stream_with_args():
-    title = Var("title")
+async def test_fragment_stream_with_params():
+    title = Slot("title")
     f = div() >> t"{title}"
-    chunks = [chunk async for chunk in f.stream(args={"title": "hi"})]
+    chunks = [chunk async for chunk in f.stream(params={"title": "hi"})]
     assert "".join(chunks) == "<div>hi</div>"
 
 

@@ -7,6 +7,7 @@ from .element import (
 )
 from .errors import RenderLimitExceeded
 from .rendering import RenderContext
+from .slot import ConditionalNode, IterationNode, Slot, slots
 from .tags import (
     a,
     abbr,
@@ -123,7 +124,6 @@ from .tags import (
 )
 from .tree import Fragment, Lazy, Node
 from .types import Renderable
-from .var import ConditionalNode, IterationNode, Var, args
 
 __all__ = (
     "tags",
@@ -133,8 +133,8 @@ __all__ = (
     "ConditionalNode",
     "IterationNode",
     "Lazy",
-    "Var",
-    "args",
+    "Slot",
+    "slots",
     "Element",
     "Fragment",
     "Node",

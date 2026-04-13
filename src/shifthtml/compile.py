@@ -1,7 +1,7 @@
 """Compile a ShiftHTML tree into a CompiledTemplate for fast repeated rendering.
 
 Walks the tree once at compile time and generates a Python function via exec().
-Static HTML becomes string literals, Var slots become inline resolution code,
+Static HTML becomes string literals, Slots become inline resolution code,
 conditionals become if/else blocks, and loops become for loops.
 """
 
@@ -16,9 +16,9 @@ from typing import Any
 
 from .element import Comment, Element
 from .rendering import RenderContext, _collect_result, _convert, _needs_escape, render_open_tag
-from .tree import Fragment, Lazy, Node, _render_vars
+from .slot import ConditionalNode, IterationNode, Slot
+from .tree import Fragment, Lazy, Node, _render_params
 from .types import NodeContent, Renderable, is_node_list
-from .var import ConditionalNode, IterationNode, Var
 
 
 class _CompiledNode(Node):
@@ -33,16 +33,16 @@ class _CompiledNode(Node):
         self._render_fn = render_fn
 
     def _collect(self, buf: list[str]) -> None:
-        self._render_fn(_render_vars.get() or {}, buf)
+        self._render_fn(_render_params.get() or {}, buf)
 
     def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:
         buf: list[str] = []
-        self._render_fn(_render_vars.get() or {}, buf)
+        self._render_fn(_render_params.get() or {}, buf)
         yield "".join(buf)
 
     async def achunks(self, ctx: RenderContext | None = None) -> AsyncGenerator[str]:
         buf: list[str] = []
-        self._render_fn(_render_vars.get() or {}, buf)
+        self._render_fn(_render_params.get() or {}, buf)
         yield "".join(buf)
 
 
@@ -66,18 +66,18 @@ class CompiledTemplate:
         """Return a Node that can be embedded in any tree via >>."""
         return _CompiledNode(self._render_fn)
 
-    def render(self, *, args: dict[str, object] | None = None) -> str:
-        resolved = args or {}
-        _render_vars.set(resolved)
+    def render(self, *, params: dict[str, object] | None = None) -> str:
+        resolved = params or {}
+        _render_params.set(resolved)
         parts: list[str] = []
         self._render_fn(resolved, parts)
         return "".join(parts)
 
-    def stream(self, *, args: dict[str, object] | None = None) -> Generator[str]:
-        yield self.render(args=args)
+    def stream(self, *, params: dict[str, object] | None = None) -> Generator[str]:
+        yield self.render(params=params)
 
-    async def astream(self, *, args: dict[str, object] | None = None) -> AsyncGenerator[str]:
-        yield self.render(args=args)
+    async def astream(self, *, params: dict[str, object] | None = None) -> AsyncGenerator[str]:
+        yield self.render(params=params)
 
     def __str__(self) -> str:
         return self.render()
@@ -153,7 +153,7 @@ class _CodeGen:
         closure_params = ", ".join(self._closures) if self._closures else ""
         header = [
             f"def _make_render({closure_params}):",
-            "    def _render(_vars, _buf):",
+            "    def _render(_params, _buf):",
             "        _a = _buf.append",
         ]
         if not self._lines:
@@ -182,12 +182,10 @@ class _CodeGen:
                 self._add_static(f"<!--{node._escape_content()}-->")
             case Element():
                 self._visit_element(node)
-            case Lazy() if isinstance(node.fn, Var):
-                self._emit_var_interpolation(node.fn)
+            case Lazy() if isinstance(node.fn, Slot):
+                self._emit_slot_interpolation(node.fn)
             case Lazy():
-                raise TypeError(
-                    "compile() cannot compile Lazy nodes. Only Var slots remain dynamic in compiled templates."
-                )
+                raise TypeError("compile() cannot compile Lazy nodes. Only Slots remain dynamic in compiled templates.")
             case ConditionalNode():
                 self._visit_conditional(node)
             case IterationNode():
@@ -204,7 +202,7 @@ class _CodeGen:
             self._add_static(f"</{el.tag}>")
 
     def _visit_conditional(self, node: ConditionalNode) -> None:
-        self._emit(f"if _vars[{node.var.name!r}]:")
+        self._emit(f"if _params[{node.slot.name!r}]:")
         self._indent += 1
         before = len(self._lines)
         self._emit_content(node.if_true)
@@ -226,7 +224,7 @@ class _CodeGen:
         fn_name = self._capture("_fn", node.body_fn)
         item = self._next_name("_i")
         self._emit_block(f"""\
-for {item} in _vars[{node.var.name!r}]:
+for {item} in _params[{node.slot.name!r}]:
     {fn_name}({item})._collect(_buf)""")
 
     def _visit_children(self, children: list) -> None:
@@ -247,12 +245,12 @@ for {item} in _vars[{node.var.name!r}]:
                 case Interpolation():
                     self._emit_interpolation(item)
 
-    def _emit_var_interpolation(self, var: Var) -> None:
-        """Emit code for a Var used as a child node (may return Node or str)."""
-        var_name = self._capture("_var", var)
+    def _emit_slot_interpolation(self, slot: Slot) -> None:
+        """Emit code for a Slot used as a child node (may return Node or str)."""
+        slot_name = self._capture("_slot", slot)
         v = self._next_name("_v")
         self._emit_block(f"""\
-{v} = {var_name}()
+{v} = {slot_name}()
 if isinstance({v}, Renderable):
     {v}._collect(_buf)
 else:
@@ -301,8 +299,8 @@ else:
             case _ if is_node_list(content):
                 for item in content:
                     self._emit_content(item)
-            case _ if isinstance(content, Var):
-                self._emit_var_interpolation(content)
+            case _ if isinstance(content, Slot):
+                self._emit_slot_interpolation(content)
             case _ if callable(content):
                 fn_name = self._capture("_lazy", content)
                 self._emit(f"_collect_result({fn_name}(), _buf)")

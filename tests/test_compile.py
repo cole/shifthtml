@@ -3,8 +3,7 @@ import pytest
 from shifthtml import (
     Comment,
     Lazy,
-    Var,
-    args,
+    Slot,
     br,
     compile,
     div,
@@ -16,6 +15,7 @@ from shifthtml import (
     link,
     meta,
     p,
+    slots,
     title,
     ul,
 )
@@ -27,20 +27,20 @@ def test_compile_static_tree():
     assert compiled.render() == str(tree)
 
 
-def test_compile_with_vars():
-    page = div() >> (h1() >> t"{args.title}", p() >> t"{args.body}")
+def test_compile_with_params():
+    page = div() >> (h1() >> t"{slots.title}", p() >> t"{slots.body}")
     compiled = compile(page)
 
-    assert compiled.render(args={"title": "Page 1", "body": "Hello"}) == "<div><h1>Page 1</h1><p>Hello</p></div>"
-    assert compiled.render(args={"title": "Page 2", "body": "World"}) == "<div><h1>Page 2</h1><p>World</p></div>"
+    assert compiled.render(params={"title": "Page 1", "body": "Hello"}) == "<div><h1>Page 1</h1><p>Hello</p></div>"
+    assert compiled.render(params={"title": "Page 2", "body": "World"}) == "<div><h1>Page 2</h1><p>World</p></div>"
 
 
 def test_compile_with_tstrings():
-    name = Var("name")
+    name = Slot("name")
     page = p() >> t"Hello, {name}!"
     compiled = compile(page)
 
-    assert compiled.render(args={"name": "<script>"}) == "<p>Hello, &lt;script&gt;!</p>"
+    assert compiled.render(params={"name": "<script>"}) == "<p>Hello, &lt;script&gt;!</p>"
 
 
 def test_compile_escapes_static_strings():
@@ -55,12 +55,12 @@ def test_compile_sync_lazy_raises():
         compile(tree)
 
 
-def test_compile_var_as_child():
-    page = div() >> args.title
+def test_compile_slot_as_child():
+    page = div() >> slots.title
     compiled = compile(page)
 
-    assert compiled.render(args={"title": "Hello"}) == "<div>Hello</div>"
-    assert compiled.render(args={"title": "World"}) == "<div>World</div>"
+    assert compiled.render(params={"title": "Hello"}) == "<div>Hello</div>"
+    assert compiled.render(params={"title": "World"}) == "<div>World</div>"
 
 
 def test_compile_async_lazy_raises():
@@ -85,12 +85,12 @@ def test_compile_comment():
 
 
 def test_compile_nested_templates():
-    greeting = Var("greeting")
-    name = Var("name")
+    greeting = Slot("greeting")
+    name = Slot("name")
     page = p() >> t"{greeting}, {name}!"
     compiled = compile(page)
 
-    assert compiled.render(args={"greeting": "Hi", "name": "Alice"}) == "<p>Hi, Alice!</p>"
+    assert compiled.render(params={"greeting": "Hi", "name": "Alice"}) == "<p>Hi, Alice!</p>"
 
 
 def test_compile_html_doctype():
@@ -104,37 +104,37 @@ def test_compile_html_doctype():
 @pytest.mark.anyio
 async def test_compile_render_parity():
     page = div() >> (
-        h1() >> t"{args.title}",
-        args.content,
-        ul() >> [li() >> t"item {args.idx}"],
+        h1() >> t"{slots.title}",
+        slots.content,
+        ul() >> [li() >> t"item {slots.idx}"],
     )
-    test_args: dict[str, object] = {"title": "Test", "content": "hello", "idx": "1"}
+    test_params: dict[str, object] = {"title": "Test", "content": "hello", "idx": "1"}
 
-    assert compile(page).render(args=test_args) == await page.render(args=test_args)
+    assert compile(page).render(params=test_params) == await page.render(params=test_params)
 
 
-def test_compile_var_returning_node():
-    page = div() >> args.content
+def test_compile_slot_returning_node():
+    page = div() >> slots.content
     compiled = compile(page)
 
     node_result = p() >> "dynamic node"
-    assert compiled.render(args={"content": node_result}) == "<div><p>dynamic node</p></div>"
+    assert compiled.render(params={"content": node_result}) == "<div><p>dynamic node</p></div>"
 
 
 def test_compile_stream():
-    page = h1() >> t"{args.title}"
+    page = h1() >> t"{slots.title}"
     compiled = compile(page)
 
-    chunks = list(compiled.stream(args={"title": "Streamed"}))
+    chunks = list(compiled.stream(params={"title": "Streamed"}))
     assert "".join(chunks) == "<h1>Streamed</h1>"
 
 
 @pytest.mark.anyio
 async def test_compile_astream():
-    page = h1() >> t"{args.title}"
+    page = h1() >> t"{slots.title}"
     compiled = compile(page)
 
-    chunks = [chunk async for chunk in compiled.astream(args={"title": "Async"})]
+    chunks = [chunk async for chunk in compiled.astream(params={"title": "Async"})]
     assert "".join(chunks) == "<h1>Async</h1>"
 
 
@@ -156,26 +156,26 @@ def test_compile_link_void_with_attrs():
     assert compiled.render() == '<head><link rel="stylesheet" href="/style.css" /></head>'
 
 
-def test_compile_node_var_preserves_args_for_later_vars():
-    page = div() >> (args.content, p() >> t"{args.title}")
+def test_compile_node_slot_preserves_params_for_later_slots():
+    page = div() >> (slots.content, p() >> t"{slots.title}")
     compiled = compile(page)
 
-    result = compiled.render(args={"content": p() >> "dynamic", "title": "Hello"})
+    result = compiled.render(params={"content": p() >> "dynamic", "title": "Hello"})
     assert result == "<div><p>dynamic</p><p>Hello</p></div>"
 
 
 def test_compile_conditional():
-    page = div() >> (args.show & (p() >> "yes"),)
+    page = div() >> (slots.show.then(p() >> "yes"),)
     compiled = compile(page)
-    assert compiled.render(args={"show": True}) == "<div><p>yes</p></div>"
-    assert compiled.render(args={"show": False}) == "<div></div>"
+    assert compiled.render(params={"show": True}) == "<div><p>yes</p></div>"
+    assert compiled.render(params={"show": False}) == "<div></div>"
 
 
 def test_compile_conditional_with_else():
-    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    page = div() >> (slots.show.then(p() >> "yes").otherwise(p() >> "no"),)
     compiled = compile(page)
-    assert compiled.render(args={"show": True}) == "<div><p>yes</p></div>"
-    assert compiled.render(args={"show": False}) == "<div><p>no</p></div>"
+    assert compiled.render(params={"show": True}) == "<div><p>yes</p></div>"
+    assert compiled.render(params={"show": False}) == "<div><p>no</p></div>"
 
 
 def test_compile_conditional_callable_branch():
@@ -185,112 +185,112 @@ def test_compile_conditional_callable_branch():
         calls.append(1)
         return p() >> "lazy"
 
-    page = div() >> (args.show & make_content,)
+    page = div() >> (slots.show.then(make_content),)
     compiled = compile(page)
 
-    compiled.render(args={"show": False})
+    compiled.render(params={"show": False})
     assert calls == []
 
-    compiled.render(args={"show": True})
+    compiled.render(params={"show": True})
     assert calls == [1]
 
 
 @pytest.mark.anyio
 async def test_compile_conditional_render_parity():
-    page = div() >> (h1() >> "Title", args.show & (p() >> "visible"))
+    page = div() >> (h1() >> "Title", slots.show.then(p() >> "visible"))
     compiled = compile(page)
     for show in (True, False):
-        test_args: dict[str, object] = {"show": show}
-        assert compiled.render(args=test_args) == await page.render(args=test_args)
+        test_params: dict[str, object] = {"show": show}
+        assert compiled.render(params=test_params) == await page.render(params=test_params)
 
 
 def test_compile_iteration():
-    page = ul() >> args.items.map(lambda x: li() >> x)
+    page = ul() >> slots.items.map(lambda x: li() >> x)
     compiled = compile(page)
-    assert compiled.render(args={"items": ["a", "b"]}) == "<ul><li>a</li><li>b</li></ul>"
-    assert compiled.render(args={"items": []}) == "<ul></ul>"
+    assert compiled.render(params={"items": ["a", "b"]}) == "<ul><li>a</li><li>b</li></ul>"
+    assert compiled.render(params={"items": []}) == "<ul></ul>"
 
 
 @pytest.mark.anyio
 async def test_compile_iteration_render_parity():
-    page = ul() >> args.items.map(lambda x: li() >> x)
+    page = ul() >> slots.items.map(lambda x: li() >> x)
     compiled = compile(page)
     for items in (["a", "b", "c"], [], ["x"]):
-        test_args: dict[str, object] = {"items": items}
-        assert compiled.render(args=test_args) == await page.render(args=test_args)
+        test_params: dict[str, object] = {"items": items}
+        assert compiled.render(params=test_params) == await page.render(params=test_params)
 
 
 @pytest.mark.anyio
 async def test_compile_conditional_astream():
-    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    page = div() >> (slots.show.then(p() >> "yes").otherwise(p() >> "no"),)
     compiled = compile(page)
-    chunks = [chunk async for chunk in compiled.astream(args={"show": True})]
+    chunks = [chunk async for chunk in compiled.astream(params={"show": True})]
     assert "".join(chunks) == "<div><p>yes</p></div>"
 
 
 def test_compile_conditional_stream():
-    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    page = div() >> (slots.show.then(p() >> "yes").otherwise(p() >> "no"),)
     compiled = compile(page)
-    chunks = list(compiled.stream(args={"show": False}))
+    chunks = list(compiled.stream(params={"show": False}))
     assert "".join(chunks) == "<div><p>no</p></div>"
 
 
 def test_compile_conditional_stream_true():
-    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    page = div() >> (slots.show.then(p() >> "yes").otherwise(p() >> "no"),)
     compiled = compile(page)
-    chunks = list(compiled.stream(args={"show": True}))
+    chunks = list(compiled.stream(params={"show": True}))
     assert "".join(chunks) == "<div><p>yes</p></div>"
 
 
 def test_compile_iteration_stream():
-    page = ul() >> args.items.map(lambda x: li() >> x)
+    page = ul() >> slots.items.map(lambda x: li() >> x)
     compiled = compile(page)
-    chunks = list(compiled.stream(args={"items": ["a", "b"]}))
+    chunks = list(compiled.stream(params={"items": ["a", "b"]}))
     assert "".join(chunks) == "<ul><li>a</li><li>b</li></ul>"
 
 
 @pytest.mark.anyio
 async def test_compile_conditional_astream_false():
-    page = div() >> ((args.show & (p() >> "yes")) | (p() >> "no"),)
+    page = div() >> (slots.show.then(p() >> "yes").otherwise(p() >> "no"),)
     compiled = compile(page)
-    chunks = [chunk async for chunk in compiled.astream(args={"show": False})]
+    chunks = [chunk async for chunk in compiled.astream(params={"show": False})]
     assert "".join(chunks) == "<div><p>no</p></div>"
 
 
 @pytest.mark.anyio
 async def test_compile_iteration_astream():
-    page = ul() >> args.items.map(lambda x: li() >> x)
+    page = ul() >> slots.items.map(lambda x: li() >> x)
     compiled = compile(page)
-    chunks = [chunk async for chunk in compiled.astream(args={"items": ["x", "y"]})]
+    chunks = [chunk async for chunk in compiled.astream(params={"items": ["x", "y"]})]
     assert "".join(chunks) == "<ul><li>x</li><li>y</li></ul>"
 
 
 def test_compile_conditional_callable_in_branch_compiled():
-    page = div() >> (args.show & (lambda: p() >> "lazy"),)
+    page = div() >> (slots.show.then(lambda: p() >> "lazy"),)
     compiled = compile(page)
-    assert compiled.render(args={"show": True}) == "<div><p>lazy</p></div>"
-    assert compiled.render(args={"show": False}) == "<div></div>"
+    assert compiled.render(params={"show": True}) == "<div><p>lazy</p></div>"
+    assert compiled.render(params={"show": False}) == "<div></div>"
 
 
 def test_compile_conditional_callable_stream():
-    page = div() >> (args.show & (lambda: p() >> "lazy"),)
+    page = div() >> (slots.show.then(lambda: p() >> "lazy"),)
     compiled = compile(page)
-    chunks = list(compiled.stream(args={"show": True}))
+    chunks = list(compiled.stream(params={"show": True}))
     assert "".join(chunks) == "<div><p>lazy</p></div>"
 
 
 @pytest.mark.anyio
 async def test_compile_conditional_callable_astream():
-    page = div() >> (args.show & (lambda: p() >> "lazy"),)
+    page = div() >> (slots.show.then(lambda: p() >> "lazy"),)
     compiled = compile(page)
-    chunks = [chunk async for chunk in compiled.astream(args={"show": True})]
+    chunks = [chunk async for chunk in compiled.astream(params={"show": True})]
     assert "".join(chunks) == "<div><p>lazy</p></div>"
 
 
 def test_compile_conditional_with_list_content():
-    page = div() >> (args.show & (p() >> "a", p() >> "b"),)
+    page = div() >> (slots.show.then((p() >> "a", p() >> "b")),)
     compiled = compile(page)
-    assert compiled.render(args={"show": True}) == "<div><p>a</p><p>b</p></div>"
+    assert compiled.render(params={"show": True}) == "<div><p>a</p><p>b</p></div>"
 
 
 def test_compiled_embeddable_in_tree():
@@ -300,16 +300,16 @@ def test_compiled_embeddable_in_tree():
 
 
 @pytest.mark.anyio
-async def test_compiled_embeddable_with_args():
-    header_tpl = compile(h1() >> t"{args.title}")
+async def test_compiled_embeddable_with_params():
+    header_tpl = compile(h1() >> t"{slots.title}")
     page = div() >> (header_tpl.as_node(), p() >> "body")
-    result = await page.render(args={"title": "Hello"})
+    result = await page.render(params={"title": "Hello"})
     assert result == "<div><h1>Hello</h1><p>body</p></div>"
 
 
 @pytest.mark.anyio
 async def test_compiled_embeddable_stream():
-    header_tpl = compile(h1() >> t"{args.title}")
+    header_tpl = compile(h1() >> t"{slots.title}")
     page = div() >> (header_tpl.as_node(), p() >> "body")
-    chunks = [chunk async for chunk in page.stream(args={"title": "Hi"})]
+    chunks = [chunk async for chunk in page.stream(params={"title": "Hi"})]
     assert "".join(chunks) == "<div><h1>Hi</h1><p>body</p></div>"

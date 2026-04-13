@@ -22,11 +22,11 @@ from .rendering import (
 )
 from .types import _MISSING, NodeContent, is_content_fn
 
-_render_vars: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_vars", default=None)
+_render_params: ContextVar[dict[str, object] | None] = ContextVar("shifthtml.render_params", default=None)
 
 type ChildNode = Node | str | Template
 
-_EMPTY_ARGS: dict[str, object] = {}
+_EMPTY_PARAMS: dict[str, object] = {}
 
 _FLATTEN_MAX_DEPTH = 100
 
@@ -35,14 +35,14 @@ _LAZY_TYPE_ERROR = (
 )
 
 
-def _resolve_var(name: str, default: object = _MISSING) -> Any:
-    """Look up a render-time variable by name. Used by compiled template execution."""
-    vars = _render_vars.get()
-    if vars and name in vars:
-        return vars[name]
+def _resolve_slot(name: str, default: object = _MISSING) -> Any:
+    """Look up a render-time slot value by name. Used by compiled template execution."""
+    params = _render_params.get()
+    if params and name in params:
+        return params[name]
     if default is not _MISSING:
         return default
-    raise LookupError(f"Var {name!r} not set")
+    raise LookupError(f"Slot {name!r} not filled")
 
 
 class Node(ABC):
@@ -85,12 +85,12 @@ class Node(ABC):
     async def render(
         self,
         *,
-        args: dict[str, object] | None = None,
+        params: dict[str, object] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
         """Render this node to an HTML string."""
-        _render_vars.set(args if args is not None else _EMPTY_ARGS)
+        _render_params.set(params if params is not None else _EMPTY_PARAMS)
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
         parts: list[str] = []
         async for chunk in self.achunks(ctx):
@@ -102,12 +102,12 @@ class Node(ABC):
     async def stream(
         self,
         *,
-        args: dict[str, object] | None = None,
+        params: dict[str, object] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
         """Yield HTML chunks asynchronously for this node."""
-        _render_vars.set(args or {})
+        _render_params.set(params or {})
         ctx = RenderContext(max_depth=max_depth, max_nodes=max_nodes, _root_node=self)
         async for chunk in self.achunks(ctx):
             yield chunk
@@ -476,20 +476,20 @@ class Fragment:
     async def render(
         self,
         *,
-        args: dict[str, object] | None = None,
+        params: dict[str, object] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> str:
-        return await self.root.render(args=args, max_depth=max_depth, max_nodes=max_nodes)
+        return await self.root.render(params=params, max_depth=max_depth, max_nodes=max_nodes)
 
     async def stream(
         self,
         *,
-        args: dict[str, object] | None = None,
+        params: dict[str, object] | None = None,
         max_depth: int = 100,
         max_nodes: int | None = None,
     ) -> AsyncGenerator[str]:
-        async for chunk in self.root.stream(args=args, max_depth=max_depth, max_nodes=max_nodes):
+        async for chunk in self.root.stream(params=params, max_depth=max_depth, max_nodes=max_nodes):
             yield chunk
 
     def chunks(self, ctx: RenderContext | None = None) -> Generator[str]:

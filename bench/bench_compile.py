@@ -9,7 +9,7 @@
 """Benchmark .compile() vs direct .render() for repeated rendering.
 
 Compares tree-walk rendering against compiled Template iteration on a
-fixed-structure page (~50 elements, 5 Var slots).
+fixed-structure page (~50 elements, 5 Slots).
 """
 
 import argparse
@@ -18,7 +18,6 @@ import sys
 import time
 
 from shifthtml import (
-    args,
     compile,
     div,
     footer,
@@ -33,6 +32,7 @@ from shifthtml import (
     nav,
     p,
     section,
+    slots,
     span,
     style,
     title,
@@ -41,48 +41,49 @@ from shifthtml import (
 
 
 def build_page():
-    """Fixed structure with 5 Var slots and 4 iteration (.map) slots."""
+    """Fixed structure with 5 Slots and 4 iteration (.map) slots."""
     return html(lang="en") >> (
         head()
         >> (
             meta(charset="utf-8"),
             meta(name="viewport", content="width=device-width, initial-scale=1.0"),
-            title() >> t"{args.page_title}",
+            title() >> t"{slots.page_title}",
             link(rel="stylesheet", href="/style.css"),
             style() >> "body { font-family: sans-serif; margin: 0; }",
         ),
         div(class_="wrapper")
         >> (
-            header(class_="site-header") >> (nav() >> ul() >> args.nav_items.map(lambda name: li() >> span() >> name),),
+            header(class_="site-header")
+            >> (nav() >> ul() >> slots.nav_items.map(lambda name: li() >> span() >> name),),
             section(class_="hero")
             >> (
-                h1() >> t"{args.heading}",
-                p(class_="subtitle") >> t"Hello, {args.username}!",
+                h1() >> t"{slots.heading}",
+                p(class_="subtitle") >> t"Hello, {slots.username}!",
             ),
             div(class_="content")
             >> (
                 section(class_="main")
                 >> (
                     h2() >> "About",
-                    p() >> t"{args.bio}",
-                    ul(class_="features") >> args.features.map(lambda name: li() >> span() >> name),
+                    p() >> t"{slots.bio}",
+                    ul(class_="features") >> slots.features.map(lambda name: li() >> span() >> name),
                 ),
                 section(class_="sidebar")
                 >> (
                     h2() >> "Links",
-                    ul() >> args.sidebar_items.map(lambda name: li() >> span() >> name),
+                    ul() >> slots.sidebar_items.map(lambda name: li() >> span() >> name),
                 ),
             ),
             footer(class_="site-footer")
             >> (
-                p() >> t"{args.footer_text}",
-                nav() >> ul() >> args.footer_links.map(lambda name: li() >> span() >> name),
+                p() >> t"{slots.footer_text}",
+                nav() >> ul() >> slots.footer_links.map(lambda name: li() >> span() >> name),
             ),
         ),
     )
 
 
-RENDER_ARGS: dict[str, object] = {
+RENDER_PARAMS: dict[str, object] = {
     "page_title": "My Page",
     "heading": "Welcome",
     "username": "Alice",
@@ -133,14 +134,14 @@ def main() -> None:
     compiled = compile(page)
 
     # Verify output parity
-    assert page.render(args=RENDER_ARGS) == compiled.render(args=RENDER_ARGS), "Output mismatch!"
+    assert page.render(params=RENDER_PARAMS) == compiled.render(params=RENDER_PARAMS), "Output mismatch!"
 
     print(f"Iterations: {cli.iterations}  |  Python: {sys.version.split()[0]}")
-    print(f"Tree: 5 Var slots + 4 .map() loops, {len(compiled.render(args=RENDER_ARGS))} chars output")
+    print(f"Tree: 5 Slots + 4 .map() loops, {len(compiled.render(params=RENDER_PARAMS))} chars output")
     print("-" * 100)
 
-    tree_stats = bench("render(tree)", lambda: page.render(args=RENDER_ARGS), cli.iterations)
-    compiled_stats = bench("render(compiled)", lambda: compiled.render(args=RENDER_ARGS), cli.iterations)
+    tree_stats = bench("render(tree)", lambda: page.render(params=RENDER_PARAMS), cli.iterations)
+    compiled_stats = bench("render(compiled)", lambda: compiled.render(params=RENDER_PARAMS), cli.iterations)
 
     print("-" * 100)
     speedup = tree_stats["median_ms"] / compiled_stats["median_ms"]

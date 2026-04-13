@@ -4,7 +4,7 @@ from functools import partial
 import anyio
 import pytest
 
-from shifthtml import Lazy, Var, div, h1, li, p, span, ul
+from shifthtml import Lazy, Slot, div, h1, li, p, span, ul
 from shifthtml.deferred import defer
 
 pytestmark = pytest.mark.anyio
@@ -183,8 +183,8 @@ async def test_fragment_stream():
     assert "".join(chunks) == "<div><p>hello</p><p>world</p></div>"
 
 
-async def test_fragment_stream_with_args():
-    title = Var("title")
+async def test_fragment_stream_with_params():
+    title = Slot("title")
     f = div() >> t"{title}"
-    chunks = [chunk async for chunk in f.stream(args={"title": "hi"})]
+    chunks = [chunk async for chunk in f.stream(params={"title": "hi"})]
     assert "".join(chunks) == "<div>hi</div>"
